@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-beige: #d4c9a8;
+  --color-beige2: #c8bb96;
+  --color-beige-light: #f5f0e8;
+  --color-beige-border: #e0d8c8;
+  --color-dark: #1a1a1a;
+  --color-accent: #8a7d5a;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Utility: apply playfair via tailwind */
+[class*="font-playfair"] {
+  font-family: 'Playfair Display', Georgia, serif;
+}
