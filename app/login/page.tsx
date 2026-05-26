@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { api, setStoredAuth, getAuthClaims, AuthData } from "@/app/utils/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) errs.email = "Valid email required";
@@ -19,7 +20,25 @@ export default function LoginPage() {
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setLoading(true);
-    setTimeout(() => router.push("/admin"), 1200);
+    try {
+      const data = await api.post<AuthData>("/api/v1/auth/login", {
+        email: form.email,
+        password: form.password,
+      });
+      setStoredAuth(data);
+      const claims = getAuthClaims();
+      if (claims?.scope && claims.scope.includes("SUPER_ADMIN")) {
+        router.push("/super-admin");
+      } else if (claims?.scope && claims.scope.includes("ATTENDEE")) {
+        router.push("/user/dashboard");
+      } else {
+        router.push("/admin");
+      }
+    } catch (err: any) {
+      setErrors((prev) => ({ ...prev, submit: err.message || "Invalid credentials" }));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const set = (k: string, v: string) => {
@@ -46,6 +65,14 @@ export default function LoginPage() {
               <h1 className="font-display text-3xl font-bold tracking-tight mb-1">Welcome back</h1>
               <p className="text-sm text-[#888]">Sign in to your YoEvent account</p>
             </div>
+
+
+
+            {errors.submit && (
+              <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-6 text-sm text-red-700">
+                ⚠️ {errors.submit}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div>

@@ -1,8 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { Bell, Mail, User, Search, X } from "lucide-react";
+import { getStoredAuth } from "@/app/utils/api";
+import { authService } from "@/app/utils/services/authService";
+import { eventService } from "@/app/utils/services/eventService";
 
 const projects = [
   { name: "Update Home Page Offers", pct: 65, status: "WIP", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
@@ -32,6 +35,75 @@ function Sparkline({ bars }: { bars: number[] }) {
 
 export default function AdminPage() {
   const [alertVisible, setAlertVisible] = useState(true);
+  const [profile, setProfile] = useState<{ firstName: string; lastName: string } | null>(null);
+  const [tenant, setTenant] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any[]>([]);
+
+  const fetchTenantData = () => {
+    const auth = getStoredAuth();
+    if (!auth) return;
+
+    authService.getUserById(auth.userId)
+      .then((data) => setProfile(data as any))
+      .catch((err) => console.error("Failed to fetch user profile:", err));
+
+    authService.getTenantById(auth.tenantId)
+      .then(setTenant)
+      .catch((err) => console.error("Failed to fetch tenant:", err));
+
+    Promise.all([
+      eventService.getEventsByTenant(auth.tenantId),
+      eventService.getEventAnalytics()
+    ]).then(([eventsData, analyticsData]) => {
+      setEvents(eventsData || []);
+      setAnalytics(analyticsData || []);
+    }).catch((err) => console.error("Failed to fetch events or analytics:", err));
+  };
+
+  useEffect(() => {
+    fetchTenantData();
+  }, []);
+
+  const handleUpgrade = async () => {
+    const auth = getStoredAuth();
+    if (!auth) return;
+    try {
+      const data = await authService.upgradeTenantToOrganization(auth.tenantId);
+      setTenant(data);
+    } catch (err) {
+      console.error("Failed to upgrade tenant:", err);
+    }
+  };
+
+  const displayEvents = events.length > 0 
+    ? events.map((ev) => {
+        const evAnalytic = analytics.find((a: any) => a.eventId === ev.eventId);
+        const registrations = evAnalytic?.totalRegistrations || 0;
+        const capacity = ev.maxCapacity || 100;
+        const pct = Math.min(100, Math.round((registrations / capacity) * 100));
+
+        let status = "WIP";
+        let cls = "bg-[#d4c9a8]/15 text-[#d4c9a8]";
+        if (ev.status === "Complete" || pct === 100) {
+          status = "Complete";
+          cls = "bg-green-500/15 text-green-400";
+        } else if (ev.status === "Start") {
+          status = "Start";
+          cls = "bg-zinc-700/50 text-zinc-400";
+        }
+
+        return {
+          name: ev.title,
+          pct: pct,
+          status: ev.status || status,
+          cls: cls
+        };
+      })
+    : projects;
+
+  const displayName = profile ? `${profile.firstName} ${profile.lastName}` : "Mr. Jack";
+  const initials = profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "MJ";
 
   return (
     <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
@@ -131,20 +203,33 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* PROFILE */}
             <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 flex flex-col items-center">
               <div className="relative mb-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#d4c9a8] to-[#c8bb96] flex items-center justify-center text-[#1a1a1a] font-bold text-lg">MJ</div>
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#d4c9a8] to-[#c8bb96] flex items-center justify-center text-[#1a1a1a] font-bold text-lg">{initials}</div>
                 <div className="absolute -inset-1 rounded-full border-2 border-transparent border-t-[#d4c9a8] animate-spin"/>
               </div>
-              <div className="text-sm font-semibold text-white mb-0.5">Mr. Jack</div>
-              <div className="text-xs text-[#555] mb-5">UI/UX Designer</div>
-              {[["Package","Regular"],["Payment","Direct Debit"],["Last Payment","$85"],["Date","15-May-2026"]].map(([k,v]) => (
+              <div className="text-sm font-semibold text-white mb-0.5">{displayName}</div>
+              <div className="text-xs text-[#555] mb-5">Organiser</div>
+              {[
+                ["Account Type", tenant?.type || "INDIVIDUAL"],
+                ["Package", "Regular"],
+                ["Payment", "Direct Debit"],
+                ["Last Payment", "$85"],
+                ["Date", "15-May-2026"]
+              ].map(([k, v]) => (
                 <div key={k} className="flex justify-between w-full py-2.5 border-b border-[#2a2a2a] text-xs">
                   <span className="text-[#666]">{k}</span><strong className="text-[#ccc] font-medium">{v}</strong>
                 </div>
               ))}
-              <button className="w-full mt-4 py-2.5 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-sm font-semibold hover:bg-[#c8bb96] transition-colors cursor-pointer">Change Plan</button>
+              {tenant?.type !== "ORGANIZATION" ? (
+                <button onClick={handleUpgrade} className="w-full mt-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-full text-sm font-semibold hover:brightness-110 transition-all cursor-pointer">
+                  Upgrade to Org 🚀
+                </button>
+              ) : (
+                <button className="w-full mt-4 py-2.5 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-sm font-semibold hover:bg-[#c8bb96] transition-colors cursor-pointer">
+                  Change Plan
+                </button>
+              )}
             </div>
           </div>
 
@@ -159,9 +244,9 @@ export default function AdminPage() {
                 <span>Task</span><span>Progress</span><span>Status</span>
               </div>
               <div className="divide-y divide-[#1a1a1a]">
-                {projects.map((p) => (
+                {displayEvents.map((p) => (
                   <div key={p.name} className="grid grid-cols-[2fr_1fr_1fr] gap-3 items-center py-3 hover:bg-[#252525] hover:-mx-3 hover:px-3 rounded-lg transition-all">
-                    <span className="text-sm text-[#ddd] font-medium">{p.name}</span>
+                    <span className="text-sm text-[#ddd] font-medium truncate">{p.name}</span>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-1 bg-[#333] rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-[#d4c9a8] to-[#c8bb96] rounded-full" style={{ width: `${p.pct}%` }} />

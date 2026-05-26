@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { api, getStoredAuth } from "@/app/utils/api";
 
 type CalEvent = { title: string; time: string; cls: string };
 type EventMap = Record<string, CalEvent[]>;
@@ -40,6 +41,9 @@ export default function CalendarPage() {
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(5); // June
   const [events, setEvents] = useState<EventMap>(INITIAL_EVENTS);
+  const [dbEvents, setDbEvents] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [modal, setModal] = useState(false);
   const [toast, setToast] = useState(false);
   const [form, setForm] = useState({ title: "", start: "2026-06-23", startTime: "09:00", endTime: "17:00", category: "Conference", desc: "" });
@@ -55,16 +59,107 @@ export default function CalendarPage() {
   const dateStr = (d: number) => `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const isToday = (d: number) => TODAY.getFullYear() === year && TODAY.getMonth() === month && TODAY.getDate() === d;
 
-  const handleCreate = () => {
+  const fetchCalendarData = () => {
+    const auth = getStoredAuth();
+    if (!auth) return;
+
+    Promise.all([
+      api.get<any[]>(`/api/v1/events/tenant/${auth.tenantId}`),
+      api.get<any[]>(`/api/v1/eventschedules`),
+      api.get<any[]>(`/api/v1/eventcategorys`)
+    ]).then(([eventsData, schedulesData, categoriesData]) => {
+      setDbEvents(eventsData || []);
+      setSchedules(schedulesData || []);
+      setCategories(categoriesData || []);
+
+      const newEventMap: EventMap = {};
+      Object.keys(INITIAL_EVENTS).forEach(k => {
+        newEventMap[k] = [...INITIAL_EVENTS[k]];
+      });
+
+      eventsData?.forEach((ev: any) => {
+        const sched = schedulesData?.find((s: any) => s.eventId === ev.eventId);
+        if (sched && sched.startDatetime) {
+          const parts = sched.startDatetime.split("T");
+          const dStr = parts[0];
+          const timeStr = parts[1] ? parts[1].substring(0, 5) : "00:00";
+
+          const categoryObj = categoriesData?.find((c: any) => c.categoryId === ev.categoryId);
+          const catName = categoryObj?.name || "Conference";
+          const cls = CAT_CLS[catName] || CAT_CLS["Conference"];
+
+          if (!newEventMap[dStr]) {
+            newEventMap[dStr] = [];
+          }
+
+          if (!newEventMap[dStr].some(e => e.title === ev.title && e.time === timeStr)) {
+            newEventMap[dStr].push({
+              title: ev.title,
+              time: timeStr,
+              cls: cls
+            });
+          }
+        }
+      });
+
+      setEvents(newEventMap);
+    }).catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchCalendarData();
+  }, []);
+
+  const handleCreate = async () => {
     if (!form.title.trim()) return;
-    setEvents(prev => ({
-      ...prev,
-      [form.start]: [...(prev[form.start] || []), { title: form.title, time: form.startTime, cls: CAT_CLS[form.category] }],
-    }));
-    setModal(false);
-    setForm(f => ({ ...f, title: "", desc: "" }));
-    setToast(true);
-    setTimeout(() => setToast(false), 2500);
+    const auth = getStoredAuth();
+    if (!auth) return;
+
+    try {
+      let catId = "";
+      const existingCat = categories.find(c => c.name.toLowerCase() === form.category.toLowerCase());
+      if (existingCat) {
+        catId = existingCat.categoryId;
+      } else {
+        const newCat = await api.post<any>("/api/v1/eventcategorys", {
+          tenantId: auth.tenantId,
+          name: form.category,
+          icon: "🎟"
+        });
+        catId = newCat.categoryId;
+      }
+
+      const newEvent = await api.post<any>("/api/v1/events", {
+        tenantId: auth.tenantId,
+        organizerId: auth.userId,
+        eventTypeId: null,
+        categoryId: catId,
+        title: form.title,
+        description: form.desc,
+        format: "Conference",
+        status: "Start",
+        visibility: "Public",
+        maxCapacity: 100,
+        isPaid: false,
+        currency: "USD"
+      });
+
+      await api.post("/api/v1/eventschedules", {
+        eventId: newEvent.eventId,
+        startDatetime: `${form.start}T${form.startTime}:00`,
+        endDatetime: `${form.start}T${form.endTime}:00`,
+        timezone: "UTC"
+      });
+
+      setModal(false);
+      setForm(f => ({ ...f, title: "", desc: "" }));
+      setToast(true);
+      setTimeout(() => setToast(false), 2500);
+
+      fetchCalendarData();
+    } catch (err) {
+      console.error("Failed to create event:", err);
+    }
   };
 
   // Build grid cells
@@ -74,12 +169,45 @@ export default function CalendarPage() {
   const rem = cells.length % 7 === 0 ? 0 : 7 - (cells.length % 7);
   for (let i = 1; i <= rem; i++) cells.push({ day: i, current: false });
 
-  const upcoming = [
-    { title: "Tech Summit 2026", date: "Jun 14 · 09:00–18:00", badge: "Live", color: "bg-blue-500", bdg: "bg-blue-900/40 text-blue-300" },
-    { title: "UX Design Workshop", date: "Jun 18 · 14:00–17:00", badge: "Upcoming", color: "bg-green-500", bdg: "bg-green-900/40 text-green-300" },
-    { title: "Product Launch Webinar", date: "Jun 22 · 11:00–12:30", badge: "Upcoming", color: "bg-amber-500", bdg: "bg-amber-900/40 text-amber-300" },
-    { title: "Team Planning Session", date: "Jun 25 · 10:00–11:00", badge: "Internal", color: "bg-[#8a7d5a]", bdg: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
-  ];
+  const upcoming = dbEvents.length > 0
+    ? dbEvents.slice(0, 4).map(ev => {
+        const sched = schedules.find((s: any) => s.eventId === ev.eventId);
+        let dateStr = "TBD";
+        if (sched && sched.startDatetime) {
+          const parts = sched.startDatetime.split("T");
+          const dateParts = parts[0].split("-");
+          const monthName = MONTHS[parseInt(dateParts[1]) - 1]?.substring(0, 3);
+          const dayNum = dateParts[2];
+          const startTime = parts[1] ? parts[1].substring(0, 5) : "00:00";
+          const endTimeParts = sched.endDatetime ? sched.endDatetime.split("T")[1] : null;
+          const endTime = endTimeParts ? endTimeParts.substring(0, 5) : "";
+          dateStr = `${monthName} ${dayNum} · ${startTime}${endTime ? `–${endTime}` : ""}`;
+        }
+
+        const categoryObj = categories.find((c: any) => c.categoryId === ev.categoryId);
+        const catName = categoryObj?.name || "Conference";
+        const bdg = CAT_CLS[catName] || CAT_CLS["Conference"];
+        
+        let color = "bg-blue-500";
+        if (catName === "Workshop") color = "bg-green-500";
+        else if (catName === "Webinar") color = "bg-amber-500";
+        else if (catName === "Internal") color = "bg-[#8a7d5a]";
+        else if (catName === "Other") color = "bg-red-500";
+
+        return {
+          title: ev.title,
+          date: dateStr,
+          badge: catName,
+          color: color,
+          bdg: bdg
+        };
+      })
+    : [
+        { title: "Tech Summit 2026", date: "Jun 14 · 09:00–18:00", badge: "Live", color: "bg-blue-500", bdg: "bg-blue-900/40 text-blue-300" },
+        { title: "UX Design Workshop", date: "Jun 18 · 14:00–17:00", badge: "Upcoming", color: "bg-green-500", bdg: "bg-green-900/40 text-green-300" },
+        { title: "Product Launch Webinar", date: "Jun 22 · 11:00–12:30", badge: "Upcoming", color: "bg-amber-500", bdg: "bg-amber-900/40 text-amber-300" },
+        { title: "Team Planning Session", date: "Jun 25 · 10:00–11:00", badge: "Internal", color: "bg-[#8a7d5a]", bdg: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
+      ];
 
   return (
     <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">

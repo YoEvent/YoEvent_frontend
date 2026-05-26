@@ -1,6 +1,29 @@
+"use client";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 
 export default function LandingPage() {
+  const router = useRouter();
+  const [auth, setAuth] = useState<any>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setAuth(getStoredAuth());
+    setMounted(true);
+  }, []);
+
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    clearStoredAuth();
+    setAuth(null);
+    router.push("/");
+  };
+
+  // Prevent hydration mismatch by rendering default navbar layout initially
+  const isLoggedIn = mounted && auth !== null;
+
   return (
     <div className="min-h-screen bg-[#f5f0e8] text-[#1a1a1a] overflow-x-hidden">
       {/* NAV */}
@@ -9,25 +32,48 @@ export default function LandingPage() {
           Yo<span className="text-[#8a7d5a]">Event</span>
         </div>
         <ul className="hidden md:flex items-center gap-8 list-none">
-          {["Product", "Solutions", "Pricing", "Developers"].map((item) => (
-            <li key={item}>
-              <a href="#" className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors font-medium">
-                {item}
-              </a>
-            </li>
-          ))}
+          <li>
+            <a href="#" className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors font-medium">Product</a>
+          </li>
+          <li>
+            <Link href="/events" className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors font-medium">Events</Link>
+          </li>
+          <li>
+            <Link href="/pricing" className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors font-medium">Pricing</Link>
+          </li>
+          <li>
+            <Link href="/developers" className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors font-medium">Developers</Link>
+          </li>
         </ul>
         <div className="flex items-center gap-3">
-          <Link href="/login">
-            <button className="px-5 py-2 text-sm font-medium border-[1.5px] border-[#1a1a1a] rounded-full hover:bg-[#1a1a1a] hover:text-white transition-all cursor-pointer">
-              Log in
-            </button>
-          </Link>
-          <Link href="/register">
-            <button className="px-5 py-2 text-sm font-medium bg-[#1a1a1a] text-white rounded-full hover:bg-[#333] transition-all cursor-pointer">
-              Get Started — Free
-            </button>
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link href="/admin">
+                <button className="px-5 py-2 text-sm font-semibold bg-[#1a1a1a] text-white rounded-full hover:bg-[#333] transition-all cursor-pointer">
+                  Dashboard
+                </button>
+              </Link>
+              <button 
+                onClick={handleLogout}
+                className="px-5 py-2 text-sm font-medium border-[1.5px] border-[#1a1a1a] rounded-full hover:bg-red-500 hover:text-white hover:border-transparent transition-all cursor-pointer"
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <button className="px-5 py-2 text-sm font-medium border-[1.5px] border-[#1a1a1a] rounded-full hover:bg-[#1a1a1a] hover:text-white transition-all cursor-pointer">
+                  Log in
+                </button>
+              </Link>
+              <Link href="/register">
+                <button className="px-5 py-2 text-sm font-medium bg-[#1a1a1a] text-white rounded-full hover:bg-[#333] transition-all cursor-pointer">
+                  Get Started — Free
+                </button>
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -47,11 +93,19 @@ export default function LandingPage() {
             Easily add and organise events, with real-time notifications and smart traffic engineering to keep everyone engaged and your platform running smoothly.
           </p>
           <div className="flex items-center gap-4 mb-10">
-            <Link href="/register">
-              <button className="px-8 py-3.5 bg-[#1a1a1a] text-white rounded-full text-base font-medium hover:bg-[#333] hover:-translate-y-0.5 transition-all cursor-pointer">
-                Download — It&apos;s Free
-              </button>
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/admin">
+                <button className="px-8 py-3.5 bg-[#1a1a1a] text-white rounded-full text-base font-medium hover:bg-[#333] hover:-translate-y-0.5 transition-all cursor-pointer">
+                  Go to Dashboard
+                </button>
+              </Link>
+            ) : (
+              <Link href="/register">
+                <button className="px-8 py-3.5 bg-[#1a1a1a] text-white rounded-full text-base font-medium hover:bg-[#333] hover:-translate-y-0.5 transition-all cursor-pointer">
+                  Download — It&apos;s Free
+                </button>
+              </Link>
+            )}
             <button className="px-8 py-3.5 bg-white/70 text-[#1a1a1a] rounded-full text-base font-medium border-[1.5px] border-[#1a1a1a]/30 hover:bg-white transition-all cursor-pointer">
               Schedule a Meeting
             </button>
@@ -155,11 +209,19 @@ export default function LandingPage() {
       <section className="px-16 py-24 bg-[#1a1a1a] text-center">
         <h2 className="font-display text-5xl font-bold text-white mb-4 tracking-tight">Ready to run better events?</h2>
         <p className="text-[#aaa] text-sm max-w-md mx-auto mb-9 leading-relaxed">Join thousands of organisers who trust YoEvent to manage every detail — from first ticket to final report.</p>
-        <Link href="/register">
-          <button className="px-10 py-4 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-base font-semibold hover:bg-[#c8bb96] hover:-translate-y-0.5 transition-all cursor-pointer">
-            Get Started for Free
-          </button>
-        </Link>
+        {isLoggedIn ? (
+          <Link href="/admin">
+            <button className="px-10 py-4 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-base font-semibold hover:bg-[#c8bb96] hover:-translate-y-0.5 transition-all cursor-pointer">
+              Go to Dashboard
+            </button>
+          </Link>
+        ) : (
+          <Link href="/register">
+            <button className="px-10 py-4 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-base font-semibold hover:bg-[#c8bb96] hover:-translate-y-0.5 transition-all cursor-pointer">
+              Get Started for Free
+            </button>
+          </Link>
+        )}
       </section>
 
       {/* FOOTER */}
