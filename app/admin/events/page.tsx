@@ -16,7 +16,7 @@ export default function EventsPage() {
     title: "",
     description: "",
     status: "DRAFT",
-    currency: "USD",
+    currency: "XAF",
     coverImage: "",
     startDate: new Date().toISOString().slice(0, 16),
     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
@@ -43,7 +43,7 @@ export default function EventsPage() {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      const evs = await eventService.getEventsByTenant(auth.tenantId);
+      const evs = await eventService.getMyEvents();
       setEvents(evs || []);
       if (evs && evs.length > 0 && !selectedEventId) {
         setSelectedEventId(evs[0].eventId);
@@ -125,7 +125,7 @@ export default function EventsPage() {
         title: "",
         description: "",
         status: "DRAFT",
-        currency: "USD",
+        currency: "XAF",
         coverImage: "",
         startDate: new Date().toISOString().slice(0, 16),
         endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),

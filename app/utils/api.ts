@@ -1,3 +1,10 @@
+const DEFAULT_API_URL = "http://localhost:8080";
+
+/** Base URL for SSR fetches that bypass Next.js rewrites (server components). */
+export function getApiBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL;
+}
+
 const BASE_URL = "";
 
 export interface AuthData {
@@ -6,6 +13,7 @@ export interface AuthData {
   userId: string;
   tenantId: string;
   email: string;
+  planTier: string;
 }
 
 export function getStoredAuth(): AuthData | null {
@@ -15,19 +23,21 @@ export function getStoredAuth(): AuthData | null {
   const userId = localStorage.getItem("ye_userId");
   const tenantId = localStorage.getItem("ye_tenantId");
   const email = localStorage.getItem("ye_email");
+  const planTier = localStorage.getItem("ye_planTier");
 
   if (!token || !userId) return null;
   const cleanTenantId = tenantId === "null" || !tenantId ? "" : tenantId;
-  return { token, type: type || "Bearer", userId, tenantId: cleanTenantId, email: email || "" };
+  return { token, type: type || "Bearer", userId, tenantId: cleanTenantId, email: email || "", planTier: planTier || "FREE" };
 }
 
-export function setStoredAuth(auth: AuthData) {
+export function setStoredAuth(auth: Partial<AuthData> & { token: string; userId: string }) {
   if (typeof window === "undefined") return;
   localStorage.setItem("ye_token", auth.token);
   localStorage.setItem("ye_type", auth.type || "Bearer");
   localStorage.setItem("ye_userId", auth.userId);
-  localStorage.setItem("ye_tenantId", auth.tenantId);
-  localStorage.setItem("ye_email", auth.email);
+  localStorage.setItem("ye_tenantId", auth.tenantId ?? "");
+  localStorage.setItem("ye_email", auth.email ?? "");
+  localStorage.setItem("ye_planTier", auth.planTier ?? "FREE");
 }
 
 export function clearStoredAuth() {
@@ -37,17 +47,29 @@ export function clearStoredAuth() {
   localStorage.removeItem("ye_userId");
   localStorage.removeItem("ye_tenantId");
   localStorage.removeItem("ye_email");
+  localStorage.removeItem("ye_planTier");
 }
 
 export interface ApiRequestInit extends RequestInit {
   skipAuth?: boolean;
+  /** When true, a 401 will not clear the stored session (for optional/enrichment calls). */
+  suppressSessionClear?: boolean;
+}
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T> {
   const auth = getStoredAuth();
   const headers = new Headers(options.headers || {});
 
-  if (auth?.token && !options.skipAuth) {
+  const tokenWasSent = !!(auth?.token && !options.skipAuth);
+  if (tokenWasSent) {
     headers.set("Authorization", `${auth.type} ${auth.token}`);
   }
 
@@ -74,7 +96,12 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
     } catch {
       // ignore
     }
-    throw new Error(errorMsg);
+
+    if (response.status === 401 && tokenWasSent && !options.suppressSessionClear) {
+      clearStoredAuth();
+    }
+
+    throw new ApiError(errorMsg, response.status);
   }
 
   // Handle 204 No Content

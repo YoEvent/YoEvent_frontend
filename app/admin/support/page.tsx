@@ -23,7 +23,7 @@ export default function SupportPage() {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      const evs = await eventService.getEventsByTenant(auth.tenantId);
+      const evs = await eventService.getMyEvents();
       setEvents(evs || []);
       if (evs && evs.length > 0 && !selectedEventId) {
         setSelectedEventId(evs[0].eventId);

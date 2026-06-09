@@ -1,0 +1,16 @@
+{
+  "name": "YowEvent — Event as a Service",
+  "short_name": "YowEvent",
+  "description": "Manage events at any scale with real-time traffic engineering",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0e12",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

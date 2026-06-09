@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Layers, Users, Building, Activity, LogOut, Search, Plus, Edit3, Trash2, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
-import { api, getStoredAuth, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
+import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck } from "lucide-react";
+import { api, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
 
 export default function SuperAdminPage() {
   const router = useRouter();
@@ -33,6 +32,11 @@ export default function SuperAdminPage() {
   // Search/Filters
   const [tenantSearch, setTenantSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
+
+  // Tenant attendees modal
+  const [viewingTenant, setViewingTenant] = useState<any | null>(null);
+  const [tenantRegistrations, setTenantRegistrations] = useState<any[]>([]);
+  const [loadingRegs, setLoadingRegs] = useState(false);
 
   // Simulated system logs
   const [systemLogs, setSystemLogs] = useState<string[]>([
@@ -145,6 +149,21 @@ export default function SuperAdminPage() {
     }
   };
 
+  // Tenant attendees
+  const viewTenantAttendees = async (tenant: any) => {
+    setViewingTenant(tenant);
+    setLoadingRegs(true);
+    setTenantRegistrations([]);
+    try {
+      const regs = await api.get<any[]>(`/api/v1/registrations`);
+      setTenantRegistrations((regs || []).filter((r: any) => r.tenantId === tenant.tenantId));
+    } catch (err) {
+      console.error("Failed to load tenant attendees:", err);
+    } finally {
+      setLoadingRegs(false);
+    }
+  };
+
   // Tenant actions
   const toggleTenantType = async (tenant: any) => {
     const nextType = tenant.type === "ORGANIZATION" ? "INDIVIDUAL" : "ORGANIZATION";
@@ -156,6 +175,35 @@ export default function SuperAdminPage() {
       setTenants((prev) => prev.map((t) => t.tenantId === tenant.tenantId ? data : t));
     } catch (err) {
       console.error("Failed to update tenant configuration:", err);
+    }
+  };
+
+  // User actions
+  const handleBlockUser = async (userId: string) => {
+    try {
+      await api.patch(`/api/v1/users/${userId}/block`);
+      setUsers((prev) => prev.map((u) => u.userId === userId ? { ...u, status: "BLOCKED" } : u));
+    } catch (err) {
+      console.error("Failed to block user:", err);
+    }
+  };
+
+  const handleUnblockUser = async (userId: string) => {
+    try {
+      await api.patch(`/api/v1/users/${userId}/unblock`);
+      setUsers((prev) => prev.map((u) => u.userId === userId ? { ...u, status: "ACTIVE" } : u));
+    } catch (err) {
+      console.error("Failed to unblock user:", err);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to delete this user? This action is permanent!")) return;
+    try {
+      await api.delete(`/api/v1/users/${userId}`);
+      setUsers((prev) => prev.filter((u) => u.userId !== userId));
+    } catch (err) {
+      console.error("Failed to delete user:", err);
     }
   };
 
@@ -196,7 +244,7 @@ export default function SuperAdminPage() {
         <div className="px-6 py-7 border-b border-zinc-800/80">
           <div className="font-display text-lg font-black text-white tracking-tight flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-            YoEvent <span className="text-xs bg-zinc-800 text-amber-400 font-normal px-2 py-0.5 rounded">Platform Admin</span>
+            YowEvent <span className="text-xs bg-zinc-800 text-amber-400 font-normal px-2 py-0.5 rounded">Platform Admin</span>
           </div>
         </div>
         <nav className="flex-1 py-5">
@@ -307,7 +355,7 @@ export default function SuperAdminPage() {
                       <h3 className="font-display font-bold text-white text-sm mb-4">Platform Services Health</h3>
                       <div className="space-y-4">
                         {[
-                          { name: "YoEvent Gateway", port: 8080, status: "Healthy" },
+                          { name: "YowEvent Gateway", port: 8080, status: "Healthy" },
                           { name: "Auth Service", port: 8081, status: "Healthy" },
                           { name: "Event Service", port: 8082, status: "Healthy" },
                           { name: "Ticketing Service", port: 8083, status: "Healthy" },
@@ -663,8 +711,14 @@ export default function SuperAdminPage() {
                                   {tenant.status}
                                 </span>
                               </td>
-                              <td className="p-4 pr-6 text-right">
-                                <button 
+                              <td className="p-4 pr-6 text-right flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => viewTenantAttendees(tenant)}
+                                  className="px-3 py-1.5 bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 rounded text-[10px] font-semibold transition-colors cursor-pointer"
+                                >
+                                  View Attendees
+                                </button>
+                                <button
                                   onClick={() => toggleTenantType(tenant)}
                                   className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] font-semibold transition-colors cursor-pointer"
                                 >
@@ -707,7 +761,8 @@ export default function SuperAdminPage() {
                           <th className="p-4">Associated Workspace ID</th>
                           <th className="p-4">Verified</th>
                           <th className="p-4">Created Date</th>
-                          <th className="p-4 pr-6">Status</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4 pr-6 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs text-zinc-300 divide-y divide-zinc-800/40">
@@ -724,15 +779,38 @@ export default function SuperAdminPage() {
                               </span>
                             </td>
                             <td className="p-4 text-zinc-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</td>
-                            <td className="p-4 pr-6">
+                            <td className="p-4">
                               <span className={`flex items-center gap-1.5 text-[11px] font-bold ${
-                                user.status === "ACTIVE" ? "text-green-400" : "text-red-400"
+                                user.status === "ACTIVE" ? "text-green-400" : "text-red-450"
                               }`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${
-                                  user.status === "ACTIVE" ? "bg-green-400" : "bg-red-400"
+                                  user.status === "ACTIVE" ? "bg-green-400" : "bg-red-500"
                                 }`} />
-                                {user.status}
+                                {user.status || "ACTIVE"}
                               </span>
+                            </td>
+                            <td className="p-4 pr-6 text-right space-x-2">
+                              {user.status === "BLOCKED" ? (
+                                <button
+                                  onClick={() => handleUnblockUser(user.userId)}
+                                  className="px-2.5 py-1 bg-green-950/40 hover:bg-green-900/60 text-green-450 rounded text-[10px] font-bold transition-colors cursor-pointer border-none"
+                                >
+                                  Unblock
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleBlockUser(user.userId)}
+                                  className="px-2.5 py-1 bg-amber-950/40 hover:bg-amber-900/60 text-amber-400 rounded text-[10px] font-bold transition-colors cursor-pointer border-none"
+                                >
+                                  Block
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteUser(user.userId)}
+                                className="px-2.5 py-1 bg-red-955/40 hover:bg-red-900/60 text-red-400 rounded text-[10px] font-bold transition-colors cursor-pointer border-none"
+                              >
+                                Delete
+                              </button>
                             </td>
                           </tr>
                         ))}
@@ -745,6 +823,83 @@ export default function SuperAdminPage() {
           )}
         </main>
       </div>
+
+      {/* TENANT ATTENDEES MODAL */}
+      {viewingTenant && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-[#111114] border border-zinc-800 rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="px-8 py-5 border-b border-zinc-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-base font-bold text-white">
+                  Attendees — {viewingTenant.name}
+                </h3>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  Users registered for events under this tenant
+                </p>
+              </div>
+              <button
+                onClick={() => { setViewingTenant(null); setTenantRegistrations([]); }}
+                className="text-zinc-500 hover:text-white text-xl font-bold cursor-pointer transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-6">
+              {loadingRegs ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="w-7 h-7 rounded-full border-2 border-zinc-800 border-t-amber-400 animate-spin" />
+                </div>
+              ) : tenantRegistrations.length === 0 ? (
+                <div className="text-center py-16 text-zinc-500 text-sm">No registrations found for this tenant.</div>
+              ) : (
+                <>
+                  <p className="text-xs text-zinc-500 mb-4">{tenantRegistrations.length} registration{tenantRegistrations.length !== 1 ? "s" : ""} found</p>
+                  <div className="bg-[#0d0d0f] border border-zinc-800/60 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-900/30">
+                          <th className="p-3 pl-5">User</th>
+                          <th className="p-3">Email</th>
+                          <th className="p-3">Event ID</th>
+                          <th className="p-3">Registered</th>
+                          <th className="p-3 pr-5">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs text-zinc-300 divide-y divide-zinc-800/40">
+                        {tenantRegistrations.map((reg: any) => {
+                          const user = users.find((u: any) => u.userId === reg.userId);
+                          return (
+                            <tr key={reg.registrationId} className="hover:bg-zinc-800/10">
+                              <td className="p-3 pl-5 font-semibold text-white">
+                                {user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "—" : reg.userId?.slice(0, 10) + "…"}
+                              </td>
+                              <td className="p-3 text-zinc-400">{user?.email || "—"}</td>
+                              <td className="p-3 font-mono text-zinc-500 text-[10px]">{reg.eventId?.slice(0, 12)}…</td>
+                              <td className="p-3 text-zinc-500">
+                                {reg.registeredAt ? new Date(reg.registeredAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                              </td>
+                              <td className="p-3 pr-5">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  reg.status === "CONFIRMED" ? "bg-green-500/10 text-green-400" :
+                                  reg.status === "CANCELLED" ? "bg-red-500/10 text-red-400" :
+                                  "bg-zinc-800 text-zinc-400"
+                                }`}>
+                                  {reg.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,6 +20,9 @@ export const authService = {
   getTenantSettings: () => api.get<T.TenantSettingsResponse[]>("api/v1/tenantsettingss"),
   createTenantSetting: (data: T.TenantSettingsRequest) => api.post<T.TenantSettingsResponse>("api/v1/tenantsettingss", data),
   getTenantSettingById: (id: string) => api.get<T.TenantSettingsResponse>(`api/v1/tenantsettingss/${id}`),
+  getMyTenantSettings: () => api.get<T.TenantSettingsResponse>("api/v1/tenantsettingss/mine"),
+  /** @deprecated Use getMyTenantSettings() */
+  getTenantSettingByTenantId: (_tenantId: string) => api.get<T.TenantSettingsResponse>("api/v1/tenantsettingss/mine"),
   updateTenantSetting: (id: string, data: T.TenantSettingsRequest) => api.put<T.TenantSettingsResponse>(`api/v1/tenantsettingss/${id}`, data),
   deleteTenantSetting: (id: string) => api.delete<void>(`api/v1/tenantsettingss/${id}`),
 
@@ -32,7 +35,7 @@ export const authService = {
   upgradeTenantToOrganization: (id: string) => api.patch<T.TenantResponse>(`api/v1/tenants/${id}/upgrade-to-organization`),
 
   // Subscription Plans
-  getSubscriptionPlans: () => api.get<T.SubscriptionPlanResponse[]>("api/v1/subscriptionplans"),
+  getSubscriptionPlans: (opts?: any) => api.get<T.SubscriptionPlanResponse[]>("api/v1/subscriptionplans", opts),
   createSubscriptionPlan: (data: T.SubscriptionPlanRequest) => api.post<T.SubscriptionPlanResponse>("api/v1/subscriptionplans", data),
   getSubscriptionPlanById: (id: string) => api.get<T.SubscriptionPlanResponse>(`api/v1/subscriptionplans/${id}`),
   updateSubscriptionPlan: (id: string, data: T.SubscriptionPlanRequest) => api.put<T.SubscriptionPlanResponse>(`api/v1/subscriptionplans/${id}`, data),
@@ -83,9 +86,28 @@ export const authService = {
     return api.post<Record<string, string>>(`api/v1/media/tenants/${tenantId}/banner`, formData);
   },
 
+  // Stripe Connect
+  stripeConnect: (tenantId: string) => api.post<{ accountId: string; onboardingUrl: string; mode?: string }>(`api/v1/tenants/${tenantId}/stripe/connect`),
+  stripeStatus: (tenantId: string) => api.get<{ connected: boolean; accountId?: string; chargesEnabled?: boolean; payoutsEnabled?: boolean; detailsSubmitted?: boolean; onboardingComplete?: boolean; mode?: string }>(`api/v1/tenants/${tenantId}/stripe/status`),
+
+  // Platform Commission Settings
+  getCommissionSettings: () => api.get<T.CommissionSettingsResponse>("api/v1/platforms/commission"),
+  updateCommissionSettings: (data: T.CommissionSettingsRequest) => api.put<T.CommissionSettingsResponse>("api/v1/platforms/commission", data),
+
+  // Platform Revenue & Withdrawals
+  getPlatformRevenue: () => api.get<{ totalCollected: number; totalWithdrawn: number; availableBalance: number }>("api/v1/platform/revenue"),
+  getPlatformWithdrawals: () => api.get<any[]>("api/v1/platform/withdrawals"),
+  recordPlatformWithdrawal: (data: { amount: number; note: string }) => api.post<any>("api/v1/platform/withdrawals", data),
+
+  // Plan limits
+  getMyPlanLimits: () => api.get<{ tenantId: string; planName: string; maxEvents: number; maxUsers: number; maxAttendeesPerEvent: number }>("api/v1/tenants/me/limits"),
+
   // Auth
   superAdminLogin: (data: T.LoginRequest) => api.post<T.AuthResponse>("api/v1/auth/super-admin/login", data),
   register: (data: T.RegisterRequest) => api.post<T.AuthResponse>("api/v1/auth/register", data),
   login: (data: T.LoginRequest) => api.post<T.AuthResponse>("api/v1/auth/login", data),
-  upgradeToOrganizer: (data: { userId: string; workspaceName: string; type: string }) => api.post<T.AuthResponse>("api/v1/auth/upgrade-to-organizer", data),
+  upgradeToOrganizer: (data: { workspaceName: string; type: string; planName: string }) =>
+    api.post<T.AuthResponse>("/api/v1/auth/upgrade-to-organizer", data),
+  getTenantBySlug: (slug: string) =>
+    api.get<T.TenantResponse>(`/api/v1/tenants/by-slug/${encodeURIComponent(slug)}`, { skipAuth: true }),
 };

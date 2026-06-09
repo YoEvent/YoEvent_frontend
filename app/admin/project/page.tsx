@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { Plus, Tag, Ticket, DollarSign, Calendar as CalIcon } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { paymentService } from "@/app/utils/services/paymentService";
 
 export default function ProjectPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export default function ProjectPage() {
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [refunds, setRefunds] = useState<any[]>([]);
 
   const [ticketForm, setTicketForm] = useState({
     name: "",
@@ -35,7 +37,7 @@ export default function ProjectPage() {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      const evs = await eventService.getEventsByTenant(auth.tenantId);
+      const evs = await eventService.getMyEvents();
       setEvents(evs || []);
       if (evs && evs.length > 0 && !selectedEventId) {
         setSelectedEventId(evs[0].eventId);
@@ -50,15 +52,17 @@ export default function ProjectPage() {
   const fetchEventDetails = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const [ticketsList, couponsList, ordersList] = await Promise.all([
+      const [ticketsList, couponsList, ordersList, refundsList] = await Promise.all([
         eventService.getTicketTypes(),
         eventService.getCoupons(),
         eventService.getOrders(),
+        paymentService.getRefunds().catch(() => []),
       ]);
 
       setTicketTypes((ticketsList || []).filter((t) => t.eventId === eventId));
       setCoupons((couponsList || []).filter((c) => c.eventId === eventId));
       setOrders((ordersList || []).filter((o) => o.eventId === eventId));
+      setRefunds(refundsList || []);
     } catch (err) {
       console.error("Failed to load details:", err);
     }
@@ -339,33 +343,93 @@ export default function ProjectPage() {
                   <tr>
                     <th className="p-4 rounded-l-xl">Order ID</th>
                     <th className="p-4">Date</th>
-                    <th className="p-4">Amount Paid</th>
+                    <th className="p-4">Gross</th>
                     <th className="p-4">Discount</th>
+                    <th className="p-4 text-red-400/70">Platform Fee</th>
+                    <th className="p-4 text-green-400/70">Net</th>
                     <th className="p-4 rounded-r-xl">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#222]">
-                  {orders.map((o) => (
-                    <tr key={o.orderId} className="hover:bg-[#252525] transition-colors">
-                      <td className="p-4 font-mono text-[10px] text-[#999]">{o.orderId.substring(0, 8)}...</td>
-                      <td className="p-4 text-[#888]">{new Date(o.createdAt).toLocaleDateString()}</td>
-                      <td className="p-4 text-white font-medium">${o.totalAmount}</td>
-                      <td className="p-4 text-[#888]">${o.discountAmount || 0}</td>
-                      <td className="p-4">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                            o.status === "PAID" ? "bg-green-500/15 text-green-400" : "bg-zinc-700/50 text-zinc-400"
-                          }`}
-                        >
-                          {o.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {orders.map((o) => {
+                    const gross = parseFloat(o.totalAmount) || 0;
+                    const fee = parseFloat(o.platformFee) || 0;
+                    const net = gross - fee;
+                    return (
+                      <tr key={o.orderId} className="hover:bg-[#252525] transition-colors">
+                        <td className="p-4 font-mono text-[10px] text-[#999]">{o.orderId?.substring(0, 8)}...</td>
+                        <td className="p-4 text-[#888]">{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}</td>
+                        <td className="p-4 text-white font-medium">${gross.toFixed(2)}</td>
+                        <td className="p-4 text-[#888]">${(parseFloat(o.discountAmount) || 0).toFixed(2)}</td>
+                        <td className="p-4 text-red-400 font-medium">-${fee.toFixed(2)}</td>
+                        <td className="p-4 text-green-400 font-semibold">${net.toFixed(2)}</td>
+                        <td className="p-4">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                              o.status === "PAID" ? "bg-green-500/15 text-green-400" : "bg-zinc-700/50 text-zinc-400"
+                            }`}
+                          >
+                            {o.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {orders.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-[#555]">
+                      <td colSpan={7} className="p-8 text-center text-[#555]">
                         No orders recorded for this event.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* REFUNDS */}
+          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
+              <DollarSign size={18} className="text-red-400" /> Refund History
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-[#ddd]">
+                <thead className="bg-[#161616] text-[10px] text-[#555] uppercase tracking-wider">
+                  <tr>
+                    <th className="p-4 rounded-l-xl">Refund ID</th>
+                    <th className="p-4">Payment ID</th>
+                    <th className="p-4">Amount</th>
+                    <th className="p-4">Reason</th>
+                    <th className="p-4">Processed At</th>
+                    <th className="p-4 rounded-r-xl">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#222]">
+                  {refunds.map((r) => {
+                    const amount = parseFloat(r.amount) || 0;
+                    return (
+                      <tr key={r.refundId} className="hover:bg-[#252525] transition-colors">
+                        <td className="p-4 font-mono text-[10px] text-[#999]">{r.refundId?.substring(0, 8)}...</td>
+                        <td className="p-4 font-mono text-[10px] text-[#999]">{r.paymentId?.substring(0, 8)}...</td>
+                        <td className="p-4 text-white font-medium">${amount.toFixed(2)}</td>
+                        <td className="p-4 text-[#888]">{r.reason || "No reason provided"}</td>
+                        <td className="p-4 text-[#888]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
+                        <td className="p-4">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                              r.status === "SUCCESSFUL" ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+                            }`}
+                          >
+                            {r.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {refunds.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-[#555]">
+                        No refunds processed yet.
                       </td>
                     </tr>
                   )}

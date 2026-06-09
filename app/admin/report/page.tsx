@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { BarChart, History, MessageSquare, ShieldAlert } from "lucide-react";
+import { History, MessageSquare, ShieldAlert, TrendingDown } from "lucide-react";
 import { api, getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 
@@ -11,12 +11,13 @@ export default function ReportPage() {
   const [analytics, setAnalytics] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
 
   const fetchReportData = async () => {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      const evs = await eventService.getEventsByTenant(auth.tenantId);
+      const evs = await eventService.getMyEvents();
       setEvents(evs || []);
       if (evs && evs.length > 0 && !selectedEventId) {
         setSelectedEventId(evs[0].eventId);
@@ -29,15 +30,17 @@ export default function ReportPage() {
   const fetchReportDetails = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const [analyticsList, logsList, feedbacksList] = await Promise.all([
+      const [analyticsList, logsList, feedbacksList, ordersList] = await Promise.all([
         api.get<any[]>("/api/v1/eventanalyticss"),
         api.get<any[]>("/api/v1/auditlogs"),
         api.get<any[]>("/api/v1/feedbacks"),
+        api.get<any[]>("/api/v1/orders"),
       ]);
 
       setAnalytics((analyticsList || []).filter((a) => a.eventId === eventId));
-      setAuditLogs(logsList || []); // Audit logs are tenant/global-scoped
+      setAuditLogs(logsList || []);
       setFeedbacks((feedbacksList || []).filter((f) => f.eventId === eventId));
+      setOrders((ordersList || []).filter((o) => o.eventId === eventId));
     } catch (err) {
       console.error("Failed to load report metrics:", err);
     }
@@ -58,6 +61,8 @@ export default function ReportPage() {
   const totalCheckins = analytics.reduce((sum, item) => sum + (item.totalCheckIns || 0), 0);
   const totalRev = analytics.reduce((sum, item) => sum + (item.totalRevenue || 0), 0);
   const totalViews = analytics.reduce((sum, item) => sum + (item.pageViews || 0), 0);
+  const totalPlatformFee = orders.reduce((sum, o) => sum + (parseFloat(o.platformFee) || 0), 0);
+  const netPayout = totalRev - totalPlatformFee;
 
   const activeEvent = events.find((e) => e.eventId === selectedEventId || e.id === selectedEventId);
 
@@ -85,13 +90,13 @@ export default function ReportPage() {
         </header>
 
         <main className="p-8 space-y-8">
-          {/* STATS */}
+          {/* STATS — top row */}
           <div className="grid grid-cols-4 gap-5">
             {[
               { label: "Total Registrations", value: totalRegs, subtitle: "Ticket holders", color: "text-[#d4c9a8]" },
               { label: "Total Check-ins", value: totalCheckins, subtitle: "People attended", color: "text-blue-400" },
-              { label: "Total Revenue", value: `$${totalRev}`, subtitle: "Gross payout", color: "text-green-400" },
               { label: "Total Page Views", value: totalViews, subtitle: "Landing page visits", color: "text-purple-400" },
+              { label: "Gross Revenue", value: `$${totalRev.toFixed(2)}`, subtitle: "Before platform fee", color: "text-green-400" },
             ].map((stat, i) => (
               <div key={i} className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#2a2a2a] rounded-2xl p-6">
                 <div className="text-[10px] text-[#555] uppercase tracking-wider mb-2 font-bold">{stat.label}</div>
@@ -99,6 +104,30 @@ export default function ReportPage() {
                 <div className="text-xs text-[#666]">{stat.subtitle}</div>
               </div>
             ))}
+          </div>
+
+          {/* STATS — commission breakdown row */}
+          <div className="grid grid-cols-2 gap-5">
+            <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#2a2a2a] rounded-2xl p-6 flex items-center gap-5">
+              <div className="w-10 h-10 rounded-xl bg-[#2a1a1a] flex items-center justify-center flex-shrink-0">
+                <TrendingDown size={18} className="text-red-400" />
+              </div>
+              <div>
+                <div className="text-[10px] text-[#555] uppercase tracking-wider mb-1 font-bold">Platform Fee Deducted</div>
+                <div className="font-display text-2xl font-bold text-red-400">${totalPlatformFee.toFixed(2)}</div>
+                <div className="text-xs text-[#666] mt-0.5">Sum of all commission across {orders.length} order(s)</div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-br from-[#1a1e1a] to-[#1e231e] border border-[#2a332a] rounded-2xl p-6 flex items-center gap-5">
+              <div className="w-10 h-10 rounded-xl bg-[#1a2e1a] flex items-center justify-center flex-shrink-0">
+                <span className="text-green-400 font-bold text-sm">$</span>
+              </div>
+              <div>
+                <div className="text-[10px] text-[#555] uppercase tracking-wider mb-1 font-bold">Net Payout</div>
+                <div className="font-display text-2xl font-bold text-green-300">${netPayout.toFixed(2)}</div>
+                <div className="text-xs text-[#666] mt-0.5">Gross revenue minus platform fee</div>
+              </div>
+            </div>
           </div>
 
           {/* AUDIT LOGS & FEEDBACK */}

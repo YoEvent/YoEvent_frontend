@@ -52,6 +52,18 @@ export interface TenantSettingsRequest {
   customDomain?: string;
   emailSenderName?: string;
   notificationPrefs?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  fontFamily?: string;
+  faviconUrl?: string;
+  accentColor?: string;
+  backgroundImageUrl?: string;
+  socialLinks?: string;
+  customCss?: string;
+  payoutMomoNumber?: string;
+  payoutMomoProvider?: string;
+  payoutCardNumber?: string;
+  payoutCardExpiry?: string;
 }
 
 export interface TenantSettingsResponse {
@@ -64,6 +76,18 @@ export interface TenantSettingsResponse {
   customDomain?: string;
   emailSenderName?: string;
   notificationPrefs?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  fontFamily?: string;
+  faviconUrl?: string;
+  accentColor?: string;
+  backgroundImageUrl?: string;
+  socialLinks?: string;
+  customCss?: string;
+  payoutMomoNumber?: string;
+  payoutMomoProvider?: string;
+  payoutCardNumber?: string;
+  payoutCardExpiry?: string;
 }
 
 export interface TenantRequest {
@@ -89,7 +113,20 @@ export interface TenantResponse {
   industryType?: string;
   type?: string;
   status?: string;
+  stripeAccountId?: string;
+  stripeOnboardingComplete?: boolean;
   createdAt?: string;
+}
+
+export interface CommissionSettingsRequest {
+  baseCommissionRate?: number;
+  premiumCommissionFlatFee?: number;
+}
+
+export interface CommissionSettingsResponse {
+  baseCommissionRate?: number;
+  premiumCommissionFlatFee?: number;
+  updatedAt?: string;
 }
 
 export interface SubscriptionPlanRequest {
@@ -176,6 +213,7 @@ export interface AuthResponse {
   userId?: string;
   tenantId?: string;
   email?: string;
+  planTier?: string;
 }
 
 export interface RegisterRequest {

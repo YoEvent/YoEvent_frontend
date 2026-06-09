@@ -1,12 +1,16 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Plus, Users, Box, Link2 } from "lucide-react";
+import { Plus, Users, Box, Link2, Upload } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { authService } from "@/app/utils/services/authService";
 
 export default function WebsitePage() {
+  const [tenant, setTenant] = useState<any>(null);
+  const [brandingLoading, setBrandingLoading] = useState<"logo" | "banner" | null>(null);
+  const [brandingMsg, setBrandingMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [tracks, setTracks] = useState<any[]>([]);
@@ -22,13 +26,36 @@ export default function WebsitePage() {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      const evs = await eventService.getEventsByTenant(auth.tenantId);
+      const [evs, tenantData] = await Promise.all([
+        eventService.getMyEvents(),
+        authService.getTenantById(auth.tenantId),
+      ]);
       setEvents(evs || []);
+      setTenant(tenantData);
       if (evs && evs.length > 0 && !selectedEventId) {
         setSelectedEventId(evs[0].eventId);
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleBrandingUpload = async (type: "logo" | "banner", file: File) => {
+    const auth = getStoredAuth();
+    if (!auth) return;
+    setBrandingLoading(type);
+    setBrandingMsg(null);
+    try {
+      const res = type === "logo"
+        ? await authService.uploadTenantLogo(auth.tenantId, file)
+        : await authService.uploadTenantBanner(auth.tenantId, file);
+      const url = res?.url || res?.logoUrl || res?.bannerUrl || Object.values(res || {})[0] as string;
+      setTenant((prev: any) => ({ ...prev, [type === "logo" ? "logo" : "bannerUrl"]: url }));
+      setBrandingMsg({ type: "success", text: `${type === "logo" ? "Logo" : "Banner"} updated successfully.` });
+    } catch {
+      setBrandingMsg({ type: "error", text: `Failed to upload ${type}. Please try again.` });
+    } finally {
+      setBrandingLoading(null);
     }
   };
 
@@ -166,6 +193,59 @@ export default function WebsitePage() {
         </header>
 
         <main className="p-8 space-y-8">
+
+          {/* TENANT BRANDING */}
+          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-white mb-1">Tenant Branding</h2>
+            <p className="text-xs text-[#555] mb-5">Upload your organisation logo and banner — these appear on your public event pages and tenant profile.</p>
+
+            {brandingMsg && (
+              <div className={`mb-4 px-4 py-2.5 rounded-xl text-xs font-semibold ${brandingMsg.type === "success" ? "bg-green-900/30 text-green-400 border border-green-700/30" : "bg-red-900/30 text-red-400 border border-red-700/30"}`}>
+                {brandingMsg.text}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* LOGO */}
+              <div>
+                <p className="text-xs text-[#666] uppercase tracking-wider font-semibold mb-3">Logo</p>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#333] hover:border-[#d4c9a8] rounded-xl p-6 cursor-pointer transition-colors group">
+                  {tenant?.logo ? (
+                    <img src={tenant.logo} alt="Logo" className="h-16 max-w-[160px] object-contain rounded-lg mb-2" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-[#252525] flex items-center justify-center mb-2">
+                      <Upload size={22} className="text-[#444] group-hover:text-[#d4c9a8] transition-colors" />
+                    </div>
+                  )}
+                  <span className="text-xs text-[#555] group-hover:text-[#d4c9a8] transition-colors">
+                    {brandingLoading === "logo" ? "Uploading…" : tenant?.logo ? "Click to replace logo" : "Upload logo (PNG, SVG)"}
+                  </span>
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingUpload("logo", f); }} />
+                </label>
+              </div>
+
+              {/* BANNER */}
+              <div>
+                <p className="text-xs text-[#666] uppercase tracking-wider font-semibold mb-3">Banner / Hero Image</p>
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#333] hover:border-[#d4c9a8] rounded-xl p-6 cursor-pointer transition-colors group overflow-hidden">
+                  {tenant?.bannerUrl ? (
+                    <img src={tenant.bannerUrl} alt="Banner" className="w-full h-16 object-cover rounded-lg mb-2" />
+                  ) : (
+                    <div className="w-full h-16 rounded-xl bg-[#252525] flex items-center justify-center mb-2">
+                      <Upload size={22} className="text-[#444] group-hover:text-[#d4c9a8] transition-colors" />
+                    </div>
+                  )}
+                  <span className="text-xs text-[#555] group-hover:text-[#d4c9a8] transition-colors">
+                    {brandingLoading === "banner" ? "Uploading…" : tenant?.bannerUrl ? "Click to replace banner" : "Upload banner (16:9, JPG or PNG)"}
+                  </span>
+                  <input type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingUpload("banner", f); }} />
+                </label>
+              </div>
+            </div>
+          </div>
+
           {/* TRACKS & SPONSORS */}
           <div className="grid grid-cols-2 gap-8">
             {/* TRACKS */}
@@ -279,7 +359,7 @@ export default function WebsitePage() {
                       </div>
                       <div className="text-xs font-bold text-white">{s.companyName}</div>
                     </div>
-                    <div className="text-xs font-bold text-green-400">${s.sponsorshipAmount}</div>
+                    <div className="text-xs font-bold text-green-400">{Number(s.sponsorshipAmount).toLocaleString()} FCFA</div>
                   </div>
                 ))}
                 {sponsors.length === 0 && (

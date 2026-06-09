@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign } from "lucide-react";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 
@@ -12,9 +12,12 @@ const links = [
   { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/agenda", label: "Agenda", icon: MessageCircle },
   { href: "/admin/project", label: "Ticketing", icon: FolderOpen },
+  { href: "/admin/payouts", label: "Payouts", icon: DollarSign },
   { href: "/admin/website", label: "Customization", icon: Globe },
+  { href: "/admin/applications", label: "Applications", icon: Users },
   { href: "/admin/seo", label: "Settings", icon: Search },
   { href: "/admin/report", label: "Report", icon: BarChart2 },
+  { href: "/admin/platform", label: "Commission", icon: Percent },
   { href: "/admin/support", label: "Support", icon: MessageCircle },
 ];
 
@@ -22,6 +25,7 @@ export default function Sidebar() {
   const path = usePathname();
   const router = useRouter();
   const [profile, setProfile] = useState<{ firstName: string; lastName: string; avatar?: string } | null>(null);
+  const [tenant, setTenant] = useState<any>(null);
 
   useEffect(() => {
     const auth = getStoredAuth();
@@ -36,7 +40,23 @@ export default function Sidebar() {
       .catch((err) => {
         console.error("Failed to fetch user profile:", err);
       });
+
+    if (auth.tenantId) {
+      authService.getTenantById(auth.tenantId)
+        .then(setTenant)
+        .catch((err) => console.error("Failed to fetch tenant:", err));
+    }
   }, []);
+
+  const isOrg = tenant?.type === "ORGANIZATION";
+  const allowedLinks = links.filter((link) => {
+    if (!isOrg) {
+      if (link.href === "/admin/website" || link.href === "/admin/agenda" || link.href === "/admin/report") {
+        return false;
+      }
+    }
+    return true;
+  });
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -55,7 +75,7 @@ export default function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 py-5">
-        {links.map(({ href, label, icon: Icon }) => {
+        {allowedLinks.map(({ href, label, icon: Icon }) => {
           const active = path === href;
           return (
             <Link key={href} href={href}
@@ -73,9 +93,12 @@ export default function Sidebar() {
           </div>
           <div>
             <div className="text-xs font-medium text-[#ccc] truncate max-w-[120px]">{displayName}</div>
-            <div className="text-[10px] text-[#555]">Organiser</div>
+            <div className="text-[10px] text-[#555]">{tenant?.type === "ORGANIZATION" ? "Organization" : "Individual Creator"}</div>
           </div>
         </div>
+        <Link href="/user/dashboard" className="flex items-center gap-3 px-0 py-1 text-xs text-[#d4c9a8] hover:text-[#e5dcb8] transition-colors mb-2">
+          🎟 Switch to Attendee View
+        </Link>
         <a href="#" onClick={handleLogout} className="flex items-center gap-3 px-0 py-1 text-xs text-[#555] hover:text-[#ccc] transition-colors">
           <LogOut size={14} /> Logout
         </a>

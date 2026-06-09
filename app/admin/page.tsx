@@ -2,67 +2,57 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
-import { Bell, Mail, User, Search, X } from "lucide-react";
-import { getStoredAuth } from "@/app/utils/api";
+import { Search, Calendar, Users, BarChart2, Ticket, UserCheck } from "lucide-react";
+import { getStoredAuth, api } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 import { eventService } from "@/app/utils/services/eventService";
 
-const projects = [
-  { name: "Update Home Page Offers", pct: 65, status: "WIP", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
-  { name: "Create a New Company Logo", pct: 100, status: "Complete", cls: "bg-green-500/15 text-green-400" },
-  { name: "Traffic Growth Campaign", pct: 42, status: "WIP", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
-  { name: "Mobile App Design", pct: 30, status: "WIP", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
-  { name: "Premium Speed Optimisation", pct: 5, status: "Start", cls: "bg-zinc-700/50 text-zinc-400" },
-  { name: "Q3 Analytics Dashboard", pct: 78, status: "WIP", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
-];
-
-const stats = [
-  { label: "Performance Score", value: "85%", change: "-1.12%", up: false, icon: "📈", bars: [70, 80, 75, 85, 78, 82, 85] },
-  { label: "Security Score", value: "96%", change: "+1.12%", up: true, icon: "🛡", bars: [88, 90, 92, 94, 95, 93, 96] },
-  { label: "SEO Score", value: "100%", change: "+1.12%", up: true, icon: "🔍", bars: [95, 97, 98, 99, 100, 100, 100] },
-];
-
-function Sparkline({ bars }: { bars: number[] }) {
-  const max = Math.max(...bars);
-  return (
-    <div className="flex items-end gap-0.5 h-8">
-      {bars.map((v, i) => (
-        <div key={i} className="w-1 rounded-sm bg-[#d4c9a8]" style={{ height: `${Math.round((v / max) * 100)}%`, opacity: 0.4 + (v / max) * 0.6 }} />
-      ))}
-    </div>
-  );
-}
+const STATUS_CLS: Record<string, string> = {
+  PUBLISHED: "bg-green-500/15 text-green-400",
+  ACTIVE:    "bg-green-500/15 text-green-400",
+  DRAFT:     "bg-zinc-700/50 text-zinc-400",
+  CANCELLED: "bg-red-500/15 text-red-400",
+  COMPLETED: "bg-blue-500/15 text-blue-400",
+};
 
 export default function AdminPage() {
-  const [alertVisible, setAlertVisible] = useState(true);
-  const [profile, setProfile] = useState<{ firstName: string; lastName: string } | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [tenant, setTenant] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [attendeeUsers, setAttendeeUsers] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
 
-  const fetchTenantData = () => {
+  useEffect(() => {
     const auth = getStoredAuth();
     if (!auth) return;
 
-    authService.getUserById(auth.userId)
-      .then((data) => setProfile(data as any))
-      .catch((err) => console.error("Failed to fetch user profile:", err));
-
-    authService.getTenantById(auth.tenantId)
-      .then(setTenant)
-      .catch((err) => console.error("Failed to fetch tenant:", err));
-
     Promise.all([
-      eventService.getEventsByTenant(auth.tenantId),
-      eventService.getEventAnalytics()
-    ]).then(([eventsData, analyticsData]) => {
-      setEvents(eventsData || []);
-      setAnalytics(analyticsData || []);
-    }).catch((err) => console.error("Failed to fetch events or analytics:", err));
-  };
+      authService.getUserById(auth.userId),
+      authService.getTenantById(auth.tenantId),
+      eventService.getMyEvents(),
+      eventService.getEventAnalytics(),
+      eventService.getMyRegistrations().catch(() => []),
+    ])
+      .then(async ([userData, tenantData, eventsData, analyticsData, regsData]) => {
+        setProfile(userData);
+        setTenant(tenantData);
+        setEvents(eventsData || []);
+        setAnalytics(analyticsData || []);
+        setRegistrations(regsData || []);
 
-  useEffect(() => {
-    fetchTenantData();
+        // Fetch user details for unique attendee IDs
+        const uniqueIds = [...new Set((regsData || []).map((r: any) => r.userId as string))];
+        const fetched = await Promise.all(
+          uniqueIds.map((id) => authService.getUserById(id).catch(() => null))
+        );
+        const userMap: Record<string, any> = {};
+        fetched.filter(Boolean).forEach((u: any) => { userMap[u.userId] = u; });
+        setAttendeeUsers(userMap);
+      })
+      .catch((err) => console.error("Dashboard load failed:", err))
+      .finally(() => setLoading(false));
   }, []);
 
   const handleUpgrade = async () => {
@@ -71,217 +61,207 @@ export default function AdminPage() {
     try {
       const data = await authService.upgradeTenantToOrganization(auth.tenantId);
       setTenant(data);
+      window.location.reload();
     } catch (err) {
       console.error("Failed to upgrade tenant:", err);
     }
   };
 
-  const displayEvents = events.length > 0 
-    ? events.map((ev) => {
-        const evAnalytic = analytics.find((a: any) => a.eventId === ev.eventId);
-        const registrations = evAnalytic?.totalRegistrations || 0;
-        const capacity = ev.maxCapacity || 100;
-        const pct = Math.min(100, Math.round((registrations / capacity) * 100));
+  const totalRegistrations = analytics.reduce((sum, a) => sum + (a.totalRegistrations || 0), 0);
+  const publishedEvents   = events.filter(e => e.status === "PUBLISHED" || e.status === "ACTIVE").length;
+  const totalRevenue      = analytics.reduce((sum, a) => sum + (a.totalRevenue || 0), 0);
 
-        let status = "WIP";
-        let cls = "bg-[#d4c9a8]/15 text-[#d4c9a8]";
-        if (ev.status === "Complete" || pct === 100) {
-          status = "Complete";
-          cls = "bg-green-500/15 text-green-400";
-        } else if (ev.status === "Start") {
-          status = "Start";
-          cls = "bg-zinc-700/50 text-zinc-400";
-        }
+  const displayName = profile ? `${profile.firstName || ""} ${profile.lastName || ""}`.trim() : "—";
+  const initials    = profile
+    ? `${profile.firstName?.charAt(0) || ""}${profile.lastName?.charAt(0) || ""}`.toUpperCase()
+    : "?";
 
-        return {
-          name: ev.title,
-          pct: pct,
-          status: ev.status || status,
-          cls: cls
-        };
-      })
-    : projects;
-
-  const displayName = profile ? `${profile.firstName} ${profile.lastName}` : "Mr. Jack";
-  const initials = profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "MJ";
+  const enrichedEvents = events.map((ev) => {
+    const analytic      = analytics.find((a) => a.eventId === ev.eventId);
+    const registrations = analytic?.totalRegistrations || 0;
+    const capacity      = ev.maxCapacity > 0 ? ev.maxCapacity : null;
+    const pct           = capacity ? Math.min(100, Math.round((registrations / capacity) * 100)) : null;
+    return { ...ev, registrations, capacity, pct };
+  });
 
   return (
     <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
+
         {/* TOPBAR */}
         <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
           <h1 className="font-display text-xl font-bold text-white">Overview</h1>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 w-52">
-              <Search size={14} className="text-[#555]" />
-              <input placeholder="Search…" className="bg-transparent text-sm text-[#ddd] placeholder:text-[#555] outline-none w-full" />
-            </div>
-            <button className="relative w-8 h-8 bg-[#222] border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer">
-              <Mail size={14} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-orange-400 rounded-full border border-[#161616]" />
-            </button>
-            <button className="relative w-8 h-8 bg-[#222] border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer">
-              <Bell size={14} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-orange-400 rounded-full border border-[#161616]" />
-            </button>
-            <button className="w-8 h-8 bg-[#222] border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer">
-              <User size={14} />
-            </button>
+          <div className="flex items-center gap-2 bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 w-52">
+            <Search size={14} className="text-[#555]" />
+            <input placeholder="Search…" className="bg-transparent text-sm text-[#ddd] placeholder:text-[#555] outline-none w-full" />
           </div>
         </header>
 
-        <main className="p-8 space-y-6">
-          {/* FLASH CROWD ALERT */}
-          {alertVisible && (
-            <div className="flex items-center gap-4 bg-orange-500/10 border border-orange-500/30 rounded-xl px-5 py-3.5">
-              <span className="text-xl">⚠️</span>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-orange-300">Flash Crowd Detected — Tech Summit 2026</p>
-                <p className="text-xs text-[#777]">Arrival rate: 340% above baseline · Waitlist activated · ρ = 0.87</p>
-              </div>
-              <button onClick={() => setAlertVisible(false)} className="text-[#555] hover:text-orange-300 transition-colors cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
-          )}
-
-          {/* STAT CARDS */}
-          <div className="grid grid-cols-3 gap-5">
-            {stats.map((s) => (
-              <div key={s.label} className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#2a2a2a] rounded-2xl p-6 hover:border-[#333] hover:-translate-y-0.5 transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#d4c9a8]/10 flex items-center justify-center text-lg">{s.icon}</div>
-                  <Sparkline bars={s.bars} />
-                </div>
-                <div className="text-xs text-[#555] uppercase tracking-wider mb-1.5">{s.label}</div>
-                <div className="font-display text-3xl font-bold text-white mb-1">{s.value}</div>
-                <div className={`text-xs flex items-center gap-1 ${s.up ? "text-green-400" : "text-red-400"}`}>
-                  {s.up ? "▲" : "▼"} {s.change} from last month
-                </div>
-              </div>
-            ))}
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-[#333] border-t-[#d4c9a8] rounded-full animate-spin" />
           </div>
+        ) : (
+          <main className="p-8 space-y-6">
 
-          {/* TRAFFIC CHART + PROFILE */}
-          <div className="grid grid-cols-[2fr_1fr] gap-5">
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-display font-bold text-white">Traffic</h2>
-                <Link href="/admin" className="text-xs text-[#d4c9a8] hover:underline">View Report →</Link>
-              </div>
-              {/* SVG Chart */}
-              <div className="h-44 relative mb-2">
-                <svg viewBox="0 0 600 180" className="w-full h-full" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#d4c9a8" stopOpacity="0.3"/>
-                      <stop offset="100%" stopColor="#d4c9a8" stopOpacity="0"/>
-                    </linearGradient>
-                    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#1565c0" stopOpacity="0.2"/>
-                      <stop offset="100%" stopColor="#1565c0" stopOpacity="0"/>
-                    </linearGradient>
-                  </defs>
-                  {[36,72,108,144].map(y => <line key={y} x1="0" y1={y} x2="600" y2={y} stroke="#2a2a2a" strokeWidth="1"/>)}
-                  <path d="M30,144 C80,130 120,100 160,90 C200,80 220,135 260,140 C300,145 340,30 380,20 C420,10 460,50 500,40 C540,30 570,45 590,50 L590,170 L30,170 Z" fill="url(#g1)"/>
-                  <path d="M30,144 C80,130 120,100 160,90 C200,80 220,135 260,140 C300,145 340,30 380,20 C420,10 460,50 500,40 C540,30 570,45 590,50" fill="none" stroke="#d4c9a8" strokeWidth="2.5" strokeLinecap="round"/>
-                  <path d="M30,155 C80,148 130,140 180,138 C220,136 260,120 300,110 C340,100 380,120 430,115 C470,110 530,105 590,100 L590,170 L30,170 Z" fill="url(#g2)"/>
-                  <path d="M30,155 C80,148 130,140 180,138 C220,136 260,120 300,110 C340,100 380,120 430,115 C470,110 530,105 590,100" fill="none" stroke="#1565c0" strokeWidth="2" strokeLinecap="round" strokeDasharray="5,3"/>
-                  <circle cx="380" cy="20" r="4" fill="#d4c9a8"/>
-                  <rect x="355" y="2" width="72" height="17" rx="3" fill="#333"/>
-                  <text x="361" y="13" fontSize="9" fill="#d4c9a8">Peak: 690</text>
-                  <line x1="380" y1="20" x2="380" y2="170" stroke="#d4c9a8" strokeWidth="1" strokeDasharray="3,3" opacity="0.4"/>
-                </svg>
-              </div>
-              <div className="flex justify-between text-xs text-[#555] mb-4">
-                {["Sat","Sun","Mon","Tue","Wed","Thu","Fri"].map(d => <span key={d}>{d}</span>)}
-              </div>
-              <div className="flex gap-5">
-                <div className="flex items-center gap-2 text-xs text-[#666]"><span className="w-4 h-0.5 bg-[#d4c9a8] rounded block"/>Registrations</div>
-                <div className="flex items-center gap-2 text-xs text-[#666]"><span className="w-4 h-0 border-t-2 border-dashed border-[#1565c0] block"/>Check-ins</div>
-              </div>
-            </div>
-
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 flex flex-col items-center">
-              <div className="relative mb-3">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#d4c9a8] to-[#c8bb96] flex items-center justify-center text-[#1a1a1a] font-bold text-lg">{initials}</div>
-                <div className="absolute -inset-1 rounded-full border-2 border-transparent border-t-[#d4c9a8] animate-spin"/>
-              </div>
-              <div className="text-sm font-semibold text-white mb-0.5">{displayName}</div>
-              <div className="text-xs text-[#555] mb-5">Organiser</div>
+            {/* STAT CARDS */}
+            <div className="grid grid-cols-4 gap-5">
               {[
-                ["Account Type", tenant?.type || "INDIVIDUAL"],
-                ["Package", "Regular"],
-                ["Payment", "Direct Debit"],
-                ["Last Payment", "$85"],
-                ["Date", "15-May-2026"]
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between w-full py-2.5 border-b border-[#2a2a2a] text-xs">
-                  <span className="text-[#666]">{k}</span><strong className="text-[#ccc] font-medium">{v}</strong>
+                { label: "Total Events",       value: events.length,         icon: Calendar,  color: "text-[#d4c9a8]", bg: "bg-[#d4c9a8]/10" },
+                { label: "Published",          value: publishedEvents,       icon: BarChart2, color: "text-green-400",  bg: "bg-green-500/10" },
+                { label: "Total Registrations",value: totalRegistrations,    icon: Users,     color: "text-blue-400",   bg: "bg-blue-500/10"  },
+                { label: "Revenue (FCFA)",     value: totalRevenue > 0 ? totalRevenue.toLocaleString() : "—", icon: Ticket, color: "text-amber-400", bg: "bg-amber-500/10" },
+              ].map(({ label, value, icon: Icon, color, bg }) => (
+                <div key={label} className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 hover:border-[#333] transition-colors">
+                  <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-4`}>
+                    <Icon size={18} className={color} />
+                  </div>
+                  <div className="text-xs text-[#555] uppercase tracking-wider mb-1">{label}</div>
+                  <div className="font-display text-3xl font-bold text-white">{value}</div>
                 </div>
               ))}
-              {tenant?.type !== "ORGANIZATION" ? (
-                <button onClick={handleUpgrade} className="w-full mt-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-full text-sm font-semibold hover:brightness-110 transition-all cursor-pointer">
-                  Upgrade to Org 🚀
-                </button>
-              ) : (
-                <button className="w-full mt-4 py-2.5 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-sm font-semibold hover:bg-[#c8bb96] transition-colors cursor-pointer">
-                  Change Plan
-                </button>
-              )}
             </div>
-          </div>
 
-          {/* PROJECTS + OPTIMIZE */}
-          <div className="grid grid-cols-[2fr_1fr] gap-5">
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-display font-bold text-white">Project Update</h2>
-                <Link href="/calendar" className="text-xs text-[#d4c9a8] hover:underline">View All →</Link>
-              </div>
-              <div className="grid grid-cols-[2fr_1fr_1fr] gap-3 pb-3 border-b border-[#2a2a2a] text-[10px] text-[#555] uppercase tracking-wider">
-                <span>Task</span><span>Progress</span><span>Status</span>
-              </div>
-              <div className="divide-y divide-[#1a1a1a]">
-                {displayEvents.map((p) => (
-                  <div key={p.name} className="grid grid-cols-[2fr_1fr_1fr] gap-3 items-center py-3 hover:bg-[#252525] hover:-mx-3 hover:px-3 rounded-lg transition-all">
-                    <span className="text-sm text-[#ddd] font-medium truncate">{p.name}</span>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1 bg-[#333] rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[#d4c9a8] to-[#c8bb96] rounded-full" style={{ width: `${p.pct}%` }} />
-                      </div>
-                      <span className="text-[10px] text-[#666] w-7 text-right">{p.pct}%</span>
+            {/* EVENTS TABLE + PROFILE */}
+            <div className="grid grid-cols-[2fr_1fr] gap-5">
+
+              {/* EVENTS */}
+              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="font-display font-bold text-white">Your Events</h2>
+                  <Link href="/admin/events" className="text-xs text-[#d4c9a8] hover:underline">Manage →</Link>
+                </div>
+
+                {enrichedEvents.length === 0 ? (
+                  <div className="text-center py-12 text-[#555] text-sm">
+                    <Calendar size={32} className="mx-auto mb-3 opacity-30" />
+                    No events yet. <Link href="/admin/events" className="text-[#d4c9a8] hover:underline">Create your first event →</Link>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 pb-3 border-b border-[#2a2a2a] text-[10px] text-[#555] uppercase tracking-wider">
+                      <span>Event</span><span>Registrations</span><span>Fill Rate</span><span>Status</span>
                     </div>
-                    <span className={`inline-flex items-center justify-center text-[10px] font-medium px-2.5 py-0.5 rounded-full ${p.cls}`}>{p.status}</span>
+                    <div className="divide-y divide-[#1a1a1a]">
+                      {enrichedEvents.map((ev) => (
+                        <div key={ev.eventId} className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 items-center py-3 hover:bg-[#252525] hover:-mx-3 hover:px-3 rounded-lg transition-all">
+                          <span className="text-sm text-[#ddd] font-medium truncate">{ev.title}</span>
+                          <span className="text-sm text-[#aaa]">{ev.registrations}</span>
+                          <div>
+                            {ev.pct !== null ? (
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-1 bg-[#333] rounded-full overflow-hidden">
+                                  <div className="h-full bg-gradient-to-r from-[#d4c9a8] to-[#c8bb96] rounded-full" style={{ width: `${ev.pct}%` }} />
+                                </div>
+                                <span className="text-[10px] text-[#666] w-8 text-right">{ev.pct}%</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-[#555]">No cap set</span>
+                            )}
+                          </div>
+                          <span className={`inline-flex items-center justify-center text-[10px] font-medium px-2.5 py-0.5 rounded-full ${STATUS_CLS[ev.status] || "bg-zinc-700/50 text-zinc-400"}`}>
+                            {ev.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* PROFILE CARD */}
+              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 flex flex-col items-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#d4c9a8] to-[#c8bb96] flex items-center justify-center text-[#1a1a1a] font-bold text-lg mb-3">
+                  {initials}
+                </div>
+                <div className="text-sm font-semibold text-white mb-0.5">{displayName}</div>
+                <div className="text-xs text-[#555] mb-5">{tenant?.type === "ORGANIZATION" ? "Organisation" : "Individual Creator"}</div>
+
+                {[
+                  ["Account Type", tenant?.type || "—"],
+                  ["Plan",         tenant?.subscriptionPlan?.name || tenant?.planName || "Free"],
+                  ["Industry",     tenant?.industryType || "—"],
+                  ["Status",       tenant?.status || "—"],
+                  ["Member since", tenant?.createdAt
+                    ? new Date(tenant.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                    : "—"],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex justify-between w-full py-2.5 border-b border-[#2a2a2a] text-xs">
+                    <span className="text-[#666]">{k}</span>
+                    <strong className="text-[#ccc] font-medium">{v}</strong>
                   </div>
                 ))}
+
+                {tenant?.type !== "ORGANIZATION" ? (
+                  <button onClick={handleUpgrade} className="w-full mt-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-full text-sm font-semibold hover:brightness-110 transition-all cursor-pointer">
+                    Upgrade to Org 🚀
+                  </button>
+                ) : (
+                  <Link href="/pricing" className="w-full mt-4">
+                    <button className="w-full py-2.5 bg-[#d4c9a8] text-[#1a1a1a] rounded-full text-sm font-semibold hover:bg-[#c8bb96] transition-colors cursor-pointer">
+                      Change Plan
+                    </button>
+                  </Link>
+                )}
               </div>
             </div>
 
-            {/* OPTIMIZE */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 flex flex-col items-center justify-between">
-              <div className="text-sm text-[#ccc] font-medium self-start mb-5">Increase your Website Speed</div>
-              <div className="relative w-28 h-28 mb-4">
-                <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="#2a2a2a" strokeWidth="12"/>
-                  <circle cx="60" cy="60" r="50" fill="none" stroke="url(#dg)" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="50" strokeLinecap="round"/>
-                  <defs>
-                    <linearGradient id="dg" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#d4c9a8"/><stop offset="100%" stopColor="#1565c0"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-display text-2xl font-bold text-white">80%</span>
-                  <span className="text-[10px] text-[#555]">Score</span>
+            {/* REGISTERED ATTENDEES */}
+            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <UserCheck size={16} className="text-blue-400" />
+                  <h2 className="font-display font-bold text-white">Registered Attendees</h2>
                 </div>
+                <span className="text-xs text-[#555]">{registrations.length} registration{registrations.length !== 1 ? "s" : ""}</span>
               </div>
-              <button className="w-full py-2.5 bg-gradient-to-r from-blue-700 to-blue-900 text-white rounded-full text-sm font-medium hover:brightness-110 transition-all cursor-pointer mb-3">⚡ Optimize Now</button>
-              <p className="text-xs text-[#555] text-center leading-relaxed">Documentation and customization articles: <a href="#" className="text-[#d4c9a8] hover:underline">Learn More →</a></p>
+
+              {registrations.length === 0 ? (
+                <div className="text-center py-10 text-[#555] text-sm">
+                  <Users size={28} className="mx-auto mb-2 opacity-30" />
+                  No attendees have registered yet.
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-[2fr_2fr_2fr_1fr_1fr] gap-3 pb-3 border-b border-[#2a2a2a] text-[10px] text-[#555] uppercase tracking-wider">
+                    <span>Attendee</span>
+                    <span>Email</span>
+                    <span>Event</span>
+                    <span>Date</span>
+                    <span>Status</span>
+                  </div>
+                  <div className="divide-y divide-[#1a1a1a] max-h-80 overflow-y-auto">
+                    {registrations.map((reg: any) => {
+                      const user = attendeeUsers[reg.userId];
+                      const ev = events.find((e: any) => e.eventId === reg.eventId);
+                      return (
+                        <div key={reg.registrationId} className="grid grid-cols-[2fr_2fr_2fr_1fr_1fr] gap-3 items-center py-3 text-xs hover:bg-[#252525] hover:-mx-3 hover:px-3 rounded-lg transition-all">
+                          <span className="text-[#ddd] font-medium truncate">
+                            {user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "—" : reg.userId?.slice(0, 8) + "…"}
+                          </span>
+                          <span className="text-[#888] truncate">{user?.email || "—"}</span>
+                          <span className="text-[#aaa] truncate">{ev?.title || reg.eventId?.slice(0, 8) + "…"}</span>
+                          <span className="text-[#666]">
+                            {reg.registeredAt ? new Date(reg.registeredAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "—"}
+                          </span>
+                          <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            reg.status === "CONFIRMED" ? "bg-green-500/15 text-green-400" :
+                            reg.status === "CANCELLED" ? "bg-red-500/15 text-red-400" :
+                            "bg-zinc-700/50 text-zinc-400"
+                          }`}>
+                            {reg.status}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
-          </div>
-        </main>
+
+          </main>
+        )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ function RegisterFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const planName = searchParams.get("plan") || "";
+  const from = searchParams.get("from") || "";
 
   const [show, setShow] = useState(false);
   const [showC, setShowC] = useState(false);
@@ -28,7 +29,7 @@ function RegisterFormContent() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
-    api.get<any[]>("/api/v1/subscriptionplans")
+    api.get<any[]>("/api/v1/subscriptionplans", { skipAuth: true })
       .then((data) => {
         setPlans(data || []);
       })
@@ -153,7 +154,7 @@ function RegisterFormContent() {
         workspaceName: roleMode === "ATTENDEE" ? null : (isOrg ? form.orgName : `${form.firstName} ${form.lastName}`),
       });
       setSubmitted(true);
-      setTimeout(() => router.push("/login"), 2000);
+      setTimeout(() => router.push(from ? `/login?from=${encodeURIComponent(from)}` : "/login"), 2000);
     } catch (err: any) {
       setErrors((prev) => ({ ...prev, submit: err.message || "Failed to register" }));
     } finally {
@@ -241,10 +242,10 @@ function RegisterFormContent() {
       {/* NAV */}
       <nav className="flex items-center justify-between px-16 py-5 bg-white border-b border-[#e0d8c8]">
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a] hover:opacity-80 transition-opacity">
-          Yo<span className="text-[#8a7d5a]">Event</span>
+          Yow<span className="text-[#8a7d5a]">Event</span>
         </Link>
         <span className="text-sm text-[#888]">Already have an account?{" "}
-          <Link href="/login" className="text-[#1a1a1a] font-semibold hover:underline">Log in</Link>
+          <Link href={from ? `/login?from=${encodeURIComponent(from)}` : "/login"} className="text-[#1a1a1a] font-semibold hover:underline">Log in</Link>
         </span>
       </nav>
 
@@ -325,7 +326,7 @@ function RegisterFormContent() {
                   <div className="relative w-full h-40 rounded-2xl bg-gradient-to-br from-[#1a1a1a] to-[#3a2f1d] border border-[#d4c9a8]/25 p-5 text-white flex flex-col justify-between shadow-lg overflow-hidden">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-radial-[at_100%_0%] from-[#d4c9a8]/10 to-transparent" />
                     <div className="flex justify-between items-start">
-                      <span className="text-[9px] uppercase tracking-widest text-[#d4c9a8] font-bold">YoEvent Premium</span>
+                      <span className="text-[9px] uppercase tracking-widest text-[#d4c9a8] font-bold">YowEvent Premium</span>
                       <span className="text-sm font-black italic">
                         {getCardType(cardForm.number) === "visa" && <span className="text-blue-400">VISA</span>}
                         {getCardType(cardForm.number) === "mastercard" && <span className="text-orange-400">MC</span>}

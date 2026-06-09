@@ -16,23 +16,66 @@ export const config = {
 
 export default function middleware(req: NextRequest) {
   const url = req.nextUrl;
+  const pathname = url.pathname;
 
-  // Get hostname (e.g. 'events.acmecorp.com', 'localhost:3000')
+  // Get hostname (e.g. 'tenant.localhost:3000', 'localhost:3000', 'tenant.yowevent.com')
   const hostname = req.headers.get("host") || "";
+  const host = hostname.split(":")[0].toLowerCase();
 
-  // Define the main platform domains (including local dev environments)
+  // Define platform-level paths that should not be rewritten
+  const platformPaths = [
+    "/api",
+    "/_next",
+    "/login",
+    "/register",
+    "/admin",
+    "/super-admin",
+    "/pricing",
+    "/events",
+    "/calendar",
+    "/updates",
+    "/developers",
+    "/user",
+    "/utils",
+    "/favicon.ico"
+  ];
+
+  const isPlatformPath = platformPaths.some(
+    path => pathname === path || pathname.startsWith(path + "/")
+  );
+
+  if (isPlatformPath) {
+    return NextResponse.next();
+  }
+
+  // Check if the host has a tenant subdomain (e.g., tenant.localhost or tenant.yowevent.com)
+  let isSubdomain = false;
+  let tenantSlug = "";
+
+  if (host.endsWith(".localhost")) {
+    isSubdomain = true;
+    tenantSlug = host.slice(0, -".localhost".length);
+  } else if (host.endsWith(".yowevent.com") && host !== "www.yowevent.com") {
+    isSubdomain = true;
+    tenantSlug = host.slice(0, -".yowevent.com".length);
+  }
+
+  if (isSubdomain && tenantSlug) {
+    // Rewrite to /t/[slug]
+    return NextResponse.rewrite(new URL(`/t/${tenantSlug}${pathname}`, req.url));
+  }
+
+  // Check if it's the main platform domain itself
   const isMainPlatform = 
-    hostname.includes("localhost") || 
-    hostname.includes("127.0.0.1") || 
-    hostname === "yoevent.com" || 
-    hostname === "www.yoevent.com";
+    host === "localhost" || 
+    host === "127.0.0.1" || 
+    host === "yowevent.com" || 
+    host === "www.yowevent.com";
 
-  // If it's a known main platform domain, don't rewrite, just pass through
   if (isMainPlatform) {
     return NextResponse.next();
   }
 
-  // It's a custom domain! Rewrite to our dynamic tenant portfolio page
-  // Example: events.acmecorp.com/about -> /site/events.acmecorp.com/about
-  return NextResponse.rewrite(new URL(`/site/${hostname}${url.pathname}`, req.url));
+  // Otherwise, it's a custom domain, rewrite to /site/[domain]
+  return NextResponse.rewrite(new URL(`/site/${hostname}${pathname}`, req.url));
 }

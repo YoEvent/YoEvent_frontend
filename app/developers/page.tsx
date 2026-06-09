@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
 
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+
 export default function DevelopersPage() {
   const microservices = [
     {
@@ -16,7 +19,8 @@ export default function DevelopersPage() {
       name: "Event Service",
       base: "/api/v1/events",
       endpoints: [
-        { path: "/tenant/{tenantId}", method: "GET", desc: "Retrieve tenant agenda list" },
+        { path: "/mine", method: "GET", desc: "List events for authenticated tenant (JWT-scoped)" },
+        { path: "", method: "GET", desc: "Public event discovery (filter client-side by tenantId)" },
         { path: "/{id}/cover-image", method: "POST", desc: "Upload cover banner binary" },
         { path: "/qaquestions", method: "POST", desc: "Post engagement question" },
       ],
@@ -31,6 +35,25 @@ export default function DevelopersPage() {
       ],
     },
     {
+      name: "Payment Service",
+      base: "/api/v1/payments",
+      endpoints: [
+        { path: "/mine", method: "GET", desc: "List payments for authenticated tenant" },
+        { path: "/withdrawals/balance", method: "GET", desc: "Available payout balance (JWT-scoped)" },
+        { path: "/withdrawals", method: "GET", desc: "Withdrawal history for authenticated tenant" },
+        { path: "/withdrawals", method: "POST", desc: "Request tenant payout withdrawal" },
+      ],
+    },
+    {
+      name: "Platform Admin",
+      base: "/api/v1/platform",
+      endpoints: [
+        { path: "/revenue", method: "GET", desc: "Platform commission revenue summary" },
+        { path: "/withdrawals", method: "GET", desc: "Platform withdrawal ledger" },
+        { path: "/withdrawals", method: "POST", desc: "Record platform withdrawal" },
+      ],
+    },
+    {
       name: "Notification Service",
       base: "/api/v1/notifications",
       endpoints: [
@@ -42,30 +65,23 @@ export default function DevelopersPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f0e8] text-[#1a1a1a]">
-      {/* NAV */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between px-16 py-5 bg-white border-b border-[#e0d8c8]">
-        <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
-          Yo<span className="text-[#8a7d5a]">Event</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <a
-            href="http://localhost:8080/swagger-ui.html"
-            target="_blank"
-            className="px-5 py-2 text-sm font-medium bg-[#1a1a1a] text-white rounded-full hover:bg-[#333] transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            Open Swagger UI ⚡
-          </a>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* BODY */}
       <main className="max-w-4xl mx-auto px-6 py-20">
         <div className="text-center mb-16">
           <span className="inline-block bg-[#8a7d5a]/10 border border-[#8a7d5a]/20 rounded-full px-4 py-1.5 text-xs text-[#8a7d5a] uppercase tracking-widest mb-4">API Docs</span>
-          <h1 className="font-display text-5xl font-black tracking-tight mb-3">YoEvent Developer Portal</h1>
-          <p className="text-sm text-[#666] max-w-lg mx-auto">
+          <h1 className="font-display text-5xl font-black tracking-tight mb-3">YowEvent Developer Portal</h1>
+          <p className="text-sm text-[#666] max-w-lg mx-auto mb-6">
             Interact with our gateway API services. Below is the API reference map of the active system endpoints.
           </p>
+          <a
+            href="http://localhost:8080/swagger-ui.html"
+            target="_blank"
+            className="inline-flex px-6 py-2.5 text-sm font-semibold bg-[#1a1a1a] text-white rounded-full hover:bg-[#333] transition-all items-center gap-1.5 cursor-pointer"
+          >
+            Open Swagger UI ⚡
+          </a>
         </div>
 
         {/* DETAILS */}
@@ -101,6 +117,7 @@ export default function DevelopersPage() {
           ))}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

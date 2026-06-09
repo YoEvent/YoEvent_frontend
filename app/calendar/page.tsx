@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { api, getStoredAuth } from "@/app/utils/api";
+import { eventService } from "@/app/utils/services/eventService";
 
 type CalEvent = { title: string; time: string; cls: string };
 type EventMap = Record<string, CalEvent[]>;
@@ -64,7 +65,7 @@ export default function CalendarPage() {
     if (!auth) return;
 
     Promise.all([
-      api.get<any[]>(`/api/v1/events/tenant/${auth.tenantId}`),
+      eventService.getMyEvents(),
       api.get<any[]>(`/api/v1/eventschedules`),
       api.get<any[]>(`/api/v1/eventcategorys`)
     ]).then(([eventsData, schedulesData, categoriesData]) => {
@@ -141,7 +142,7 @@ export default function CalendarPage() {
         visibility: "Public",
         maxCapacity: 100,
         isPaid: false,
-        currency: "USD"
+        currency: "XAF"
       });
 
       await api.post("/api/v1/eventschedules", {

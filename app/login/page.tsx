@@ -1,12 +1,14 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { api, setStoredAuth, getAuthClaims, AuthData } from "@/app/utils/api";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from"); // e.g. /t/acme-events or /events/[id]
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
@@ -30,7 +32,8 @@ export default function LoginPage() {
       if (claims?.scope && claims.scope.includes("SUPER_ADMIN")) {
         router.push("/super-admin");
       } else if (claims?.scope && claims.scope.includes("ATTENDEE")) {
-        router.push("/user/dashboard");
+        // Redirect back to the tenant page (or event page) the user came from
+        router.push(from || "/user/dashboard");
       } else {
         router.push("/admin");
       }
@@ -50,10 +53,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-[#f5f0e8]">
       <nav className="flex items-center justify-between px-16 py-5 bg-white border-b border-[#e0d8c8]">
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
-          Yo<span className="text-[#8a7d5a]">Event</span>
+          Yow<span className="text-[#8a7d5a]">Event</span>
         </Link>
         <span className="text-sm text-[#888]">No account?{" "}
-          <Link href="/register" className="text-[#1a1a1a] font-semibold hover:underline">Sign up free</Link>
+          <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">Sign up free</Link>
         </span>
       </nav>
 
@@ -63,7 +66,11 @@ export default function LoginPage() {
             <div className="text-center mb-8">
               <div className="w-14 h-14 bg-gradient-to-br from-[#d4c9a8] to-[#c8bb96] rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">🎟</div>
               <h1 className="font-display text-3xl font-bold tracking-tight mb-1">Welcome back</h1>
-              <p className="text-sm text-[#888]">Sign in to your YoEvent account</p>
+              {from ? (
+                <p className="text-sm text-[#888]">Sign in to continue to <span className="font-semibold text-[#1a1a1a]">{from}</span></p>
+              ) : (
+                <p className="text-sm text-[#888]">Sign in to your YowEvent account</p>
+              )}
             </div>
 
 
@@ -119,11 +126,19 @@ export default function LoginPage() {
 
             <p className="text-center text-xs text-[#888] mt-6">
               Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-[#1a1a1a] font-semibold hover:underline">Create one free</Link>
+              <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">Create one free</Link>
             </p>
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

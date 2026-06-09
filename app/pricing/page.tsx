@@ -1,53 +1,257 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { api } from "@/app/utils/api";
+import { api, getStoredAuth, setStoredAuth } from "@/app/utils/api";
+import { paymentService } from "@/app/utils/services/paymentService";
+import { useRouter } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import {
+  DEFAULT_PRICING_PLANS,
+  formatCfaPrice,
+  getDisplayPlans,
+  mapPlanNameToTier,
+  type PricingPlan,
+} from "@/app/utils/pricingPlans";
+
+const FEATURE_LABELS: Record<string, string> = {
+  BASIC_EVENT: "Event Creation",
+  TICKET_SALES: "Ticket Sales",
+  ANALYTICS: "Analytics Dashboard",
+  CUSTOM_DOMAIN: "Custom Domain",
+  EMAIL_CAMPAIGNS: "Email Campaigns",
+  NETWORKING: "Networking Tools",
+  SPONSORS: "Sponsor Management",
+  DEDICATED_SUPPORT: "Dedicated Support",
+  SLA: "Service Level Agreement",
+  ADVANCED_QUEUING: "Advanced Queuing",
+  QUEUE_ANALYTICS: "Queue Analytics",
+};
+
+function formatFeature(raw: string): string {
+  const key = raw.trim().toUpperCase().replace(/\s+/g, "_");
+  if (FEATURE_LABELS[key]) return FEATURE_LABELS[key];
+  return raw.trim().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatLimit(value: number, unit: string): string {
+  if (value === -1 || value === undefined || value === null) return `Unlimited ${unit}`;
+  return `Up to ${value} ${unit}`;
+}
+
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
+const stripePromise = loadStripe(stripePublishableKey);
+const isMockStripe =
+  !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === "mock_key";
+
+const cardElementOptions = {
+  style: {
+    base: {
+      fontSize: "14px",
+      color: "#1a1a1a",
+      "::placeholder": { color: "#888" },
+    },
+    invalid: { color: "#dc2626" },
+  },
+};
+
+function StripeSubscriptionForm({
+  selectedPlan,
+  auth,
+  onSuccess,
+}: {
+  selectedPlan: PricingPlan;
+  auth: { tenantId: string; email?: string };
+  onSuccess: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPlan.planId) {
+      alert("This plan is not linked to the billing system yet. Please contact support.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let paymentMethodId: string | undefined;
+
+      if (!isMockStripe) {
+        if (!stripe || !elements) {
+          throw new Error("Stripe is still loading. Please try again.");
+        }
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) throw new Error("Please enter your card details.");
+
+        const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
+          type: "card",
+          card: cardElement,
+          billing_details: { email: auth.email || undefined },
+        });
+        if (pmError) throw new Error(pmError.message);
+        paymentMethodId = paymentMethod.id;
+      }
+
+      const result = await paymentService.createSubscription({
+        tenantId: auth.tenantId,
+        planId: selectedPlan.planId,
+        amount: selectedPlan.price,
+        currency: "XAF",
+        provider: "stripe",
+        paymentMethodId,
+      });
+
+      if (result.clientSecret && stripe) {
+        const { error: confirmError } = await stripe.confirmCardPayment(result.clientSecret);
+        if (confirmError) throw new Error(confirmError.message);
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to create subscription. Make sure your workspace settings are configured.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      {!isMockStripe ? (
+        <div>
+          <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">
+            Card Details
+          </label>
+          <div className="px-4 py-3 bg-[#fcfbf9] border border-[#e0d8c8] rounded-xl">
+            <CardElement options={cardElementOptions} />
+          </div>
+          <p className="text-[10px] text-[#888] mt-1.5">Test card: 4242 4242 4242 4242 · any future expiry · any CVC</p>
+        </div>
+      ) : (
+        <p className="text-[10px] text-[#888] bg-[#f5f0e8] border border-[#e0d8c8] rounded-xl px-4 py-3">
+          Stripe mock mode — no real card required. Set <code className="text-[#8a7d5a]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={submitting || (!isMockStripe && !stripe)}
+        className="w-full py-3.5 bg-[#1a1a1a] hover:bg-[#333] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+      >
+        {submitting ? "Processing payment..." : `Pay ${formatCfaPrice(selectedPlan.price)} & Subscribe`}
+      </button>
+    </form>
+  );
+}
 
 export default function PricingPage() {
-  const [plans, setPlans] = useState<any[]>([]);
+  const router = useRouter();
+  const [plans, setPlans] = useState<PricingPlan[]>(DEFAULT_PRICING_PLANS);
   const [loading, setLoading] = useState(true);
 
+  // Subscription modal states
+  const [auth, setAuth] = useState<any>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"momo" | "stripe">("momo");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
   useEffect(() => {
-    api.get<any[]>("/api/v1/subscriptionplans")
+    if (typeof window !== "undefined") {
+      setAuth(getStoredAuth());
+    }
+  }, []);
+
+  useEffect(() => {
+    api.get<PricingPlan[]>("/api/v1/subscriptionplans", { skipAuth: true })
       .then((data) => {
-        setPlans(data || []);
+        setPlans(getDisplayPlans(data));
       })
       .catch((err) => {
         console.error("Failed to load subscription plans:", err);
+        setPlans(DEFAULT_PRICING_PLANS);
       })
       .finally(() => {
         setLoading(false);
       });
   }, []);
 
-  const defaultPlans = [
-    { name: "Starter", price: 0, billingCycle: "MONTHLY", maxEvents: 3, maxUsers: 1, maxAttendeesPerEvent: 100, featuresEnabled: "Basic Analytics, Q&A" },
-    { name: "Pro Eventer", price: 29, billingCycle: "MONTHLY", maxEvents: 20, maxUsers: 5, maxAttendeesPerEvent: 1000, featuresEnabled: "Sponsors, Email Campaigns, Custom Domains" },
-    { name: "Enterprise", price: 99, billingCycle: "MONTHLY", maxEvents: 999, maxUsers: 25, maxAttendeesPerEvent: 10000, featuresEnabled: "Dedicated Support, SLA, Advanced Queuing Queue Analytics" },
-  ];
+  const handleChoosePlan = (plan: PricingPlan) => {
+    const currentAuth = getStoredAuth();
+    if (!currentAuth) {
+      router.push(`/login?from=${encodeURIComponent("/pricing")}`);
+      return;
+    }
 
-  const displayPlans = plans.length > 0 ? plans : defaultPlans;
+    // Attendee without a workspace — send to dashboard upgrade flow
+    if (!currentAuth.tenantId) {
+      const tier = mapPlanNameToTier(plan.name);
+      router.push(`/user/dashboard?upgrade=1&plan=${tier}`);
+      return;
+    }
+
+    if (plan.price === 0) {
+      router.push("/admin");
+      return;
+    }
+
+    setAuth(currentAuth);
+    setSelectedPlan(plan);
+    setShowModal(true);
+  };
+
+  const completeSubscription = () => {
+    const currentAuth = getStoredAuth();
+    if (!currentAuth || !selectedPlan) return;
+
+    setStoredAuth({ ...currentAuth, planTier: mapPlanNameToTier(selectedPlan.name) });
+    alert(`Successfully subscribed to the ${selectedPlan.name} plan!`);
+    setShowModal(false);
+    router.push("/admin");
+  };
+
+  const handleMomoSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentAuth = getStoredAuth();
+    if (!currentAuth?.tenantId || !selectedPlan) {
+      alert("You need an organizer workspace before subscribing. Use Upgrade to Organizer first.");
+      router.push("/user/dashboard?upgrade=1");
+      return;
+    }
+    if (!selectedPlan.planId) {
+      alert("This plan is not linked to the billing system yet. Please contact support.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await paymentService.createSubscription({
+        tenantId: currentAuth.tenantId,
+        planId: selectedPlan.planId,
+        amount: selectedPlan.price,
+        currency: "XAF",
+        provider: "momo",
+      });
+      completeSubscription();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to create subscription. Make sure your workspace settings are configured.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const displayPlans = plans;
 
   return (
     <div className="min-h-screen bg-[#f5f0e8] text-[#1a1a1a]">
-      {/* NAV */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between px-16 py-5 bg-white border-b border-[#e0d8c8]">
-        <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
-          Yo<span className="text-[#8a7d5a]">Event</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link href="/login">
-            <button className="px-5 py-2 text-sm font-medium border-[1.5px] border-[#1a1a1a] rounded-full hover:bg-[#1a1a1a] hover:text-white transition-all cursor-pointer">
-              Log in
-            </button>
-          </Link>
-          <Link href="/register">
-            <button className="px-5 py-2 text-sm font-medium bg-[#1a1a1a] text-white rounded-full hover:bg-[#333] transition-all cursor-pointer">
-              Get Started
-            </button>
-          </Link>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* HEADER */}
       <main className="max-w-6xl mx-auto px-6 py-20">
@@ -58,74 +262,145 @@ export default function PricingPage() {
         </div>
 
         {/* CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {displayPlans.map((plan, i) => {
-            const isPro = plan.name.toLowerCase().includes("pro");
+            const isHighlighted = plan.popular;
             return (
               <div
-                key={plan.planId || i}
+                key={plan.planId || plan.name || i}
                 className={`rounded-3xl p-8 border-[1.5px] flex flex-col justify-between transition-all hover:-translate-y-1 ${
-                  isPro
+                  isHighlighted
                     ? "bg-[#1a1a1a] text-white border-transparent shadow-2xl relative overflow-hidden"
                     : "bg-white border-[#e0d8c8] text-[#1a1a1a]"
                 }`}
               >
-                {isPro && (
+                {isHighlighted && (
                   <div className="absolute top-0 right-0 bg-[#d4c9a8] text-[#1a1a1a] text-[9px] uppercase tracking-wider font-extrabold px-5 py-1.5 rounded-bl-2xl">
                     Most Popular
                   </div>
                 )}
                 <div>
                   <h3 className="font-display text-xl font-bold mb-4">{plan.name}</h3>
-                  <div className="flex items-baseline mb-6">
-                    <span className="text-4xl font-extrabold font-display">${plan.price}</span>
-                    <span className={`text-xs ml-1.5 ${isPro ? "text-[#aaa]" : "text-[#888]"}`}>
+                  <div className="flex items-baseline mb-6 flex-wrap gap-x-1.5">
+                    <span className="text-3xl font-extrabold font-display break-words">{formatCfaPrice(plan.price)}</span>
+                    <span className={`text-xs ${isHighlighted ? "text-[#aaa]" : "text-[#888]"}`}>
                       /{plan.billingCycle?.toLowerCase()}
                     </span>
                   </div>
 
-                  <hr className={`my-6 border-t ${isPro ? "border-[#333]" : "border-[#e0d8c8]"}`} />
+                  <hr className={`my-6 border-t ${isHighlighted ? "border-[#333]" : "border-[#e0d8c8]"}`} />
 
                   <ul className="space-y-4 text-xs list-none pl-0">
-                    <li className="flex items-center gap-2.5">
-                      <span className="text-green-500 font-bold">✓</span>
-                      <span>Up to <strong>{plan.maxEvents}</strong> Events</span>
+                    <li className="flex items-start gap-2.5 min-w-0">
+                      <span className="text-green-500 font-bold shrink-0">✓</span>
+                      <span className="min-w-0">{formatLimit(plan.maxEvents, "Events")}</span>
                     </li>
-                    <li className="flex items-center gap-2.5">
-                      <span className="text-green-500 font-bold">✓</span>
-                      <span>Up to <strong>{plan.maxUsers}</strong> Team Users</span>
+                    <li className="flex items-start gap-2.5 min-w-0">
+                      <span className="text-green-500 font-bold shrink-0">✓</span>
+                      <span className="min-w-0">{formatLimit(plan.maxUsers, "Team Members")}</span>
                     </li>
-                    <li className="flex items-center gap-2.5">
-                      <span className="text-green-500 font-bold">✓</span>
-                      <span>Up to <strong>{plan.maxAttendeesPerEvent}</strong> Attendees/Event</span>
+                    <li className="flex items-start gap-2.5 min-w-0">
+                      <span className="text-green-500 font-bold shrink-0">✓</span>
+                      <span className="min-w-0">{formatLimit(plan.maxAttendeesPerEvent, "Attendees/Event")}</span>
                     </li>
-                    <li className="flex items-start gap-2.5">
-                      <span className="text-green-500 font-bold mt-0.5">✓</span>
-                      <span className="leading-relaxed">
-                        Features: {plan.featuresEnabled || "Access to basic resources"}
-                      </span>
-                    </li>
+                    {(plan.featuresEnabled || "Access to basic resources")
+                      .split(",")
+                      .map((feature: string, fi: number) => (
+                        <li key={fi} className="flex items-start gap-2.5 min-w-0">
+                          <span className="text-green-500 font-bold shrink-0">✓</span>
+                          <span className="min-w-0">{formatFeature(feature)}</span>
+                        </li>
+                      ))
+                    }
                   </ul>
                 </div>
 
                 <div className="mt-8">
-                  <Link href={`/register?plan=${plan.name}`}>
-                    <button
-                      className={`w-full py-3.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                        isPro
-                          ? "bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a]"
-                          : "bg-[#1a1a1a] hover:bg-[#333] text-white"
-                      }`}
-                    >
-                      Choose {plan.name}
-                    </button>
-                  </Link>
+                  <button
+                    onClick={() => handleChoosePlan(plan)}
+                    className={`w-full py-3.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                      isHighlighted
+                        ? "bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a]"
+                        : "bg-[#1a1a1a] hover:bg-[#333] text-white"
+                    }`}
+                  >
+                    Choose {plan.name}
+                  </button>
                 </div>
               </div>
             );
           })}
         </div>
       </main>
+
+      {/* SUBSCRIPTION Checkout Modal */}
+      {showModal && selectedPlan && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-8 space-y-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-display text-2xl font-black text-[#1a1a1a]">Subscribe to {selectedPlan.name}</h3>
+                <p className="text-xs text-[#666] mt-1">Upgrade your tenant workspace plan instantly.</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-zinc-600 text-xl font-bold bg-transparent border-none cursor-pointer">✕</button>
+            </div>
+
+            <div className="p-4 bg-[#f5f0e8] border border-[#e0d8c8] rounded-xl flex justify-between items-center text-xs">
+              <span className="font-semibold text-[#555]">Plan price:</span>
+              <span className="font-black text-base text-[#8a7d5a]">{formatCfaPrice(selectedPlan.price)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Payment Method</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value as "momo" | "stripe")}
+                  className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e0d8c8] rounded-xl text-xs text-[#1a1a1a] outline-none"
+                >
+                  <option value="momo">MTN / Orange Mobile Money</option>
+                  <option value="stripe">
+                    {isMockStripe ? "Stripe Card Payment (Mock Simulation)" : "Stripe Card Payment"}
+                  </option>
+                </select>
+              </div>
+
+              {paymentMethod === "momo" ? (
+                <form onSubmit={handleMomoSubscribe} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Phone Number (MTN/Orange)</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="6xxxxxxxxx"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                      className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e0d8c8] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#8a7d5a]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-3.5 bg-[#1a1a1a] hover:bg-[#333] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    {submitting ? "Processing payment..." : "Confirm & Subscribe"}
+                  </button>
+                </form>
+              ) : auth?.tenantId ? (
+                <Elements stripe={stripePromise}>
+                  <StripeSubscriptionForm
+                    selectedPlan={selectedPlan}
+                    auth={{ tenantId: auth.tenantId, email: auth.email }}
+                    onSuccess={completeSubscription}
+                  />
+                </Elements>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Footer />
     </div>
   );
 }

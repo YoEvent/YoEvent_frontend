@@ -1,4 +1,4 @@
-import { api } from "../api";
+import { api, ApiRequestInit } from "../api";
 import * as T from "../types/events";
 
 export const eventService = {
@@ -109,9 +109,16 @@ export const eventService = {
 
   // Events
   getEvents: (opts?: any) => api.get<T.EventResponse[]>("api/v1/events", opts),
-  getEventsByTenant: (tenantId: string) => tenantId ? api.get<T.EventResponse[]>(`api/v1/events/tenant/${tenantId}`) : Promise.resolve([]),
+  getMyEvents: () => api.get<T.EventResponse[]>("api/v1/events/mine"),
+  getPublicEventsByTenant: async (tenantId: string) => {
+    if (!tenantId) return [];
+    const all = await api.get<T.EventResponse[]>("api/v1/events", { skipAuth: true });
+    return all.filter((e) => e.tenantId === tenantId);
+  },
+  /** @deprecated Use getMyEvents() for authenticated organizer views or getPublicEventsByTenant() for public pages */
+  getEventsByTenant: (tenantId: string) => api.get<T.EventResponse[]>("api/v1/events/mine"),
   createEvent: (data: T.EventRequest) => api.post<T.EventResponse>("api/v1/events", data),
-  getEventById: (id: string) => api.get<T.EventResponse>(`api/v1/events/${id}`),
+  getEventById: (id: string, opts?: ApiRequestInit) => api.get<T.EventResponse>(`api/v1/events/${id}`, opts),
   updateEvent: (id: string, data: T.EventRequest) => api.put<T.EventResponse>(`api/v1/events/${id}`, data),
   deleteEvent: (id: string) => api.delete<void>(`api/v1/events/${id}`),
 
@@ -144,7 +151,16 @@ export const eventService = {
   deleteAnnouncement: (id: string) => api.delete<void>(`api/v1/announcements/${id}`),
 
   // Ticket Types
-  getTicketTypes: (opts?: any) => api.get<T.TicketTypeResponse[]>("api/v1/tickettypes", opts),
+  getTicketTypes: (eventIdOrOpts?: string | { skipAuth?: boolean }, opts?: any) => {
+    let url = "api/v1/tickettypes";
+    let apiOpts = opts;
+    if (typeof eventIdOrOpts === "string") {
+      url = `api/v1/tickettypes?eventId=${eventIdOrOpts}`;
+    } else if (eventIdOrOpts && typeof eventIdOrOpts === "object") {
+      apiOpts = eventIdOrOpts;
+    }
+    return api.get<T.TicketTypeResponse[]>(url, apiOpts);
+  },
   createTicketType: (data: T.TicketTypeRequest) => api.post<T.TicketTypeResponse>("api/v1/tickettypes", data),
   getTicketTypeById: (id: string) => api.get<T.TicketTypeResponse>(`api/v1/tickettypes/${id}`),
   updateTicketType: (id: string, data: T.TicketTypeRequest) => api.put<T.TicketTypeResponse>(`api/v1/tickettypes/${id}`, data),
@@ -157,8 +173,12 @@ export const eventService = {
   updateCoupon: (id: string, data: T.CouponRequest) => api.put<T.CouponResponse>(`api/v1/coupons/${id}`, data),
   deleteCoupon: (id: string) => api.delete<void>(`api/v1/coupons/${id}`),
 
+  // Registrations
+  getMyRegistrations: () => api.get<any[]>("api/v1/registrations/me"),
+
   // Orders
   getOrders: () => api.get<T.OrderResponse[]>("api/v1/orders"),
+  getMyOrders: () => api.get<T.OrderResponse[]>("api/v1/orders/me", { suppressSessionClear: true }),
   getOrdersByUser: (userId: string) => api.get<T.OrderResponse[]>(`api/v1/orders/user/${userId}`),
   createOrder: (data: T.OrderRequest) => api.post<T.OrderResponse>("api/v1/orders", data),
   getOrderById: (id: string) => api.get<T.OrderResponse>(`api/v1/orders/${id}`),
@@ -183,5 +203,11 @@ export const eventService = {
   getSavedEventsByUser: (userId: string) => api.get<any[]>(`api/v1/saved-events/user/${userId}`),
   saveEvent: (data: { tenantId: string; userId: string; eventId: string }) => api.post<any>("api/v1/saved-events", data),
   unsaveEvent: (id: string) => api.delete<void>(`api/v1/saved-events/${id}`),
-  unsaveEventByUserAndEvent: (userId: string, eventId: string) => api.delete<void>(`api/v1/saved-events/user/${userId}/event/${eventId}`)
+  unsaveEventByUserAndEvent: (userId: string, eventId: string) => api.delete<void>(`api/v1/saved-events/user/${userId}/event/${eventId}`),
+
+  // Event Sections
+  getEventSections: (eventId?: string) => api.get<any[]>(eventId ? `api/v1/event-sections?eventId=${eventId}` : "api/v1/event-sections"),
+  createEventSection: (data: any) => api.post<any>("api/v1/event-sections", data),
+  updateEventSection: (id: string, data: any) => api.put<any>(`api/v1/event-sections/${id}`, data),
+  deleteEventSection: (id: string) => api.delete<void>(`api/v1/event-sections/${id}`)
 };
