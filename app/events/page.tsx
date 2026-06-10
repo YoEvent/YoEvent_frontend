@@ -26,8 +26,8 @@ export default function PublicEventsPage() {
         });
 
         const publicEvents = (eventsData || [])
-          .filter((e: any) => e.status !== "DRAFT" && e.status !== "CANCELLED" && domainByTenantId[e.tenantId])
-          .map((e: any) => ({ ...e, customDomain: domainByTenantId[e.tenantId] }));
+          .filter((e: any) => e.status !== "DRAFT" && e.status !== "CANCELLED")
+          .map((e: any) => ({ ...e, customDomain: domainByTenantId[e.tenantId] || null }));
 
         setEvents(publicEvents);
         setFiltered(publicEvents);
@@ -138,7 +138,7 @@ export default function PublicEventsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
             {filtered.map(ev => (
-              <a key={ev.eventId} href={`http://${ev.customDomain}/events/${ev.eventId}`} target="_blank" rel="noopener noreferrer" className="group block bg-white rounded-3xl overflow-hidden border border-[#f0f0f0] hover:border-[#FF4747]/30 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <a key={ev.eventId} href={ev.customDomain ? `http://${ev.customDomain}/events/${ev.eventId}` : `/events/${ev.eventId}`} target={ev.customDomain ? "_blank" : undefined} rel={ev.customDomain ? "noopener noreferrer" : undefined} className="group block bg-white rounded-3xl overflow-hidden border border-[#f0f0f0] hover:border-[#FF4747]/30 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                 <div className="relative h-44 bg-gradient-to-br from-[#F7E998]/40 to-[#FF4747]/10 overflow-hidden">
                   {ev.coverImage ? (
                     <img src={ev.coverImage} alt={ev.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />

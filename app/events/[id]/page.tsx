@@ -753,12 +753,18 @@ export default function EventDetailsPage() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={e => {
+                      onChange={async e => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = ev => setSponsorForm(f => ({ ...f, logoUrl: ev.target?.result as string }));
-                        reader.readAsDataURL(file);
+                        try {
+                          setAppLoading(true);
+                          const res = await eventService.uploadImage(file);
+                          setSponsorForm(f => ({ ...f, logoUrl: res.url }));
+                        } catch (err: any) {
+                          alert("Failed to upload logo: " + (err.message || err));
+                        } finally {
+                          setAppLoading(false);
+                        }
                       }}
                     />
                   </label>
@@ -846,12 +852,18 @@ export default function EventDetailsPage() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={e => {
+                      onChange={async e => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = ev => setVolunteerForm(f => ({ ...f, photoUrl: ev.target?.result as string }));
-                        reader.readAsDataURL(file);
+                        try {
+                          setAppLoading(true);
+                          const res = await eventService.uploadImage(file);
+                          setVolunteerForm(f => ({ ...f, photoUrl: res.url }));
+                        } catch (err: any) {
+                          alert("Failed to upload photo: " + (err.message || err));
+                        } finally {
+                          setAppLoading(false);
+                        }
                       }}
                     />
                   </label>

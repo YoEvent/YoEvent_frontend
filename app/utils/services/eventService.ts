@@ -121,6 +121,16 @@ export const eventService = {
   getEventById: (id: string, opts?: ApiRequestInit) => api.get<T.EventResponse>(`api/v1/events/${id}`, opts),
   updateEvent: (id: string, data: T.EventRequest) => api.put<T.EventResponse>(`api/v1/events/${id}`, data),
   deleteEvent: (id: string) => api.delete<void>(`api/v1/events/${id}`),
+  uploadCoverImage: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post<{ url: string }>(`api/v1/events/${id}/cover-image`, formData);
+  },
+  uploadImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return api.post<{ url: string }>(`api/v1/events/upload-image`, formData);
+  },
 
   // Event Locations
   getEventLocations: (opts?: any) => api.get<T.EventLocationResponse[]>("api/v1/eventlocations", opts),

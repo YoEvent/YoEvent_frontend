@@ -453,7 +453,20 @@ export default function EventsPage() {
                         )}
                         <label className="absolute bottom-3 right-3 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur text-white text-xs font-semibold rounded-full cursor-pointer hover:bg-black/80 transition-colors">
                           <Upload size={13} /> Upload Banner
-                          <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setBanner(ev.target?.result as string); r.readAsDataURL(f); }} />
+                          <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            try {
+                              setSaving(true);
+                              const res = await eventService.uploadCoverImage(selectedId, f);
+                              setBanner(res.url);
+                              showToast("Banner uploaded successfully!");
+                            } catch (err: any) {
+                              showToast("Failed to upload banner: " + (err.message || err));
+                            } finally {
+                              setSaving(false);
+                            }
+                          }} />
                         </label>
                       </div>
                     </div>
@@ -686,7 +699,20 @@ export default function EventsPage() {
                               <div className="text-sm font-semibold text-[#1a1a1a]">{teamForm.photoUrl ? "Click to change" : "Upload photo"}</div>
                               <div className="text-xs text-[#aaa]">PNG or JPG</div>
                             </div>
-                            <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setTeamForm(f => ({ ...f, photoUrl: ev.target?.result as string })); r.readAsDataURL(f); }} />
+                            <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setTeamLoading(true);
+                                const res = await eventService.uploadImage(f);
+                                setTeamForm(f => ({ ...f, photoUrl: res.url }));
+                                showToast("Photo uploaded successfully!");
+                              } catch (err: any) {
+                                showToast("Failed to upload photo: " + (err.message || err));
+                              } finally {
+                                setTeamLoading(false);
+                              }
+                            }} />
                           </label>
                           {teamForm.photoUrl && <button type="button" onClick={() => setTeamForm(f => ({ ...f, photoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove photo</button>}
                         </div>

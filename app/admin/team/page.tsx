@@ -173,7 +173,20 @@ export default function TeamPage() {
                         </div>
                       )}
                       <span className="text-sm text-[#888] group-hover:text-[#FF4747] transition-colors">{form.photoUrl ? "Click to change" : "Upload photo"}</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ev => setForm(f => ({ ...f, photoUrl: ev.target?.result as string })); r.readAsDataURL(f); }} />
+                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        try {
+                          setSaving(true);
+                          const res = await eventService.uploadImage(f);
+                          setForm(f => ({ ...f, photoUrl: res.url }));
+                          showToast("Photo uploaded successfully!");
+                        } catch (err: any) {
+                          showToast("Failed to upload photo: " + (err.message || err));
+                        } finally {
+                          setSaving(false);
+                        }
+                      }} />
                     </label>
                     {form.photoUrl && <button type="button" onClick={() => setForm(f => ({ ...f, photoUrl: "" }))} className="text-xs text-red-500 mt-1 hover:underline cursor-pointer">Remove photo</button>}
                   </div>
