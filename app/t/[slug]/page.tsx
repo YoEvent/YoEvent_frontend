@@ -48,13 +48,13 @@ export default async function TenantSlugPage({ params }: { params: { slug: strin
     (e: any) => e.status !== "DRAFT" && e.status !== "CANCELLED"
   );
 
-  const primaryColor = settings?.primaryColor || "#d4c9a8";
+  const primaryColor = settings?.primaryColor || "#EB4203";
   const accentColor  = settings?.accentColor  || primaryColor;
   const banner       = tenant?.bannerUrl       || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070";
   const customDomain = settings?.customDomain;
 
   return (
-    <div className="min-h-screen bg-[#f9f8f6] font-sans">
+    <div className="min-h-screen bg-white font-sans">
       {/* Hero banner */}
       <div
         className="h-64 md:h-96 bg-cover bg-center relative"
@@ -193,7 +193,7 @@ function EventCard({
                 {event.format === "VIRTUAL" ? "Online" : "In Person"}
               </div>
               {event.isPaid ? (
-                <span className="font-bold text-[#1a1a1a] bg-[#f5f0e8] px-2.5 py-1 rounded-md text-xs">
+                <span className="font-bold text-[#1a1a1a] bg-[#ffffff] px-2.5 py-1 rounded-md text-xs">
                   Tickets Available
                 </span>
               ) : (

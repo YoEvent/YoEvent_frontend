@@ -171,18 +171,18 @@ export default function SupportPage() {
   const activeSession = sessions.find((s) => s.sessionId === selectedSessionId || s.id === selectedSessionId);
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Engagement & Broadcasting</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Engagement & Broadcasting</h1>
           <div className="flex items-center gap-3">
             <label className="text-xs text-[#666] uppercase tracking-wider font-semibold">Active Event</label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#ddd] outline-none"
+              className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1a1a1a] outline-none"
             >
               {events.map((ev) => (
                 <option key={ev.eventId} value={ev.eventId}>
@@ -197,15 +197,15 @@ export default function SupportPage() {
           {/* Q&A & ANNOUNCEMENTS */}
           <div className="grid grid-cols-[2fr_1.2fr] gap-8">
             {/* Q&A MODERATION */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
               <div className="flex justify-between items-center mb-5">
-                <h2 className="font-display font-bold text-white flex items-center gap-2">
-                  <HelpCircle size={18} className="text-[#d4c9a8]" /> Live Session Q&A {activeSession && <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeSession.title})</span>}
+                <h2 className="font-display font-bold text-[#EB4203] flex items-center gap-2">
+                  <HelpCircle size={18} className="text-[#EB4203]" /> Live Session Q&A {activeSession && <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeSession.title})</span>}
                 </h2>
                 <select
                   value={selectedSessionId}
                   onChange={(e) => setSelectedSessionId(e.target.value)}
-                  className="bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-xs text-[#ddd] outline-none"
+                  className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-xs text-[#1a1a1a] outline-none"
                 >
                   <option value="">Select Session...</option>
                   {sessions.map((s) => (
@@ -219,7 +219,7 @@ export default function SupportPage() {
               {/* LIST */}
               <div className="space-y-4">
                 {questions.map((q) => (
-                  <div key={q.questionId} className="p-4 bg-[#161616] border border-[#2a2a2a] rounded-xl space-y-3">
+                  <div key={q.questionId} className="p-4 bg-white border border-[#e5e7eb] rounded-xl space-y-3">
                     <div className="flex justify-between items-start">
                       <div className="text-xs text-white leading-relaxed font-medium">
                         &ldquo;{q.questionText}&rdquo;
@@ -245,7 +245,7 @@ export default function SupportPage() {
                           placeholder="Type answer..."
                           value={answerForm[q.questionId] || ""}
                           onChange={(e) => setAnswerForm({ ...answerForm, [q.questionId]: e.target.value })}
-                          className="flex-1 bg-[#252525] border border-[#333] rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-[#555] outline-none"
+                          className="flex-1 bg-[#ffffff] border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-[#555] outline-none"
                         />
                         <button
                           onClick={() => handleAnswerQuestion(q.questionId)}
@@ -266,16 +266,16 @@ export default function SupportPage() {
             </div>
 
             {/* ANNOUNCEMENTS */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 flex flex-col">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <Megaphone size={18} className="text-[#d4c9a8]" /> Announcements <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 flex flex-col">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <Megaphone size={18} className="text-[#EB4203]" /> Announcements <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <form onSubmit={handlePostAnnouncement} className="space-y-4 mb-6">
                 <input
                   placeholder="Announcement Title"
                   value={announcementForm.title}
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2 text-xs text-white placeholder:text-[#555] outline-none"
                   required
                 />
                 <textarea
@@ -283,12 +283,12 @@ export default function SupportPage() {
                   value={announcementForm.content}
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
                   rows={2}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none resize-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none resize-none"
                   required
                 />
                 <button
                   type="submit"
-                  className="w-full py-2 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Megaphone size={14} /> Broadcast Announcement
                 </button>
@@ -296,9 +296,9 @@ export default function SupportPage() {
 
               <div className="flex-1 space-y-4 overflow-y-auto max-h-[300px]">
                 {announcements.map((a) => (
-                  <div key={a.announcementId} className="p-3.5 bg-[#161616] border border-[#2a2a2a] rounded-xl">
-                    <div className="text-xs font-bold text-white">{a.title}</div>
-                    <div className="text-[10px] text-[#888] leading-relaxed mt-1">{a.content}</div>
+                  <div key={a.announcementId} className="p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
+                    <div className="text-xs font-bold text-[#1a1a1a]">{a.title}</div>
+                    <div className="text-[10px] text-[#555] leading-relaxed mt-1">{a.content}</div>
                     <div className="text-[8px] text-[#555] mt-2 font-mono">
                       {new Date(a.publishedAt).toLocaleString()}
                     </div>
@@ -312,9 +312,9 @@ export default function SupportPage() {
           </div>
 
           {/* EMAIL CAMPAIGNS */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-              <Send size={18} className="text-[#d4c9a8]" /> Scheduled Email Campaigns <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+              <Send size={18} className="text-[#EB4203]" /> Scheduled Email Campaigns <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
             </h2>
             <div className="grid grid-cols-[1fr_2fr] gap-8">
               <form onSubmit={handleLaunchCampaign} className="space-y-4">
@@ -322,13 +322,13 @@ export default function SupportPage() {
                   placeholder="Email Subject"
                   value={campaignForm.subject}
                   onChange={(e) => setCampaignForm({ ...campaignForm, subject: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   required
                 />
                 <select
                   value={campaignForm.targetAudience}
                   onChange={(e) => setCampaignForm({ ...campaignForm, targetAudience: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                 >
                   <option value="All Attendees">All Attendees</option>
                   <option value="Sponsors Only">Sponsors Only</option>
@@ -339,12 +339,12 @@ export default function SupportPage() {
                   value={campaignForm.body}
                   onChange={(e) => setCampaignForm({ ...campaignForm, body: e.target.value })}
                   rows={4}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none resize-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none resize-none"
                   required
                 />
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Send size={14} /> Send Email Campaign
                 </button>
@@ -352,17 +352,17 @@ export default function SupportPage() {
 
               <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                 {campaigns.map((c) => (
-                  <div key={c.campaignId} className="p-4 bg-[#161616] border border-[#2a2a2a] rounded-xl flex justify-between items-start">
+                  <div key={c.campaignId} className="p-4 bg-white border border-[#e5e7eb] rounded-xl flex justify-between items-start">
                     <div className="space-y-1.5 max-w-[70%]">
-                      <div className="text-xs font-bold text-white">{c.subject}</div>
-                      <p className="text-[10px] text-[#ccc] leading-relaxed line-clamp-2 italic">
+                      <div className="text-xs font-bold text-[#1a1a1a]">{c.subject}</div>
+                      <p className="text-[10px] text-[#1a1a1a] leading-relaxed line-clamp-2 italic">
                         &ldquo;{c.body}&rdquo;
                       </p>
                       <div className="text-[8px] text-[#555] font-mono">
                         Sent on {new Date(c.scheduledAt).toLocaleString()}
                       </div>
                     </div>
-                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-green-500/15 text-green-400">
+                    <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-green-50 text-green-700 border border-green-100">
                       {c.status}
                     </span>
                   </div>

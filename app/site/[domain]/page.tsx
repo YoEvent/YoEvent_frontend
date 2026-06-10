@@ -67,11 +67,11 @@ function TenantEventsLayout({
   settings: any;
   events: any[];
 }) {
-  const primaryColor = settings?.primaryColor || "#d4c9a8";
+  const primaryColor = settings?.primaryColor || "#EB4203";
   const banner = tenant?.bannerUrl || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=2070";
 
   return (
-    <div className="min-h-screen bg-[#f9f8f6] font-sans">
+    <div className="min-h-screen bg-white font-sans">
       {/* Banner */}
       <div className="h-64 md:h-96 bg-cover bg-center relative" style={{ backgroundImage: `url(${banner})` }}>
         <div className="absolute inset-0 bg-black/40" />
@@ -94,7 +94,7 @@ function TenantEventsLayout({
 
         {events.length === 0 ? (
           <div className="text-center py-24 bg-white rounded-3xl border border-[#eaeaea]">
-            <Calendar className="mx-auto mb-4 text-[#d4c9a8]" size={48} />
+            <Calendar className="mx-auto mb-4 text-[#F7E998]" size={48} />
             <h3 className="text-xl font-bold text-[#1a1a1a] mb-2">No upcoming events</h3>
             <p className="text-[#888]">Check back later for new events from {tenant?.name}.</p>
           </div>
@@ -133,7 +133,7 @@ function EventCard({ event, primaryColor }: { event: any; primaryColor: string }
           )}
         </div>
         <div className="p-6 flex-1 flex flex-col">
-          <h3 className="text-xl font-bold text-[#1a1a1a] mb-2 group-hover:text-[#8a7d5a] transition-colors">{event.title}</h3>
+          <h3 className="text-xl font-bold text-[#1a1a1a] mb-2 group-hover:text-[#EB4203] transition-colors">{event.title}</h3>
           <p className="text-[#666] text-sm line-clamp-2 mb-6 flex-1">{event.description}</p>
           <div className="space-y-3 pt-6 border-t border-stone-100">
             <div className="flex items-center gap-3 text-xs text-[#555] font-medium">
@@ -148,7 +148,7 @@ function EventCard({ event, primaryColor }: { event: any; primaryColor: string }
                 {event.format === "VIRTUAL" ? "Online" : "See Venue"}
               </div>
               {event.isPaid ? (
-                <span className="font-bold text-[#1a1a1a] bg-[#f5f0e8] px-2.5 py-1 rounded-md text-xs">Tickets Available</span>
+                <span className="font-bold text-[#1a1a1a] bg-[#ffffff] px-2.5 py-1 rounded-md text-xs">Tickets Available</span>
               ) : (
                 <span className="font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-md text-xs">Free</span>
               )}

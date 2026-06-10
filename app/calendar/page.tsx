@@ -10,7 +10,7 @@ type EventMap = Record<string, CalEvent[]>;
 
 const INITIAL_EVENTS: EventMap = {
   "2026-06-05": [{ title: "Sponsor Meeting", time: "13:00", cls: "bg-green-900/40 text-green-300 border-l-2 border-green-500" }],
-  "2026-06-10": [{ title: "Speaker Briefing", time: "11:00", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8] border-l-2 border-[#8a7d5a]" }],
+  "2026-06-10": [{ title: "Speaker Briefing", time: "11:00", cls: "bg-[#EB4203]/10 text-[#EB4203] border-l-2 border-[#EB4203]" }],
   "2026-06-14": [
     { title: "Tech Summit 2026", time: "09:00", cls: "bg-blue-900/40 text-blue-300 border-l-2 border-blue-500" },
     { title: "Keynote Session", time: "10:00", cls: "bg-blue-900/30 text-blue-400 border-l-2 border-blue-600" },
@@ -18,8 +18,8 @@ const INITIAL_EVENTS: EventMap = {
   "2026-06-15": [{ title: "Tech Summit Day 2", time: "09:00", cls: "bg-blue-900/40 text-blue-300 border-l-2 border-blue-500" }],
   "2026-06-18": [{ title: "UX Design Workshop", time: "14:00", cls: "bg-green-900/40 text-green-300 border-l-2 border-green-500" }],
   "2026-06-22": [{ title: "Product Launch Webinar", time: "11:00", cls: "bg-amber-900/40 text-amber-300 border-l-2 border-amber-500" }],
-  "2026-06-23": [{ title: "Today — Planning", time: "10:00", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8] border-l-2 border-[#8a7d5a]" }],
-  "2026-06-25": [{ title: "Team Planning Session", time: "10:00", cls: "bg-[#d4c9a8]/15 text-[#d4c9a8] border-l-2 border-[#8a7d5a]" }],
+  "2026-06-23": [{ title: "Today — Planning", time: "10:00", cls: "bg-[#EB4203]/10 text-[#EB4203] border-l-2 border-[#EB4203]" }],
+  "2026-06-25": [{ title: "Team Planning Session", time: "10:00", cls: "bg-[#EB4203]/10 text-[#EB4203] border-l-2 border-[#EB4203]" }],
   "2026-06-30": [
     { title: "Monthly Review", time: "15:00", cls: "bg-amber-900/40 text-amber-300 border-l-2 border-amber-500" },
     { title: "Budget Call", time: "17:00", cls: "bg-red-900/40 text-red-300 border-l-2 border-red-500" },
@@ -32,7 +32,7 @@ const CAT_CLS: Record<string, string> = {
   Conference: "bg-blue-900/40 text-blue-300 border-l-2 border-blue-500",
   Workshop: "bg-green-900/40 text-green-300 border-l-2 border-green-500",
   Webinar: "bg-amber-900/40 text-amber-300 border-l-2 border-amber-500",
-  Internal: "bg-[#d4c9a8]/15 text-[#d4c9a8] border-l-2 border-[#8a7d5a]",
+  Internal: "bg-[#EB4203]/10 text-[#EB4203] border-l-2 border-[#EB4203]",
   Other: "bg-red-900/40 text-red-300 border-l-2 border-red-500",
 };
 
@@ -192,7 +192,7 @@ export default function CalendarPage() {
         let color = "bg-blue-500";
         if (catName === "Workshop") color = "bg-green-500";
         else if (catName === "Webinar") color = "bg-amber-500";
-        else if (catName === "Internal") color = "bg-[#8a7d5a]";
+        else if (catName === "Internal") color = "bg-[#EB4203]";
         else if (catName === "Other") color = "bg-red-500";
 
         return {
@@ -207,24 +207,24 @@ export default function CalendarPage() {
         { title: "Tech Summit 2026", date: "Jun 14 · 09:00–18:00", badge: "Live", color: "bg-blue-500", bdg: "bg-blue-900/40 text-blue-300" },
         { title: "UX Design Workshop", date: "Jun 18 · 14:00–17:00", badge: "Upcoming", color: "bg-green-500", bdg: "bg-green-900/40 text-green-300" },
         { title: "Product Launch Webinar", date: "Jun 22 · 11:00–12:30", badge: "Upcoming", color: "bg-amber-500", bdg: "bg-amber-900/40 text-amber-300" },
-        { title: "Team Planning Session", date: "Jun 25 · 10:00–11:00", badge: "Internal", color: "bg-[#8a7d5a]", bdg: "bg-[#d4c9a8]/15 text-[#d4c9a8]" },
+        { title: "Team Planning Session", date: "Jun 25 · 10:00–11:00", badge: "Internal", color: "bg-[#EB4203]", bdg: "bg-[#EB4203]/10 text-[#EB4203]" },
       ];
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* TOPBAR */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Calendar</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Calendar</h1>
           <div className="flex items-center gap-3">
-            <div className="flex border border-[#333] rounded-lg overflow-hidden">
+            <div className="flex border border-[#e5e7eb] rounded-lg overflow-hidden">
               {["Month","Week","Day"].map((v) => (
-                <button key={v} className={`px-3.5 py-1.5 text-xs transition-all cursor-pointer ${v === "Month" ? "bg-[#1a1a1a] text-white" : "text-[#666] hover:text-[#ccc] bg-transparent"}`}>{v}</button>
+                <button key={v} className={`px-3.5 py-1.5 text-xs transition-all cursor-pointer ${v === "Month" ? "bg-[#1a1a1a] text-white" : "text-[#666] hover:text-[#1a1a1a] bg-transparent"}`}>{v}</button>
               ))}
             </div>
-            <button className="px-3.5 py-1.5 text-xs border border-[#333] rounded-lg text-[#888] hover:bg-[#1e1e1e] transition-colors cursor-pointer">📥 Import</button>
-            <button onClick={() => setModal(true)} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#d4c9a8] text-[#1a1a1a] text-xs font-semibold rounded-lg hover:bg-[#c8bb96] transition-colors cursor-pointer">
+            <button className="px-3.5 py-1.5 text-xs border border-[#e5e7eb] rounded-lg text-[#555] hover:bg-white transition-colors cursor-pointer">📥 Import</button>
+            <button onClick={() => setModal(true)} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#EB4203] text-white text-xs font-semibold rounded-lg hover:bg-[#c23b02] transition-colors cursor-pointer">
               <Plus size={14}/> New Event
             </button>
           </div>
@@ -235,13 +235,13 @@ export default function CalendarPage() {
           <div className="flex-1 p-6">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <button onClick={prev} className="w-8 h-8 border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#1a1a1a] hover:border-[#555] transition-all cursor-pointer"><ChevronLeft size={16}/></button>
-                <h2 className="font-display text-xl font-bold text-white">{MONTHS[month]} {year}</h2>
-                <button onClick={next} className="w-8 h-8 border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#1a1a1a] hover:border-[#555] transition-all cursor-pointer"><ChevronRight size={16}/></button>
-                <button onClick={goToday} className="px-3 py-1 text-xs border border-[#333] rounded-full text-[#888] hover:bg-[#1a1a1a] transition-all cursor-pointer">Today</button>
+                <button onClick={prev} className="w-8 h-8 border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#1a1a1a] hover:border-[#555] transition-all cursor-pointer"><ChevronLeft size={16}/></button>
+                <h2 className="font-display text-xl font-bold text-[#EB4203]">{MONTHS[month]} {year}</h2>
+                <button onClick={next} className="w-8 h-8 border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#1a1a1a] hover:border-[#555] transition-all cursor-pointer"><ChevronRight size={16}/></button>
+                <button onClick={goToday} className="px-3 py-1 text-xs border border-[#e5e7eb] rounded-full text-[#555] hover:bg-[#1a1a1a] transition-all cursor-pointer">Today</button>
               </div>
               <div className="flex gap-4">
-                {[["#1565c0","Conference"],["#2e7d32","Workshop"],["#f57c00","Webinar"],["#8a7d5a","Internal"]].map(([c,l]) => (
+                {[["#1565c0","Conference"],["#2e7d32","Workshop"],["#f57c00","Webinar"],["#EB4203","Internal"]].map(([c,l]) => (
                   <div key={l} className="flex items-center gap-1.5 text-xs text-[#555]">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: c }}/>
                     {l}
@@ -250,8 +250,8 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl overflow-hidden">
-              <div className="grid grid-cols-7 bg-[#181818] border-b border-[#2a2a2a]">
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden">
+              <div className="grid grid-cols-7 bg-[#181818] border-b border-[#e5e7eb]">
                 {DAYS.map(d => <div key={d} className="py-3 text-center text-[10px] font-medium text-[#555] uppercase tracking-widest">{d}</div>)}
               </div>
               <div className="grid grid-cols-7">
@@ -260,8 +260,8 @@ export default function CalendarPage() {
                   const evs = (ds && events[ds]) || [];
                   const today = current && isToday(day);
                   return (
-                    <div key={i} className={`min-h-[100px] p-2 border-r border-b border-[#222] last:border-r-0 transition-colors ${!current ? "opacity-30" : ""} ${today ? "bg-[#d4c9a8]/5" : "hover:bg-[#252525]"}`}>
-                      <div className={`w-6 h-6 flex items-center justify-center text-xs font-medium mb-1.5 rounded-full ${today ? "bg-[#d4c9a8] text-[#1a1a1a] font-bold" : "text-[#888]"}`}>{day}</div>
+                    <div key={i} className={`min-h-[100px] p-2 border-r border-b border-[#e5e7eb] last:border-r-0 transition-colors ${!current ? "opacity-30" : ""} ${today ? "bg-[#EB4203]/5" : "hover:bg-[#ffffff]"}`}>
+                      <div className={`w-6 h-6 flex items-center justify-center text-xs font-medium mb-1.5 rounded-full ${today ? "bg-[#EB4203] text-[#1a1a1a] font-bold" : "text-[#555]"}`}>{day}</div>
                       {evs.slice(0, 2).map((ev, j) => (
                         <div key={j} className={`text-[10px] font-medium rounded px-1.5 py-0.5 mb-0.5 truncate cursor-pointer hover:brightness-110 transition-all ${ev.cls}`}>{ev.time} {ev.title}</div>
                       ))}
@@ -274,11 +274,11 @@ export default function CalendarPage() {
           </div>
 
           {/* SIDE PANEL */}
-          <aside className="w-72 bg-[#161616] border-l border-[#222] p-5 flex flex-col gap-6">
+          <aside className="w-72 bg-white border-l border-[#e5e7eb] p-5 flex flex-col gap-6">
             <div>
-              <h3 className="font-display font-bold text-white mb-4">📅 {MONTHS[month]} {year}</h3>
+              <h3 className="font-display font-bold text-[#EB4203] mb-4">📅 {MONTHS[month]} {year}</h3>
               {/* Mini calendar */}
-              <div className="bg-[#1e1e1e] rounded-xl p-3 mb-5">
+              <div className="bg-white rounded-xl p-3 mb-5">
                 <div className="grid grid-cols-7 gap-0.5 mb-1">
                   {["S","M","T","W","T","F","S"].map((d,i) => <div key={i} className="text-center text-[9px] text-[#555] py-1">{d}</div>)}
                 </div>
@@ -289,7 +289,7 @@ export default function CalendarPage() {
                     const ds = dateStr(d);
                     const today = isToday(d);
                     return (
-                      <div key={d} className={`text-center text-xs py-1 rounded-full cursor-pointer transition-all ${today ? "bg-[#d4c9a8] text-[#1a1a1a] font-bold" : events[ds] ? "text-white font-medium hover:bg-[#333]" : "text-[#555] hover:bg-[#2a2a2a]"}`}>{d}</div>
+                      <div key={d} className={`text-center text-xs py-1 rounded-full cursor-pointer transition-all ${today ? "bg-[#EB4203] text-[#1a1a1a] font-bold" : events[ds] ? "text-[#1a1a1a] font-medium hover:bg-[#333]" : "text-[#555] hover:bg-[#2a2a2a]"}`}>{d}</div>
                     );
                   })}
                 </div>
@@ -299,10 +299,10 @@ export default function CalendarPage() {
               <h3 className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-4">Upcoming Events</h3>
               <div className="space-y-4">
                 {upcoming.map((ev) => (
-                  <div key={ev.title} className="flex gap-3 pb-4 border-b border-[#222] last:border-0">
+                  <div key={ev.title} className="flex gap-3 pb-4 border-b border-[#e5e7eb] last:border-0">
                     <div className={`w-1 rounded-full flex-shrink-0 min-h-[40px] ${ev.color}`}/>
                     <div>
-                      <div className="text-xs font-semibold text-[#ddd] mb-0.5">{ev.title}</div>
+                      <div className="text-xs font-semibold text-[#1a1a1a] mb-0.5">{ev.title}</div>
                       <div className="text-[10px] text-[#555] mb-1.5">{ev.date}</div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ev.bdg}`}>{ev.badge}</span>
                     </div>
@@ -317,27 +317,27 @@ export default function CalendarPage() {
       {/* MODAL */}
       {modal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && setModal(false)}>
-          <div className="bg-[#1e1e1e] border border-[#333] rounded-2xl w-[480px] max-w-full p-8 shadow-2xl">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl w-[480px] max-w-full p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-display text-xl font-bold text-white">New Event</h3>
+              <h3 className="font-display text-xl font-bold text-[#EB4203]">New Event</h3>
               <button onClick={() => setModal(false)} className="text-[#555] hover:text-white transition-colors cursor-pointer"><X size={18}/></button>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Event Title *</label>
                 <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Annual Conference 2026"
-                  className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#d4c9a8]/50 transition-colors"/>
+                  className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors"/>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Start Date</label>
                   <input type="date" value={form.start} onChange={e => setForm(f => ({ ...f, start: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-sm text-white outline-none focus:border-[#d4c9a8]/50 transition-colors"/>
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Category</label>
                   <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-sm text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors">
                     {["Conference","Workshop","Webinar","Internal","Other"].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
@@ -346,22 +346,22 @@ export default function CalendarPage() {
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Start Time</label>
                   <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-sm text-white outline-none focus:border-[#d4c9a8]/50 transition-colors"/>
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">End Time</label>
                   <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-sm text-white outline-none focus:border-[#d4c9a8]/50 transition-colors"/>
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Description</label>
                 <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} rows={3} placeholder="Brief description…"
-                  className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#d4c9a8]/50 transition-colors resize-none"/>
+                  className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors resize-none"/>
               </div>
               <div className="flex gap-3 justify-end pt-2">
-                <button onClick={() => setModal(false)} className="px-5 py-2.5 text-sm border border-[#333] rounded-full text-[#888] hover:bg-[#252525] transition-colors cursor-pointer">Cancel</button>
-                <button onClick={handleCreate} className="px-5 py-2.5 text-sm bg-[#d4c9a8] text-[#1a1a1a] rounded-full font-semibold hover:bg-[#c8bb96] transition-colors cursor-pointer">Create Event</button>
+                <button onClick={() => setModal(false)} className="px-5 py-2.5 text-sm border border-[#e5e7eb] rounded-full text-[#555] hover:bg-[#ffffff] transition-colors cursor-pointer">Cancel</button>
+                <button onClick={handleCreate} className="px-5 py-2.5 text-sm bg-[#EB4203] text-white rounded-full font-semibold hover:bg-[#c23b02] transition-colors cursor-pointer">Create Event</button>
               </div>
             </div>
           </div>
@@ -369,7 +369,7 @@ export default function CalendarPage() {
       )}
 
       {/* TOAST */}
-      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#333] text-white text-sm px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-50 ${toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
+      <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#e5e7eb] text-white text-sm px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-50 ${toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
         ✅ Event created successfully!
       </div>
     </div>

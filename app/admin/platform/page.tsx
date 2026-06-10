@@ -93,25 +93,25 @@ export default function PlatformCommissionPage() {
     n != null ? `$${Number(n).toFixed(2)}` : "—";
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center px-8 sticky top-0 z-40">
-          <Settings size={18} className="text-[#d4c9a8] mr-3" />
-          <h1 className="font-display text-xl font-bold text-white">Platform Commission</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center px-8 sticky top-0 z-40">
+          <Settings size={18} className="text-[#FF4747] mr-3" />
+          <h1 className="font-display text-xl font-bold text-[#FF4747]">Platform Commission</h1>
         </header>
 
         <main className="p-8 space-y-8 max-w-4xl">
 
           {/* ── STRIPE NOTICE ── */}
-          <div className="bg-[#1a1a12] border border-[#3a3520] rounded-2xl p-5 flex gap-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4">
             <Info size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
-            <div className="text-xs text-[#a89a54] leading-relaxed space-y-1">
-              <p className="font-semibold text-[#d4b84a]">Stripe does not split payments automatically</p>
+            <div className="text-xs text-amber-700 leading-relaxed space-y-1">
+              <p className="font-semibold text-amber-800">Stripe does not split payments automatically</p>
               <p>
-                Stripe captures the <span className="text-[#e0d090]">full ticket price</span> from the buyer in a single
+                Stripe captures the <span className="font-semibold text-amber-700">full ticket price</span> from the buyer in a single
                 PaymentIntent — the platform fee is calculated and stored in the database only.
-                To automatically route the organizer's net share via Stripe, <span className="text-[#e0d090]">Stripe Connect</span> is required
+                To automatically route the organizer's net share via Stripe, <span className="font-semibold text-amber-700">Stripe Connect</span> is required
                 (application fees on destination charges). Without it, the platform receives all funds and
                 must transfer the organizer's net amount manually. Use the withdrawal section below to track those payouts.
               </p>
@@ -125,7 +125,7 @@ export default function PlatformCommissionPage() {
                 label: "Total Collected",
                 value: fmt(revenue?.totalCollected),
                 sub: "Sum of all platform fees on orders",
-                color: "text-[#d4c9a8]",
+                color: "text-[#FF4747]",
               },
               {
                 label: "Total Withdrawn",
@@ -140,8 +140,8 @@ export default function PlatformCommissionPage() {
                 color: "text-green-400",
               },
             ].map((card, i) => (
-              <div key={i} className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#2a2a2a] rounded-2xl p-6">
-                <div className="text-[10px] text-[#555] uppercase tracking-wider mb-2 font-bold">{card.label}</div>
+              <div key={i} className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                <div className="text-[10px] text-[#888] uppercase tracking-wider mb-2 font-bold">{card.label}</div>
                 <div className={`font-display text-3xl font-bold mb-1 ${card.color}`}>{card.value}</div>
                 <div className="text-[10px] text-[#555]">{card.sub}</div>
               </div>
@@ -151,9 +151,9 @@ export default function PlatformCommissionPage() {
           <div className="grid grid-cols-2 gap-8">
             {/* ── COMMISSION RATE SETTINGS ── */}
             <div className="space-y-6">
-              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 space-y-5">
-                <h2 className="font-display font-bold text-white flex items-center gap-2">
-                  <Percent size={16} className="text-[#d4c9a8]" /> Commission Rates
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 space-y-5">
+                <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
+                  <Percent size={16} className="text-[#FF4747]" /> Commission Rates
                 </h2>
 
                 {/* Info blurb */}
@@ -173,7 +173,7 @@ export default function PlatformCommissionPage() {
                         type="number" min="0" max="100" step="0.01"
                         value={baseRate}
                         onChange={(e) => setBaseRate(e.target.value)}
-                        className="w-full bg-[#252525] border border-[#333] rounded-xl pl-8 pr-4 py-2.5 text-sm text-white outline-none focus:border-[#d4c9a8] transition-colors"
+                        className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl pl-8 pr-4 py-2.5 text-sm text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
                         required
                       />
                     </div>
@@ -189,7 +189,7 @@ export default function PlatformCommissionPage() {
                         type="number" min="0" step="0.01"
                         value={flatFee}
                         onChange={(e) => setFlatFee(e.target.value)}
-                        className="w-full bg-[#252525] border border-[#333] rounded-xl pl-8 pr-4 py-2.5 text-sm text-white outline-none focus:border-[#d4c9a8] transition-colors"
+                        className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl pl-8 pr-4 py-2.5 text-sm text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
                         required
                       />
                     </div>
@@ -203,7 +203,7 @@ export default function PlatformCommissionPage() {
 
                   <button
                     type="submit" disabled={saving}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] disabled:opacity-50 text-[#1a1a1a] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#F7E998] hover:bg-[#FF4747] hover:text-white disabled:opacity-50 text-[#1a1a1a] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
                     <Save size={13} />
                     {saving ? "Saving…" : "Save Rates"}
@@ -212,19 +212,19 @@ export default function PlatformCommissionPage() {
               </div>
 
               {/* Rate preview */}
-              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-5">
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5">
                 <p className="text-[10px] text-[#555] uppercase tracking-wider font-bold mb-3">Example on a $100 order</p>
                 <table className="w-full text-xs">
-                  <tbody className="divide-y divide-[#222]">
+                  <tbody className="divide-y divide-[#f0f0f0]">
                     {[
                       { plan: "FREE", fee: `${parseFloat(baseRate) || 0}%`, ex: `$${((parseFloat(baseRate) || 0) * 1).toFixed(2)}` },
                       { plan: "BASIC", fee: `${parseFloat(baseRate) || 0}%`, ex: `$${((parseFloat(baseRate) || 0) * 1).toFixed(2)}` },
                       { plan: "PREMIUM", fee: `$${parseFloat(flatFee) || 0} flat`, ex: `$${(parseFloat(flatFee) || 0).toFixed(2)}` },
                     ].map((r) => (
                       <tr key={r.plan}>
-                        <td className="py-2.5 text-[#ccc] font-medium">{r.plan}</td>
-                        <td className="py-2.5 text-[#888]">{r.fee}</td>
-                        <td className="py-2.5 text-right text-[#d4c9a8] font-mono">{r.ex}</td>
+                        <td className="py-2.5 text-[#1a1a1a] font-medium">{r.plan}</td>
+                        <td className="py-2.5 text-[#555]">{r.fee}</td>
+                        <td className="py-2.5 text-right text-[#FF4747] font-mono">{r.ex}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -234,9 +234,9 @@ export default function PlatformCommissionPage() {
 
             {/* ── WITHDRAWAL ── */}
             <div className="space-y-6">
-              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-                <h2 className="font-display font-bold text-white flex items-center gap-2 mb-4">
-                  <ArrowDownCircle size={16} className="text-[#d4c9a8]" /> Record Withdrawal
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2 mb-4">
+                  <ArrowDownCircle size={16} className="text-[#FF4747]" /> Record Withdrawal
                 </h2>
                 <p className="text-[10px] text-[#555] leading-relaxed mb-4">
                   Use this to log when you transfer the organizer's net share from your Stripe or bank account.
@@ -252,7 +252,7 @@ export default function PlatformCommissionPage() {
                         placeholder="e.g. 150.00"
                         value={withdrawAmount}
                         onChange={(e) => setWithdrawAmount(e.target.value)}
-                        className="w-full bg-[#252525] border border-[#333] rounded-xl pl-8 pr-4 py-2.5 text-sm text-white placeholder:text-[#444] outline-none focus:border-[#d4c9a8] transition-colors"
+                        className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl pl-8 pr-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors"
                         required
                       />
                     </div>
@@ -264,12 +264,12 @@ export default function PlatformCommissionPage() {
                       placeholder="e.g. Bank transfer to Acme Events Ltd"
                       value={withdrawNote}
                       onChange={(e) => setWithdrawNote(e.target.value)}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#444] outline-none focus:border-[#d4c9a8] transition-colors"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors"
                     />
                   </div>
                   <button
                     type="submit" disabled={withdrawing}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#252525] hover:bg-[#2e2e2e] border border-[#3a3a3a] disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#ffffff] hover:bg-[#2e2e2e] border border-[#3a3a3a] disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
                     <TrendingDown size={13} className="text-red-400" />
                     {withdrawing ? "Recording…" : "Record Withdrawal"}
@@ -278,14 +278,14 @@ export default function PlatformCommissionPage() {
               </div>
 
               {/* Withdrawal history */}
-              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-                <h2 className="text-xs font-bold text-[#888] uppercase tracking-wider mb-4">Withdrawal History</h2>
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                <h2 className="text-xs font-bold text-[#555] uppercase tracking-wider mb-4">Withdrawal History</h2>
                 {withdrawals.length === 0 ? (
                   <p className="text-xs text-[#444] text-center py-4">No withdrawals recorded yet.</p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {[...withdrawals].reverse().map((w, i) => (
-                      <div key={w.withdrawalId || i} className="flex justify-between items-start p-3 bg-[#161616] border border-[#252525] rounded-xl">
+                      <div key={w.withdrawalId || i} className="flex justify-between items-start p-3 bg-white border border-[#252525] rounded-xl">
                         <div>
                           <p className="text-xs text-[#999]">{w.note || "No note"}</p>
                           <p className="text-[10px] text-[#555] mt-0.5">

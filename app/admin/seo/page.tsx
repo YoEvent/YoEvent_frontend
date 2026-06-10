@@ -37,8 +37,8 @@ export default function SeoPage() {
     customDomain: "",
     emailSenderName: "",
     notificationPrefs: "EMAIL",
-    primaryColor: "#d4c9a8",
-    secondaryColor: "#8a7d5a",
+    primaryColor: "#F7E998",
+    secondaryColor: "#FF4747",
     fontFamily: "Inter",
     faviconUrl: "",
     // Premium fields
@@ -83,8 +83,8 @@ export default function SeoPage() {
           customDomain: mySettings.customDomain || "",
           emailSenderName: mySettings.emailSenderName || "",
           notificationPrefs: mySettings.notificationPrefs || "EMAIL",
-          primaryColor: mySettings.primaryColor || "#d4c9a8",
-          secondaryColor: mySettings.secondaryColor || "#8a7d5a",
+          primaryColor: mySettings.primaryColor || "#F7E998",
+          secondaryColor: mySettings.secondaryColor || "#FF4747",
           fontFamily: mySettings.fontFamily || "Inter",
           faviconUrl: mySettings.faviconUrl || "",
           accentColor: mySettings.accentColor || "#c8a96e",
@@ -225,29 +225,29 @@ export default function SeoPage() {
     }
   };
 
-  const lockedInputClass = "w-full px-4 py-2.5 bg-[#1a1a1a] border border-[#222] rounded-xl text-xs text-[#444] placeholder:text-[#333] outline-none cursor-not-allowed";
-  const inputClass = "w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white placeholder:text-[#555] outline-none focus:border-[#d4c9a8]/50 transition-colors";
+  const lockedInputClass = "w-full px-4 py-2.5 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-xs text-[#888] placeholder:text-[#333] outline-none cursor-not-allowed";
+  const inputClass = "w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors";
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
 
         {/* HEADER */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-xl font-bold text-white">Workspace Settings</h1>
+            <h1 className="font-display text-xl font-bold text-[#FF4747]">Workspace Settings</h1>
             <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
               isPremium ? "text-amber-400 bg-amber-400/10 border-amber-400/20" :
               isBasicOrAbove ? "text-sky-400 bg-sky-400/10 border-sky-400/20" :
-              "text-[#666] bg-[#222] border-[#333]"
+              "text-[#888] bg-[#f5f5f5] border-[#e5e7eb]"
             }`}>
               {planTier || "FREE"} plan
             </span>
           </div>
           <button
             onClick={fetchSettings}
-            className="w-8 h-8 bg-[#222] border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+            className="w-8 h-8 bg-white border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#f5f5f5] transition-colors cursor-pointer"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -256,16 +256,16 @@ export default function SeoPage() {
         <main className="p-8 max-w-3xl space-y-8">
 
           {/* WORKSPACE BRANDING */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8 space-y-6">
-            <h2 className="font-display font-bold text-white flex items-center gap-2">
-              <Shield size={18} className="text-[#d4c9a8]" /> Workspace Branding
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
+            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
+              <Shield size={18} className="text-[#FF4747]" /> Workspace Branding
             </h2>
             <p className="text-xs text-[#666] leading-relaxed">
               Upload a logo and configure brand colors for your event pages and tickets.
             </p>
 
             {logoMsg.text && (
-              <div className={`p-4 rounded-xl text-sm ${logoMsg.type === "success" ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
+              <div className={`p-4 rounded-xl text-sm ${logoMsg.type === "success" ? "bg-green-50 text-green-700 border border-green-100 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
                 {logoMsg.text}
               </div>
             )}
@@ -273,14 +273,14 @@ export default function SeoPage() {
             {/* Logo */}
             <div className="flex items-center gap-6">
               {tenant?.logo ? (
-                <img src={tenant.logo} alt="Workspace Logo" className="w-20 h-20 rounded-xl object-cover border-2 border-[#333]" />
+                <img src={tenant.logo} alt="Workspace Logo" className="w-20 h-20 rounded-xl object-cover border-2 border-[#e5e7eb]" />
               ) : (
-                <div className="w-20 h-20 rounded-xl bg-[#111] flex items-center justify-center text-[#555] font-bold text-2xl border-2 border-[#333]">
+                <div className="w-20 h-20 rounded-xl bg-[#f9fafb] flex items-center justify-center text-[#555] font-bold text-2xl border-2 border-[#e5e7eb]">
                   {tenant?.name?.charAt(0) || "T"}
                 </div>
               )}
               <div>
-                <label className="block text-sm font-semibold text-white mb-2 cursor-pointer bg-[#222] hover:bg-[#2a2a2a] px-4 py-2 rounded-lg transition-colors border border-[#333] text-center">
+                <label className="block text-sm font-semibold text-[#1a1a1a] mb-2 cursor-pointer bg-[#222] hover:bg-[#f5f5f5] px-4 py-2 rounded-lg transition-colors border border-[#e5e7eb] text-center">
                   Upload Logo
                   <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
                 </label>
@@ -295,10 +295,10 @@ export default function SeoPage() {
                 <div className="flex items-center gap-3">
                   <input type="color" value={form.primaryColor}
                     onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                    className="w-10 h-10 rounded-lg border border-[#333] bg-[#252525] cursor-pointer p-0.5" />
+                    className="w-10 h-10 rounded-lg border border-[#e5e7eb] bg-[#ffffff] cursor-pointer p-0.5" />
                   <input type="text" value={form.primaryColor} maxLength={7}
                     onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                    className="flex-1 px-3 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white font-mono outline-none focus:border-[#d4c9a8]/50 transition-colors" />
+                    className="flex-1 px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] font-mono outline-none focus:border-[#FF4747] transition-colors" />
                 </div>
               </div>
               <div>
@@ -306,17 +306,17 @@ export default function SeoPage() {
                 <div className="flex items-center gap-3">
                   <input type="color" value={form.secondaryColor}
                     onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })}
-                    className="w-10 h-10 rounded-lg border border-[#333] bg-[#252525] cursor-pointer p-0.5" />
+                    className="w-10 h-10 rounded-lg border border-[#e5e7eb] bg-[#ffffff] cursor-pointer p-0.5" />
                   <input type="text" value={form.secondaryColor} maxLength={7}
                     onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })}
-                    className="flex-1 px-3 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white font-mono outline-none focus:border-[#d4c9a8]/50 transition-colors" />
+                    className="flex-1 px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] font-mono outline-none focus:border-[#FF4747] transition-colors" />
                 </div>
               </div>
             </div>
 
             {/* Gradient preview */}
             <div className="flex gap-3 items-center">
-              <div className="h-8 flex-1 rounded-lg border border-[#333]"
+              <div className="h-8 flex-1 rounded-lg border border-[#e5e7eb]"
                    style={{ background: `linear-gradient(90deg, ${form.primaryColor}, ${form.secondaryColor})` }} />
               <span className="text-[10px] text-[#555] uppercase tracking-wider">Preview</span>
             </div>
@@ -326,7 +326,7 @@ export default function SeoPage() {
               <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Brand Font</label>
               <select value={form.fontFamily}
                 onChange={(e) => setForm({ ...form, fontFamily: e.target.value })}
-                className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
                 {FONT_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </div>
@@ -336,7 +336,7 @@ export default function SeoPage() {
               <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Favicon URL</label>
               <div className="flex items-center gap-3">
                 {form.faviconUrl && (
-                  <img src={form.faviconUrl} alt="Favicon" className="w-6 h-6 rounded object-contain bg-[#252525] border border-[#333] p-0.5" />
+                  <img src={form.faviconUrl} alt="Favicon" className="w-6 h-6 rounded object-contain bg-[#ffffff] border border-[#e5e7eb] p-0.5" />
                 )}
                 <input type="url" value={form.faviconUrl}
                   placeholder="https://yourdomain.com/favicon.ico"
@@ -347,8 +347,8 @@ export default function SeoPage() {
           </div>
 
           {/* PREMIUM BRANDING */}
-          <div className={`bg-[#1e1e1e] border rounded-2xl p-8 space-y-6 ${isPremium ? "border-[#2a2a2a]" : "border-amber-400/20"}`}>
-            <h2 className="font-display font-bold text-white flex items-center gap-2">
+          <div className={`bg-white border rounded-2xl p-8 space-y-6 ${isPremium ? "border-[#e5e7eb]" : "border-amber-400/20"}`}>
+            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
               <Sparkles size={18} className="text-amber-400" /> Advanced Branding
               {!isPremium && <PlanBadge required="PREMIUM" />}
             </h2>
@@ -365,11 +365,11 @@ export default function SeoPage() {
                   <input type="color" value={form.accentColor}
                     disabled={!isPremium}
                     onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
-                    className={`w-10 h-10 rounded-lg border border-[#333] p-0.5 ${isPremium ? "bg-[#252525] cursor-pointer" : "bg-[#1a1a1a] cursor-not-allowed opacity-40"}`} />
+                    className={`w-10 h-10 rounded-lg border border-[#e5e7eb] p-0.5 ${isPremium ? "bg-[#ffffff] cursor-pointer" : "bg-[#f5f5f5] cursor-not-allowed opacity-50"}`} />
                   <input type="text" value={form.accentColor} maxLength={7}
                     disabled={!isPremium}
                     onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
-                    className={isPremium ? "flex-1 px-3 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white font-mono outline-none focus:border-[#d4c9a8]/50" : `flex-1 ${lockedInputClass}`} />
+                    className={isPremium ? "flex-1 px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-white font-mono outline-none focus:border-[#F7E998]/50" : `flex-1 ${lockedInputClass}`} />
                 </div>
               </div>
               <div>
@@ -399,44 +399,44 @@ export default function SeoPage() {
                 rows={5}
                 placeholder=".ye-event-card { border-radius: 16px; }"
                 onChange={(e) => setForm({ ...form, customCss: e.target.value })}
-                className={`${isPremium ? "bg-[#252525] border-[#333] text-white focus:border-[#d4c9a8]/50" : "bg-[#1a1a1a] border-[#222] text-[#444] cursor-not-allowed"} w-full px-4 py-3 border rounded-xl text-xs font-mono outline-none transition-colors resize-none`}
+                className={`${isPremium ? "bg-white border-[#e5e7eb] text-[#1a1a1a] focus:border-[#FF4747]" : "bg-[#f5f5f5] border-[#e5e7eb] text-[#aaa] cursor-not-allowed"} w-full px-4 py-3 border rounded-xl text-xs font-mono outline-none transition-colors resize-none`}
               />
               <p className="text-[10px] text-[#444] mt-1">Injected into your tenant event pages. Use with care.</p>
             </div>
           </div>
 
           {/* WORKSPACE PROFILE */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8 space-y-6">
-            <h2 className="font-display font-bold text-white flex items-center gap-2">
-              <Settings size={18} className="text-[#d4c9a8]" /> Workspace Profile
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
+            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
+              <Settings size={18} className="text-[#FF4747]" /> Workspace Profile
             </h2>
             <p className="text-xs text-[#666] leading-relaxed">Basic details about your organization.</p>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-2">Organization Name</label>
+                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-2">Organization Name</label>
                 <input value={tenantForm.name}
                   onChange={(e) => setTenantForm({ ...tenantForm, name: e.target.value })}
-                  className="w-full bg-[#111] border border-[#333] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#d4c9a8] transition-colors" />
+                  className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#F7E998] transition-colors" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-2">Slug</label>
+                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-2">Slug</label>
                 <input value={tenantForm.slug}
                   onChange={(e) => setTenantForm({ ...tenantForm, slug: e.target.value })}
-                  className="w-full bg-[#111] border border-[#333] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#d4c9a8] transition-colors" />
+                  className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#F7E998] transition-colors" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-2">Industry</label>
+                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-2">Industry</label>
                 <input value={tenantForm.industryType}
                   onChange={(e) => setTenantForm({ ...tenantForm, industryType: e.target.value })}
-                  className="w-full bg-[#111] border border-[#333] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#d4c9a8] transition-colors" />
+                  className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#F7E998] transition-colors" />
               </div>
             </div>
           </div>
 
           {/* METADATA & DOMAIN */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8 space-y-6">
-            <h2 className="font-display font-bold text-white flex items-center gap-2">
-              <Globe size={18} className="text-[#d4c9a8]" /> Metadata & Domain
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
+            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
+              <Globe size={18} className="text-[#FF4747]" /> Metadata & Domain
             </h2>
             <p className="text-xs text-[#666] leading-relaxed">
               Configure routing, search indexing, and email sender context.
@@ -472,7 +472,7 @@ export default function SeoPage() {
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Timezone</label>
                   <select value={form.timezone}
                     onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
                     <option value="UTC">UTC (GMT+0)</option>
                     <option value="Europe/Paris">Central Europe (GMT+1)</option>
                     <option value="America/New_York">Eastern Standard (GMT-5)</option>
@@ -483,7 +483,7 @@ export default function SeoPage() {
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Currency</label>
                   <select value={form.currency}
                     onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
                     <option value="USD">USD ($)</option>
                     <option value="EUR">EUR (€)</option>
                     <option value="GBP">GBP (£)</option>
@@ -497,7 +497,7 @@ export default function SeoPage() {
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Language</label>
                   <select value={form.language}
                     onChange={(e) => setForm({ ...form, language: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
                     <option value="en">English (US)</option>
                     <option value="fr">Français (FR)</option>
                     <option value="es">Español (ES)</option>
@@ -508,7 +508,7 @@ export default function SeoPage() {
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Theme</label>
                   <select value={form.theme}
                     onChange={(e) => setForm({ ...form, theme: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
                     <option value="DARK">Dark</option>
                     <option value="LIGHT">Light</option>
                   </select>
@@ -516,22 +516,22 @@ export default function SeoPage() {
               </div>
 
               <button type="submit"
-                className="w-full py-3 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                className="w-full py-3 bg-[#FF4747] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
                 <Shield size={14} /> Save All Settings
               </button>
             </form>
           </div>
 
           {/* ── STRIPE CONNECT ── */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8 space-y-5">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-display font-bold text-white flex items-center gap-2">
-                <Zap size={16} className="text-[#d4c9a8]" /> Stripe Payments
+              <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
+                <Zap size={16} className="text-[#FF4747]" /> Stripe Payments
               </h2>
               {stripeStatus?.connected && (
                 <button
                   onClick={loadStripeStatus}
-                  className="text-[10px] text-[#555] hover:text-[#888] flex items-center gap-1 transition-colors cursor-pointer"
+                  className="text-[10px] text-[#555] hover:text-[#555] flex items-center gap-1 transition-colors cursor-pointer"
                 >
                   <RefreshCw size={11} /> Refresh status
                 </button>
@@ -570,10 +570,10 @@ export default function SeoPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-3 p-4 rounded-xl bg-[#161616] border border-[#2a2a2a]">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-white border border-[#e5e7eb]">
                 <XCircle size={16} className="text-[#444] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs text-[#888]">No Stripe account connected</p>
+                  <p className="text-xs text-[#555]">No Stripe account connected</p>
                   <p className="text-[10px] text-[#555] mt-0.5 leading-relaxed">
                     Connect a Stripe Express account so the platform can automatically route your net revenue (after commission) directly to your bank via Stripe.
                   </p>
@@ -582,8 +582,8 @@ export default function SeoPage() {
             )}
 
             {/* How it works */}
-            <div className="bg-[#161616] border border-[#222] rounded-xl p-4 space-y-2 text-[10px] text-[#555]">
-              <p className="font-semibold text-[#888] uppercase tracking-wider">How it works</p>
+            <div className="bg-white border border-[#e5e7eb] rounded-xl p-4 space-y-2 text-[10px] text-[#555]">
+              <p className="font-semibold text-[#555] uppercase tracking-wider">How it works</p>
               <ul className="list-disc list-inside space-y-1 leading-relaxed">
                 <li>Customer pays the full ticket price in a single Stripe checkout.</li>
                 <li>Stripe automatically keeps the <span className="text-[#999]">platform commission</span> set on the Commission page.</li>
@@ -611,7 +611,7 @@ export default function SeoPage() {
                 href="https://dashboard.stripe.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#1a1e1a] hover:bg-[#222] border border-[#333] text-green-400 text-xs font-semibold rounded-xl transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 text-xs font-semibold rounded-xl transition-colors"
               >
                 <ExternalLink size={13} /> Open Stripe Dashboard
               </a>
@@ -619,9 +619,9 @@ export default function SeoPage() {
           </div>
 
           {/* PAYOUT SETTINGS */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8 space-y-6">
-            <h2 className="font-display font-bold text-white flex items-center gap-2">
-              <Globe size={18} className="text-[#d4c9a8]" /> Payout Destination Settings
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
+            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
+              <Globe size={18} className="text-[#FF4747]" /> Payout Destination Settings
             </h2>
             <p className="text-xs text-[#666] leading-relaxed">
               Configure your Mobile Money or Card payout details to receive manual withdrawal payouts.
@@ -632,7 +632,7 @@ export default function SeoPage() {
                 <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Mobile Money Provider</label>
                 <select value={form.payoutMomoProvider}
                   onChange={(e) => setForm({ ...form, payoutMomoProvider: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors">
+                  className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
                   <option value="MTN">MTN Mobile Money</option>
                   <option value="ORANGE">Orange Money</option>
                 </select>
@@ -662,7 +662,7 @@ export default function SeoPage() {
           </div>
 
           {/* DANGER ZONE */}
-          <div className="bg-[#1e1e1e] border border-red-500/20 rounded-2xl p-8 space-y-6">
+          <div className="bg-white border border-red-500/20 rounded-2xl p-8 space-y-6">
             <h2 className="font-display font-bold text-red-500 flex items-center gap-2">
               <XCircle size={18} /> Danger Zone
             </h2>
@@ -691,7 +691,7 @@ export default function SeoPage() {
       {toast && (
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 text-sm px-6 py-3 rounded-full shadow-2xl z-50 transition-all duration-300 ${
           toast.type === "success"
-            ? "bg-[#1a1a1a] border border-[#333] text-white"
+            ? "bg-[#f5f5f5] border border-[#e5e7eb] text-[#1a1a1a]"
             : "bg-red-900/80 border border-red-700 text-red-200"
         }`}>
           {toast.type === "success" ? "✅" : "⚠️"} {toast.msg}

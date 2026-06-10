@@ -12,7 +12,7 @@ import Footer from "@/components/Footer";
 const EventMap = dynamic(() => import("@/components/EventMap"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-56 bg-[#f5f0e8] flex items-center justify-center rounded-2xl border border-[#e0d8c8] mt-4">
+    <div className="w-full h-56 bg-[#ffffff] flex items-center justify-center rounded-2xl border border-[#e5e7eb] mt-4">
       <span className="text-xs text-[#666] font-medium">Loading Map...</span>
     </div>
   ),
@@ -528,8 +528,8 @@ export default function EventDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f5f0e8] flex justify-center items-center">
-        <div className="w-10 h-10 border-4 border-[#e0d8c8] border-t-[#8a7d5a] rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#ffffff] flex justify-center items-center">
+        <div className="w-10 h-10 border-4 border-[#e5e7eb] border-t-[#EB4203] rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -537,7 +537,7 @@ export default function EventDetailsPage() {
   if (!event) return null;
 
   return (
-    <div className="min-h-screen bg-[#f5f0e8] text-[#1a1a1a] overflow-x-hidden">
+    <div className="min-h-screen bg-[#ffffff] text-[#1a1a1a] overflow-x-hidden">
       <Navbar />
 
       {/* HERO BANNER */}
@@ -547,10 +547,10 @@ export default function EventDetailsPage() {
             <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
           </div>
         ) : (
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#c8bb96] to-transparent"></div>
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#efe084] to-transparent"></div>
         )}
         <div className="relative max-w-7xl mx-auto px-16 py-24 md:py-32">
-          <span className="inline-block px-3 py-1 bg-[#8a7d5a] text-white text-xs font-bold rounded-full uppercase tracking-widest mb-6">
+          <span className="inline-block px-3 py-1 bg-[#EB4203] text-white text-xs font-bold rounded-full uppercase tracking-widest mb-6">
             {event.status}
           </span>
           <div className="flex items-start justify-between gap-4 mb-6">
@@ -559,13 +559,13 @@ export default function EventDetailsPage() {
             </h1>
             <button 
               onClick={toggleSaveEvent}
-              className={`p-4 rounded-full border ${isSaved ? 'bg-[#d4c9a8] border-[#d4c9a8] text-[#1a1a1a]' : 'bg-transparent border-[#e0d8c8]/50 text-white hover:bg-white/10'} transition-all cursor-pointer shadow-lg`}
+              className={`p-4 rounded-full border ${isSaved ? 'bg-[#F7E998] border-[#F7E998] text-[#1a1a1a]' : 'bg-transparent border-[#e5e7eb]/50 text-white hover:bg-white/10'} transition-all cursor-pointer shadow-lg`}
               title={isSaved ? "Unsave Event" : "Save Event"}
             >
               <Bookmark size={28} className={isSaved ? "fill-current" : ""} />
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-6 text-[#d4c9a8] font-medium">
+          <div className="flex flex-wrap items-center gap-6 text-[#F7E998] font-medium">
             <div className="flex items-center gap-2">
               <Calendar size={18} />
               <span>{new Date(event.startDate).toLocaleDateString()} — {new Date(event.endDate).toLocaleDateString()}</span>
@@ -597,10 +597,10 @@ export default function EventDetailsPage() {
           {sections && sections.length > 0 && (
             <div className="space-y-12">
               {sections.map((section) => (
-                <section key={section.sectionId || section.id} className="bg-white border border-[#e0d8c8] rounded-2xl p-8 shadow-sm">
+                <section key={section.sectionId || section.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
                   <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-4">{section.title}</h3>
                   {section.imageUrl && (
-                    <img src={section.imageUrl} alt={section.title} className="w-full h-64 object-cover rounded-xl mb-4 border border-[#e0d8c8]" />
+                    <img src={section.imageUrl} alt={section.title} className="w-full h-64 object-cover rounded-xl mb-4 border border-[#e5e7eb]" />
                   )}
                   <p className="text-[#555] leading-relaxed whitespace-pre-line">{section.content}</p>
                 </section>
@@ -619,13 +619,13 @@ export default function EventDetailsPage() {
                   const sessionSpeakers = speakers.filter(sp => sp.sessionId === session.sessionId);
                   
                   return (
-                    <div key={session.sessionId} className="bg-white border border-[#e0d8c8] rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+                    <div key={session.sessionId} className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                         <div>
                           <h3 className="font-display text-xl font-bold text-[#1a1a1a]">{session.title}</h3>
                           <div className="flex items-center gap-4 text-xs font-medium text-[#666] mt-2">
                             <span className="flex items-center gap-1"><Clock size={14} /> {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            <span className="px-2 py-0.5 bg-[#f5f0e8] text-[#8a7d5a] rounded uppercase tracking-wider">{session.type}</span>
+                            <span className="px-2 py-0.5 bg-[#ffffff] text-[#EB4203] rounded uppercase tracking-wider">{session.type}</span>
                           </div>
                         </div>
                       </div>
@@ -639,7 +639,7 @@ export default function EventDetailsPage() {
                           <div className="flex flex-wrap gap-4">
                             {sessionSpeakers.map((sp) => (
                               <div key={sp.speakerId} className="flex items-center gap-3">
-                                <img src={`https://api.dicebear.com/6.x/initials/svg?seed=${sp.speakerId}`} className="w-8 h-8 rounded-full bg-[#f5f0e8]" alt="Speaker" />
+                                <img src={`https://api.dicebear.com/6.x/initials/svg?seed=${sp.speakerId}`} className="w-8 h-8 rounded-full bg-[#ffffff]" alt="Speaker" />
                                 <div>
                                   <div className="text-sm font-bold text-[#1a1a1a]">User: {sp.speakerId.substring(0, 8)}</div>
                                   <div className="text-[10px] text-[#666]">{sp.role}</div>
@@ -656,7 +656,7 @@ export default function EventDetailsPage() {
             )}
           </section>
 
-          <section className="bg-white border border-[#e0d8c8] rounded-2xl p-8 shadow-sm">
+          <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
             <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-3">Partner With Us</h2>
             <p className="text-[#666] text-sm leading-relaxed mb-6">
               Sponsoring this event puts your brand in front of a targeted, engaged audience. Connect with attendees, showcase your products, and be part of something meaningful.
@@ -664,9 +664,9 @@ export default function EventDetailsPage() {
             {sponsorshipPackages.length > 0 && (
               <div className="grid sm:grid-cols-2 gap-4 mb-6">
                 {sponsorshipPackages.map((pkg: any) => (
-                  <div key={pkg.packageId || pkg.id} className="border border-[#e0d8c8] rounded-xl p-4 bg-[#faf9f7]">
+                  <div key={pkg.packageId || pkg.id} className="border border-[#e5e7eb] rounded-xl p-4 bg-[#faf9f7]">
                     <div className="font-bold text-sm text-[#1a1a1a] mb-1">{pkg.name}</div>
-                    {pkg.price != null && <div className="text-[#8a7d5a] font-black text-lg mb-1">${pkg.price}</div>}
+                    {pkg.price != null && <div className="text-[#EB4203] font-black text-lg mb-1">${pkg.price}</div>}
                     {pkg.description && <p className="text-xs text-[#666] leading-relaxed">{pkg.description}</p>}
                   </div>
                 ))}
@@ -687,7 +687,7 @@ export default function EventDetailsPage() {
                       required
                       value={sponsorForm.companyName}
                       onChange={e => setSponsorForm(f => ({ ...f, companyName: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     />
                   </div>
                   <div>
@@ -695,7 +695,7 @@ export default function EventDetailsPage() {
                     <input
                       value={sponsorForm.contactName}
                       onChange={e => setSponsorForm(f => ({ ...f, contactName: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     />
                   </div>
                 </div>
@@ -707,7 +707,7 @@ export default function EventDetailsPage() {
                       type="email"
                       value={sponsorForm.email}
                       onChange={e => setSponsorForm(f => ({ ...f, email: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     />
                   </div>
                   <div>
@@ -715,7 +715,7 @@ export default function EventDetailsPage() {
                     <input
                       value={sponsorForm.phone}
                       onChange={e => setSponsorForm(f => ({ ...f, phone: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     />
                   </div>
                 </div>
@@ -725,7 +725,7 @@ export default function EventDetailsPage() {
                     <select
                       value={sponsorForm.packageId}
                       onChange={e => setSponsorForm(f => ({ ...f, packageId: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     >
                       <option value="">Select a package (optional)</option>
                       {sponsorshipPackages.map((pkg: any) => (
@@ -736,14 +736,14 @@ export default function EventDetailsPage() {
                 )}
                 <div>
                   <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Company Logo</label>
-                  <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-[#e0d8c8] rounded-xl p-5 cursor-pointer hover:border-[#8a7d5a] hover:bg-[#faf9f7] transition-colors group">
+                  <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-[#e5e7eb] rounded-xl p-5 cursor-pointer hover:border-[#EB4203] hover:bg-[#faf9f7] transition-colors group">
                     {sponsorForm.logoUrl ? (
                       <div className="flex flex-col items-center gap-3">
-                        <img src={sponsorForm.logoUrl} alt="Logo preview" className="h-20 max-w-[200px] object-contain rounded-lg border border-[#e0d8c8]" />
-                        <span className="text-xs text-[#8a7d5a] font-semibold">Click to change</span>
+                        <img src={sponsorForm.logoUrl} alt="Logo preview" className="h-20 max-w-[200px] object-contain rounded-lg border border-[#e5e7eb]" />
+                        <span className="text-xs text-[#EB4203] font-semibold">Click to change</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center gap-2 text-[#aaa] group-hover:text-[#8a7d5a] transition-colors">
+                      <div className="flex flex-col items-center gap-2 text-[#aaa] group-hover:text-[#EB4203] transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
                         <span className="text-xs font-semibold">Upload logo</span>
                         <span className="text-[10px]">PNG, JPG or SVG — max 2MB</span>
@@ -772,7 +772,7 @@ export default function EventDetailsPage() {
                     rows={3}
                     value={sponsorForm.message}
                     onChange={e => setSponsorForm(f => ({ ...f, message: e.target.value }))}
-                    className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a] resize-none"
+                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a] resize-none"
                   />
                 </div>
                 <button
@@ -786,7 +786,7 @@ export default function EventDetailsPage() {
             )}
           </section>
 
-          <section className="bg-white border border-[#e0d8c8] rounded-2xl p-8 shadow-sm">
+          <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
             <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-3">Get Involved as a Volunteer</h2>
             <p className="text-[#666] text-sm leading-relaxed mb-6">
               Join our volunteer team and help make this event an unforgettable experience. Whether you have a few hours or the whole day, we welcome all skills and levels of commitment.
@@ -806,7 +806,7 @@ export default function EventDetailsPage() {
                       required
                       value={volunteerForm.name}
                       onChange={e => setVolunteerForm(f => ({ ...f, name: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     />
                   </div>
                   <div>
@@ -816,7 +816,7 @@ export default function EventDetailsPage() {
                       type="email"
                       value={volunteerForm.email}
                       onChange={e => setVolunteerForm(f => ({ ...f, email: e.target.value }))}
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     />
                   </div>
                 </div>
@@ -825,16 +825,16 @@ export default function EventDetailsPage() {
                   <input
                     value={volunteerForm.phone}
                     onChange={e => setVolunteerForm(f => ({ ...f, phone: e.target.value }))}
-                    className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Your Photo</label>
-                  <label className="flex items-center gap-5 border-2 border-dashed border-[#e0d8c8] rounded-xl p-4 cursor-pointer hover:border-[#8a7d5a] hover:bg-[#faf9f7] transition-colors group">
+                  <label className="flex items-center gap-5 border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 cursor-pointer hover:border-[#EB4203] hover:bg-[#faf9f7] transition-colors group">
                     {volunteerForm.photoUrl ? (
-                      <img src={volunteerForm.photoUrl} alt="Photo preview" className="w-16 h-16 rounded-full object-cover border-2 border-[#e0d8c8] shrink-0" />
+                      <img src={volunteerForm.photoUrl} alt="Photo preview" className="w-16 h-16 rounded-full object-cover border-2 border-[#e5e7eb] shrink-0" />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-[#f5f0e8] flex items-center justify-center text-[#aaa] group-hover:text-[#8a7d5a] transition-colors shrink-0">
+                      <div className="w-16 h-16 rounded-full bg-[#ffffff] flex items-center justify-center text-[#aaa] group-hover:text-[#EB4203] transition-colors shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                       </div>
                     )}
@@ -865,7 +865,7 @@ export default function EventDetailsPage() {
                     rows={3}
                     value={volunteerForm.skills}
                     onChange={e => setVolunteerForm(f => ({ ...f, skills: e.target.value }))}
-                    className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a] resize-none"
+                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a] resize-none"
                   />
                 </div>
                 <div>
@@ -874,7 +874,7 @@ export default function EventDetailsPage() {
                     value={volunteerForm.availability}
                     onChange={e => setVolunteerForm(f => ({ ...f, availability: e.target.value }))}
                     placeholder="e.g. Full day, Morning only, Setup day"
-                    className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                   />
                 </div>
                 <button
@@ -896,7 +896,7 @@ export default function EventDetailsPage() {
           )}
 
           {/* ATTENDEE ENGAGEMENT HUB */}
-          <section className="bg-white border border-[#e0d8c8] rounded-2xl p-8 shadow-sm">
+          <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
             <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6">Attendee Engagement Hub</h2>
             
             {/* Tabs */}
@@ -910,7 +910,7 @@ export default function EventDetailsPage() {
                   key={t.id}
                   onClick={() => setActiveHubTab(t.id as any)}
                   className={`px-4 py-2 text-sm font-bold border-none bg-transparent cursor-pointer transition-all ${
-                    activeHubTab === t.id ? "text-[#8a7d5a] border-b-2 border-[#8a7d5a]" : "text-[#888] hover:text-[#555]"
+                    activeHubTab === t.id ? "text-[#EB4203] border-b-2 border-[#EB4203]" : "text-[#888] hover:text-[#555]"
                   }`}
                 >
                   {t.label}
@@ -925,7 +925,7 @@ export default function EventDetailsPage() {
                   <p className="text-[#666] italic text-sm">No live polls for this event.</p>
                 ) : (
                   polls.map((poll) => (
-                    <div key={poll.pollId || poll.id} className="p-5 border border-[#e0d8c8] rounded-xl bg-[#faf9f7] space-y-4">
+                    <div key={poll.pollId || poll.id} className="p-5 border border-[#e5e7eb] rounded-xl bg-[#faf9f7] space-y-4">
                       <h4 className="font-bold text-sm text-[#1a1a1a]">{poll.question}</h4>
                       {(() => {
                         const options = Array.isArray(poll.options) 
@@ -939,7 +939,7 @@ export default function EventDetailsPage() {
                               <button
                                 key={opt}
                                 onClick={() => handleVotePoll(poll.pollId || poll.id, opt)}
-                                className="w-full text-left px-4 py-2 border border-[#e0d8c8] rounded-lg text-xs hover:bg-[#8a7d5a] hover:text-white transition-all bg-white font-medium cursor-pointer"
+                                className="w-full text-left px-4 py-2 border border-[#e5e7eb] rounded-lg text-xs hover:bg-[#EB4203] hover:text-white transition-all bg-white font-medium cursor-pointer"
                               >
                                 {opt}
                               </button>
@@ -961,7 +961,7 @@ export default function EventDetailsPage() {
                     placeholder="Ask a question..."
                     value={newQuestion}
                     onChange={e => setNewQuestion(e.target.value)}
-                    className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                     required
                   />
                   <button
@@ -974,13 +974,13 @@ export default function EventDetailsPage() {
 
                 <div className="space-y-3 pt-4 border-t border-[#f0ebe1]">
                   {qaQuestions.map((q) => (
-                    <div key={q.qaQuestionId || q.id} className="p-4 border border-[#e0d8c8] rounded-xl bg-[#faf9f7]">
+                    <div key={q.qaQuestionId || q.id} className="p-4 border border-[#e5e7eb] rounded-xl bg-[#faf9f7]">
                       <p className="text-xs font-bold text-[#1a1a1a]">{q.questionText}</p>
                       <div className="flex justify-between items-center text-[10px] text-[#888] mt-2">
                         <span>Posted by Attendee</span>
                         <button
                           onClick={() => handleUpvoteQuestion(q.qaQuestionId || q.id)}
-                          className="flex items-center gap-1 text-[#8a7d5a] hover:underline cursor-pointer border-none bg-transparent font-semibold"
+                          className="flex items-center gap-1 text-[#EB4203] hover:underline cursor-pointer border-none bg-transparent font-semibold"
                         >
                           ▲ Upvote ({q.upvotes || 0})
                         </button>
@@ -1052,7 +1052,7 @@ export default function EventDetailsPage() {
                       value={newComment}
                       onChange={e => setNewComment(e.target.value)}
                       placeholder="Write your feedback or comment..."
-                      className="w-full border border-[#e0d8c8] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a] resize-none"
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a] resize-none"
                       required
                     />
                   </div>
@@ -1067,7 +1067,7 @@ export default function EventDetailsPage() {
 
                 <div className="space-y-3 pt-4 border-t border-[#f0ebe1]">
                   {feedbacks.map((f) => (
-                    <div key={f.feedbackId || f.id} className="p-4 border border-[#e0d8c8] rounded-xl bg-[#faf9f7]">
+                    <div key={f.feedbackId || f.id} className="p-4 border border-[#e5e7eb] rounded-xl bg-[#faf9f7]">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-[10px] uppercase font-bold text-[#888]">Attendee Review</span>
                         {f.rating && (
@@ -1093,12 +1093,12 @@ export default function EventDetailsPage() {
         <div className="space-y-8">
           
           {/* REGISTRATION CARD */}
-          <div className="bg-white border border-[#e0d8c8] rounded-3xl p-8 shadow-xl sticky top-24">
+          <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 shadow-xl sticky top-24">
             <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">Attend Event</h3>
             {eventEndDate && new Date() > eventEndDate ? (
               <>
                 <p className="text-[#666] text-sm mb-6">This event has already ended.</p>
-                <div className="w-full py-4 bg-[#e0d8c8] text-[#888] font-bold rounded-xl text-center text-sm">
+                <div className="w-full py-4 bg-[#e5e7eb] text-[#888] font-bold rounded-xl text-center text-sm">
                   Registration Closed
                 </div>
               </>
@@ -1107,7 +1107,7 @@ export default function EventDetailsPage() {
                 <p className="text-[#666] text-sm mb-6">Secure your spot before tickets sell out.</p>
                 <button
                   onClick={() => setShowCheckout(true)}
-                  className="w-full py-4 bg-[#8a7d5a] hover:bg-[#7a6d4a] text-white font-bold rounded-xl transition-colors cursor-pointer shadow-md"
+                  className="w-full py-4 bg-[#EB4203] hover:bg-[#7a6d4a] text-white font-bold rounded-xl transition-colors cursor-pointer shadow-md"
                 >
                   Register Now
                 </button>
@@ -1120,16 +1120,16 @@ export default function EventDetailsPage() {
 
           {/* LOCATIONS */}
           {locations.length > 0 && (
-            <div className="bg-white border border-[#e0d8c8] rounded-3xl p-6 shadow-sm">
+            <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
               <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
-                <Navigation size={18} className="text-[#8a7d5a]" /> Location Details
+                <Navigation size={18} className="text-[#EB4203]" /> Location Details
               </h3>
               <div className="space-y-4">
                 {locations.map((loc) => (
                   <div key={loc.locationId} className="flex flex-col gap-1">
                     <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#f5f0e8] flex items-center justify-center shrink-0">
-                        {loc.type === "VIRTUAL" ? <Link2 size={14} className="text-[#8a7d5a]" /> : <MapPin size={14} className="text-[#8a7d5a]" />}
+                      <div className="w-8 h-8 rounded-full bg-[#ffffff] flex items-center justify-center shrink-0">
+                        {loc.type === "VIRTUAL" ? <Link2 size={14} className="text-[#EB4203]" /> : <MapPin size={14} className="text-[#EB4203]" />}
                       </div>
                       <div>
                         <div className="font-bold text-sm text-[#1a1a1a]">
@@ -1137,7 +1137,7 @@ export default function EventDetailsPage() {
                         </div>
                         <div className="text-xs text-[#666] mt-1">
                           {loc.type === "VIRTUAL" ? (
-                            <a href={loc.virtualLink} target="_blank" className="text-[#8a7d5a] hover:underline break-all">{loc.virtualLink}</a>
+                            <a href={loc.virtualLink} target="_blank" className="text-[#EB4203] hover:underline break-all">{loc.virtualLink}</a>
                           ) : (
                             `${loc.address || ""}, ${loc.city || ""} ${loc.country || ""}`
                           )}
@@ -1155,9 +1155,9 @@ export default function EventDetailsPage() {
 
           {/* SPONSORS & EXHIBITORS */}
           {(sponsors.length > 0 || exhibitors.length > 0) && (
-            <div className="bg-white border border-[#e0d8c8] rounded-3xl p-6 shadow-sm">
+            <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
               <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
-                <Box size={18} className="text-[#8a7d5a]" /> Supported By
+                <Box size={18} className="text-[#EB4203]" /> Supported By
               </h3>
               
               {sponsors.length > 0 && (
@@ -1183,7 +1183,7 @@ export default function EventDetailsPage() {
                   <h4 className="text-[10px] uppercase tracking-wider font-bold text-[#888] mb-3">Exhibitors</h4>
                   <div className="flex flex-wrap gap-2">
                     {exhibitors.map((e) => (
-                      <span key={e.exhibitorId} className="px-3 py-1 bg-[#f5f0e8] text-[#555] text-[10px] font-bold rounded-full">
+                      <span key={e.exhibitorId} className="px-3 py-1 bg-[#ffffff] text-[#555] text-[10px] font-bold rounded-full">
                         {e.companyName}
                       </span>
                     ))}
@@ -1202,7 +1202,7 @@ export default function EventDetailsPage() {
       {showCheckout && (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-[#e0d8c8] flex items-center justify-between bg-[#fcfbf9]">
+            <div className="p-6 border-b border-[#e5e7eb] flex items-center justify-between bg-[#fcfbf9]">
               <h2 className="font-display text-2xl font-black text-[#1a1a1a]">Checkout: {event.title}</h2>
               <button onClick={() => { setShowCheckout(false); setOrderSuccess(false); setClientSecret(null); setMobileMoneyWaiting(false); setMobileMoneyPaymentId(null); setMobileMoneyError(null); setPaymentMethod("stripe"); setPhoneNumber(""); }} className="p-2 hover:bg-[#ebe1cc] rounded-full transition-colors cursor-pointer text-[#666]">
                 <X size={20} />
@@ -1223,9 +1223,9 @@ export default function EventDetailsPage() {
                   <p className="text-[#1a1a1a] font-bold text-lg mb-2">+237 {phoneNumber}</p>
                   <p className="text-xs text-[#888] mb-8">Approve the payment on your phone to complete the transaction.</p>
                   <div className="flex items-center justify-center gap-2 text-[#888] text-sm mb-8">
-                    <span className="inline-block w-2 h-2 rounded-full bg-[#8a7d5a] animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="inline-block w-2 h-2 rounded-full bg-[#8a7d5a] animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="inline-block w-2 h-2 rounded-full bg-[#8a7d5a] animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#EB4203] animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#EB4203] animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#EB4203] animate-bounce" style={{ animationDelay: "300ms" }} />
                     <span className="ml-2">Waiting for confirmation...</span>
                   </div>
                   {mobileMoneyError && (
@@ -1262,13 +1262,13 @@ export default function EventDetailsPage() {
                   ) : (
                     <div className="space-y-4 mb-8">
                       {ticketTypes.map(t => (
-                        <div key={t.ticketId} className="flex items-center justify-between p-4 border border-[#e0d8c8] rounded-2xl bg-white shadow-sm hover:border-[#8a7d5a] transition-colors">
+                        <div key={t.ticketId} className="flex items-center justify-between p-4 border border-[#e5e7eb] rounded-2xl bg-white shadow-sm hover:border-[#EB4203] transition-colors">
                           <div>
                             <div className="font-bold text-[#1a1a1a]">{t.name}</div>
                             <div className="text-xs text-[#666] mt-1 line-clamp-1">{t.description || "General admission ticket"}</div>
-                            <div className="text-sm font-black text-[#8a7d5a] mt-2">{t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} FCFA`}</div>
+                            <div className="text-sm font-black text-[#EB4203] mt-2">{t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} FCFA`}</div>
                           </div>
-                          <div className="flex items-center gap-3 bg-[#f5f0e8] p-1.5 rounded-xl">
+                          <div className="flex items-center gap-3 bg-[#ffffff] p-1.5 rounded-xl">
                             <button onClick={() => handleQuantityChange(t.ticketId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">-</button>
                             <span className="w-6 text-center font-bold text-[#1a1a1a]">{selectedTickets[t.ticketId] || 0}</span>
                             <button onClick={() => handleQuantityChange(t.ticketId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">+</button>
@@ -1278,7 +1278,7 @@ export default function EventDetailsPage() {
                     </div>
                   )}
 
-                  <div className="p-5 bg-[#f5f0e8] rounded-2xl border border-[#e0d8c8] mb-8">
+                  <div className="p-5 bg-[#ffffff] rounded-2xl border border-[#e5e7eb] mb-8">
                     <h3 className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider mb-3">Discount Code</h3>
                     <div className="flex gap-3">
                       <input 
@@ -1286,7 +1286,7 @@ export default function EventDetailsPage() {
                         placeholder="Enter coupon code" 
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value)}
-                        className="flex-1 bg-white border border-[#e0d8c8] rounded-xl px-4 py-2 text-sm text-[#1a1a1a] outline-none focus:border-[#8a7d5a]"
+                        className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-4 py-2 text-sm text-[#1a1a1a] outline-none focus:border-[#EB4203]"
                       />
                       <button 
                         onClick={handleApplyCoupon}
@@ -1303,7 +1303,7 @@ export default function EventDetailsPage() {
                   </div>
 
                   {clientSecret ? (
-                    <div className="mb-8 p-5 bg-white border border-[#e0d8c8] rounded-2xl">
+                    <div className="mb-8 p-5 bg-white border border-[#e5e7eb] rounded-2xl">
                       <h3 className="text-sm font-bold text-[#1a1a1a] uppercase tracking-wider mb-4">Complete Payment</h3>
                       {clientSecret.startsWith("mock_") ? (
                         <div className="text-center">
@@ -1331,7 +1331,7 @@ export default function EventDetailsPage() {
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("stripe")}
-                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "stripe" ? "border-[#635bff] bg-[#f5f5ff]" : "border-[#e0d8c8] hover:border-[#aaa]"}`}
+                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "stripe" ? "border-[#635bff] bg-[#f5f5ff]" : "border-[#e5e7eb] hover:border-[#aaa]"}`}
                           >
                             <div className="w-10 h-10 bg-[#635bff] rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0">S</div>
                             <div className="flex-1">
@@ -1345,7 +1345,7 @@ export default function EventDetailsPage() {
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("mtn_mobile_money")}
-                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "mtn_mobile_money" ? "border-[#ffcc00] bg-[#fffdf0]" : "border-[#e0d8c8] hover:border-[#ffcc00]/70"}`}
+                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "mtn_mobile_money" ? "border-[#ffcc00] bg-[#fffdf0]" : "border-[#e5e7eb] hover:border-[#ffcc00]/70"}`}
                           >
                             <div className="w-10 h-10 bg-[#ffcc00] rounded-xl flex items-center justify-center font-black text-[10px] text-[#1a1a1a] shrink-0">MTN</div>
                             <div className="flex-1">
@@ -1359,7 +1359,7 @@ export default function EventDetailsPage() {
                           <button
                             type="button"
                             onClick={() => setPaymentMethod("orange_money")}
-                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "orange_money" ? "border-[#ff6600] bg-[#fff8f5]" : "border-[#e0d8c8] hover:border-[#ff6600]/70"}`}
+                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "orange_money" ? "border-[#ff6600] bg-[#fff8f5]" : "border-[#e5e7eb] hover:border-[#ff6600]/70"}`}
                           >
                             <div className="w-10 h-10 bg-[#ff6600] rounded-xl flex items-center justify-center font-black text-[10px] text-white shrink-0">OM</div>
                             <div className="flex-1">
@@ -1378,14 +1378,14 @@ export default function EventDetailsPage() {
                                 {paymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number
                               </label>
                               <div className="flex gap-2">
-                                <div className="px-3 py-3 bg-[#f5f0e8] border border-[#e0d8c8] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
+                                <div className="px-3 py-3 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
                                 <input
                                   type="tel"
                                   placeholder="6XXXXXXXX"
                                   value={phoneNumber}
                                   onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
                                   maxLength={9}
-                                  className="flex-1 border border-[#e0d8c8] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#8a7d5a] bg-white text-[#1a1a1a]"
+                                  className="flex-1 border border-[#e5e7eb] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
                                 />
                               </div>
                               <p className="text-[10px] text-[#888] mt-1">Enter your 9-digit number without the country code</p>
@@ -1405,7 +1405,7 @@ export default function EventDetailsPage() {
                         )}
                       </div>
 
-                      <div className="border-t border-[#e0d8c8] pt-6">
+                      <div className="border-t border-[#e5e7eb] pt-6">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-[#666]">Subtotal</span>
                           <span className="font-bold text-[#1a1a1a]">{calculateSubtotal().toLocaleString()} FCFA</span>
@@ -1416,9 +1416,9 @@ export default function EventDetailsPage() {
                             <span className="font-bold">-{(calculateSubtotal() - calculateTotal()).toLocaleString()} FCFA</span>
                           </div>
                         )}
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-dashed border-[#e0d8c8]">
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-dashed border-[#e5e7eb]">
                           <span className="text-lg font-black text-[#1a1a1a]">Total</span>
-                          <span className="text-2xl font-black text-[#8a7d5a]">{calculateTotal().toLocaleString()} FCFA</span>
+                          <span className="text-2xl font-black text-[#EB4203]">{calculateTotal().toLocaleString()} FCFA</span>
                         </div>
                       </div>
 

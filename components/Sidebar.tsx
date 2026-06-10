@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck } from "lucide-react";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 
@@ -14,6 +14,7 @@ const links = [
   { href: "/admin/project", label: "Ticketing", icon: FolderOpen },
   { href: "/admin/payouts", label: "Payouts", icon: DollarSign },
   { href: "/admin/website", label: "Customization", icon: Globe },
+  { href: "/admin/team", label: "Team", icon: UserCheck },
   { href: "/admin/applications", label: "Applications", icon: Users },
   { href: "/admin/seo", label: "Settings", icon: Search },
   { href: "/admin/report", label: "Report", icon: BarChart2 },
@@ -68,10 +69,10 @@ export default function Sidebar() {
   const initials = profile ? `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase() : "MJ";
 
   return (
-    <aside className="w-[220px] bg-[#141414] border-r border-[#222] flex flex-col fixed h-screen z-50">
-      <div className="px-6 py-7 border-b border-[#222]">
-        <Link href="/" className="font-display text-xl font-black text-white tracking-tight">
-          Yo<span className="text-[#d4c9a8]">Event</span>
+    <aside className="w-[220px] bg-white border-r border-[#e5e7eb] flex flex-col fixed h-screen z-50 text-[#1a1a1a]">
+      <div className="px-6 py-7 border-b border-[#e5e7eb]">
+        <Link href="/" className="font-display text-xl font-black text-[#1a1a1a] tracking-tight">
+          Yo<span className="text-[#EB4203]">Event</span>
         </Link>
       </div>
       <nav className="flex-1 py-5">
@@ -79,27 +80,27 @@ export default function Sidebar() {
           const active = path === href;
           return (
             <Link key={href} href={href}
-              className={`flex items-center gap-3 px-6 py-2.5 text-sm transition-all ${active ? "bg-[#222] text-white border-r-2 border-[#d4c9a8]" : "text-[#666] hover:bg-[#1e1e1e] hover:text-[#ccc]"}`}>
+              className={`flex items-center gap-3 px-6 py-2.5 text-sm transition-all ${active ? "bg-[#f9fafb] text-[#EB4203] font-bold border-r-2 border-[#EB4203]" : "text-[#666] hover:bg-stone-50 hover:text-[#1a1a1a]"}`}>
               <Icon size={16} />
               {label}
             </Link>
           );
         })}
       </nav>
-      <div className="px-6 py-5 border-t border-[#222]">
+      <div className="px-6 py-5 border-t border-[#e5e7eb]">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#d4c9a8] to-[#c8bb96] flex items-center justify-center text-[#1a1a1a] text-xs font-bold flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#EB4203] to-[#c23b02] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
             {initials}
           </div>
           <div>
-            <div className="text-xs font-medium text-[#ccc] truncate max-w-[120px]">{displayName}</div>
-            <div className="text-[10px] text-[#555]">{tenant?.type === "ORGANIZATION" ? "Organization" : "Individual Creator"}</div>
+            <div className="text-xs font-medium text-[#1a1a1a] truncate max-w-[120px]">{displayName}</div>
+            <div className="text-[10px] text-[#888]">{tenant?.type === "ORGANIZATION" ? "Organization" : "Individual Creator"}</div>
           </div>
         </div>
-        <Link href="/user/dashboard" className="flex items-center gap-3 px-0 py-1 text-xs text-[#d4c9a8] hover:text-[#e5dcb8] transition-colors mb-2">
+        <Link href="/user/dashboard" className="flex items-center gap-3 px-0 py-1 text-xs text-[#EB4203] hover:text-[#c23b02] transition-colors mb-2">
           🎟 Switch to Attendee View
         </Link>
-        <a href="#" onClick={handleLogout} className="flex items-center gap-3 px-0 py-1 text-xs text-[#555] hover:text-[#ccc] transition-colors">
+        <a href="#" onClick={handleLogout} className="flex items-center gap-3 px-0 py-1 text-xs text-[#666] hover:text-[#1a1a1a] transition-colors">
           <LogOut size={14} /> Logout
         </a>
       </div>

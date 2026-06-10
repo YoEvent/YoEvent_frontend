@@ -170,18 +170,18 @@ export default function WebsitePage() {
   const activeEvent = events.find((e) => e.eventId === selectedEventId || e.id === selectedEventId);
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Event Customization</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Event Customization</h1>
           <div className="flex items-center gap-3">
             <label className="text-xs text-[#666] uppercase tracking-wider font-semibold">Active Event</label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#ddd] outline-none"
+              className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1a1a1a] outline-none"
             >
               {events.map((ev) => (
                 <option key={ev.eventId} value={ev.eventId}>
@@ -195,8 +195,8 @@ export default function WebsitePage() {
         <main className="p-8 space-y-8">
 
           {/* TENANT BRANDING */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-white mb-1">Tenant Branding</h2>
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-[#EB4203] mb-1">Tenant Branding</h2>
             <p className="text-xs text-[#555] mb-5">Upload your organisation logo and banner — these appear on your public event pages and tenant profile.</p>
 
             {brandingMsg && (
@@ -209,15 +209,15 @@ export default function WebsitePage() {
               {/* LOGO */}
               <div>
                 <p className="text-xs text-[#666] uppercase tracking-wider font-semibold mb-3">Logo</p>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#333] hover:border-[#d4c9a8] rounded-xl p-6 cursor-pointer transition-colors group">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#e5e7eb] hover:border-[#F7E998] rounded-xl p-6 cursor-pointer transition-colors group">
                   {tenant?.logo ? (
                     <img src={tenant.logo} alt="Logo" className="h-16 max-w-[160px] object-contain rounded-lg mb-2" />
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-[#252525] flex items-center justify-center mb-2">
-                      <Upload size={22} className="text-[#444] group-hover:text-[#d4c9a8] transition-colors" />
+                    <div className="w-16 h-16 rounded-xl bg-[#ffffff] flex items-center justify-center mb-2">
+                      <Upload size={22} className="text-[#444] group-hover:text-[#EB4203] transition-colors" />
                     </div>
                   )}
-                  <span className="text-xs text-[#555] group-hover:text-[#d4c9a8] transition-colors">
+                  <span className="text-xs text-[#555] group-hover:text-[#EB4203] transition-colors">
                     {brandingLoading === "logo" ? "Uploading…" : tenant?.logo ? "Click to replace logo" : "Upload logo (PNG, SVG)"}
                   </span>
                   <input type="file" accept="image/*" className="hidden"
@@ -228,15 +228,15 @@ export default function WebsitePage() {
               {/* BANNER */}
               <div>
                 <p className="text-xs text-[#666] uppercase tracking-wider font-semibold mb-3">Banner / Hero Image</p>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#333] hover:border-[#d4c9a8] rounded-xl p-6 cursor-pointer transition-colors group overflow-hidden">
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-[#e5e7eb] hover:border-[#F7E998] rounded-xl p-6 cursor-pointer transition-colors group overflow-hidden">
                   {tenant?.bannerUrl ? (
                     <img src={tenant.bannerUrl} alt="Banner" className="w-full h-16 object-cover rounded-lg mb-2" />
                   ) : (
-                    <div className="w-full h-16 rounded-xl bg-[#252525] flex items-center justify-center mb-2">
-                      <Upload size={22} className="text-[#444] group-hover:text-[#d4c9a8] transition-colors" />
+                    <div className="w-full h-16 rounded-xl bg-[#ffffff] flex items-center justify-center mb-2">
+                      <Upload size={22} className="text-[#444] group-hover:text-[#EB4203] transition-colors" />
                     </div>
                   )}
-                  <span className="text-xs text-[#555] group-hover:text-[#d4c9a8] transition-colors">
+                  <span className="text-xs text-[#555] group-hover:text-[#EB4203] transition-colors">
                     {brandingLoading === "banner" ? "Uploading…" : tenant?.bannerUrl ? "Click to replace banner" : "Upload banner (16:9, JPG or PNG)"}
                   </span>
                   <input type="file" accept="image/*" className="hidden"
@@ -249,9 +249,9 @@ export default function WebsitePage() {
           {/* TRACKS & SPONSORS */}
           <div className="grid grid-cols-2 gap-8">
             {/* TRACKS */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <Box size={18} className="text-[#d4c9a8]" /> Agenda Tracks <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <Box size={18} className="text-[#EB4203]" /> Agenda Tracks <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <form onSubmit={handleAddTrack} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -259,7 +259,7 @@ export default function WebsitePage() {
                     placeholder="Track Name (e.g., Tech Talk)"
                     value={trackForm.name}
                     onChange={(e) => setTrackForm({ ...trackForm, name: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <input
@@ -267,7 +267,7 @@ export default function WebsitePage() {
                     placeholder="Capacity"
                     value={trackForm.capacity || ""}
                     onChange={(e) => setTrackForm({ ...trackForm, capacity: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                 </div>
@@ -275,11 +275,11 @@ export default function WebsitePage() {
                   placeholder="Track Description"
                   value={trackForm.description}
                   onChange={(e) => setTrackForm({ ...trackForm, description: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                 />
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus size={14} /> Add Track
                 </button>
@@ -288,12 +288,12 @@ export default function WebsitePage() {
               {/* LIST */}
               <div className="space-y-3">
                 {tracks.map((t) => (
-                  <div key={t.trackId} className="flex justify-between items-center p-3.5 bg-[#161616] border border-[#2a2a2a] rounded-xl">
+                  <div key={t.trackId} className="flex justify-between items-center p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
                     <div>
-                      <div className="text-xs font-bold text-white">{t.name}</div>
+                      <div className="text-xs font-bold text-[#1a1a1a]">{t.name}</div>
                       <div className="text-[10px] text-[#555] mt-0.5">{t.description || "No description"}</div>
                     </div>
-                    <div className="text-xs text-[#888] font-mono">Max: {t.capacity}</div>
+                    <div className="text-xs text-[#555] font-mono">Max: {t.capacity}</div>
                   </div>
                 ))}
                 {tracks.length === 0 && (
@@ -303,9 +303,9 @@ export default function WebsitePage() {
             </div>
 
             {/* SPONSORS */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <Users size={18} className="text-[#d4c9a8]" /> Event Sponsors <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <Users size={18} className="text-[#EB4203]" /> Event Sponsors <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <form onSubmit={handleAddSponsor} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -313,7 +313,7 @@ export default function WebsitePage() {
                     placeholder="Company Name"
                     value={sponsorForm.companyName}
                     onChange={(e) => setSponsorForm({ ...sponsorForm, companyName: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <input
@@ -321,7 +321,7 @@ export default function WebsitePage() {
                     placeholder="Sponsorship Amount ($)"
                     value={sponsorForm.sponsorshipAmount || ""}
                     onChange={(e) => setSponsorForm({ ...sponsorForm, sponsorshipAmount: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                 </div>
@@ -331,19 +331,19 @@ export default function WebsitePage() {
                     placeholder="Sponsor User Email"
                     value={sponsorForm.email}
                     onChange={(e) => setSponsorForm({ ...sponsorForm, email: e.target.value })}
-                    className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <input
                     placeholder="Logo URL"
                     value={sponsorForm.logo}
                     onChange={(e) => setSponsorForm({ ...sponsorForm, logo: e.target.value })}
-                    className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus size={14} /> Add Sponsor
                 </button>
@@ -352,12 +352,12 @@ export default function WebsitePage() {
               {/* LIST */}
               <div className="space-y-3">
                 {sponsors.map((s) => (
-                  <div key={s.sponsorId} className="flex justify-between items-center p-3.5 bg-[#161616] border border-[#2a2a2a] rounded-xl">
+                  <div key={s.sponsorId} className="flex justify-between items-center p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-[#333] flex items-center justify-center text-xs font-bold font-display overflow-hidden">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-[#e5e7eb] flex items-center justify-center text-xs font-bold font-display overflow-hidden">
                         {s.logo ? <img src={s.logo} alt="" className="object-contain w-full h-full" /> : "🏢"}
                       </div>
-                      <div className="text-xs font-bold text-white">{s.companyName}</div>
+                      <div className="text-xs font-bold text-[#1a1a1a]">{s.companyName}</div>
                     </div>
                     <div className="text-xs font-bold text-green-400">{Number(s.sponsorshipAmount).toLocaleString()} FCFA</div>
                   </div>
@@ -370,9 +370,9 @@ export default function WebsitePage() {
           </div>
 
           {/* EXHIBITORS */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-              <Box size={18} className="text-[#d4c9a8]" /> Vendor Exhibitors
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+              <Box size={18} className="text-[#EB4203]" /> Vendor Exhibitors
             </h2>
             <form onSubmit={handleAddExhibitor} className="grid grid-cols-5 gap-4 mb-6 items-end">
               <div>
@@ -382,7 +382,7 @@ export default function WebsitePage() {
                   placeholder="vendor@example.com"
                   value={exhibitorForm.email}
                   onChange={(e) => setExhibitorForm({ ...exhibitorForm, email: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   required
                 />
               </div>
@@ -392,7 +392,7 @@ export default function WebsitePage() {
                   placeholder="Acme Corp"
                   value={exhibitorForm.companyName}
                   onChange={(e) => setExhibitorForm({ ...exhibitorForm, companyName: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   required
                 />
               </div>
@@ -402,7 +402,7 @@ export default function WebsitePage() {
                   placeholder="Booth 404"
                   value={exhibitorForm.boothNumber}
                   onChange={(e) => setExhibitorForm({ ...exhibitorForm, boothNumber: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   required
                 />
               </div>
@@ -412,12 +412,12 @@ export default function WebsitePage() {
                   placeholder="https://acme.com"
                   value={exhibitorForm.website}
                   onChange={(e) => setExhibitorForm({ ...exhibitorForm, website: e.target.value })}
-                  className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                  className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                 />
               </div>
               <button
                 type="submit"
-                className="py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Plus size={14} /> Add Vendor
               </button>
@@ -426,14 +426,14 @@ export default function WebsitePage() {
             {/* LIST */}
             <div className="grid grid-cols-3 gap-4">
               {exhibitors.map((e) => (
-                <div key={e.exhibitorId} className="p-4 bg-[#161616] border border-[#2a2a2a] rounded-xl flex items-center justify-between">
+                <div key={e.exhibitorId} className="p-4 bg-white border border-[#e5e7eb] rounded-xl flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-bold text-white">{e.companyName}</div>
+                    <div className="text-xs font-bold text-[#1a1a1a]">{e.companyName}</div>
                     <div className="text-[10px] text-[#555] mt-1 flex items-center gap-1">
                       <Link2 size={12} /> <a href={e.website} target="_blank" className="hover:underline">{e.website || "No site"}</a>
                     </div>
                   </div>
-                  <div className="bg-[#222] border border-[#333] rounded-lg px-2.5 py-1 text-[10px] font-mono text-[#d4c9a8]">
+                  <div className="bg-white border border-[#e5e7eb] rounded-lg px-2.5 py-1 text-[10px] font-mono text-[#EB4203]">
                     {e.boothNumber}
                   </div>
                 </div>

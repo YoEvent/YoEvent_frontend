@@ -67,18 +67,18 @@ export default function ReportPage() {
   const activeEvent = events.find((e) => e.eventId === selectedEventId || e.id === selectedEventId);
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Event Performance Reports</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Event Performance Reports</h1>
           <div className="flex items-center gap-3">
             <label className="text-xs text-[#666] uppercase tracking-wider font-semibold">Active Event</label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#ddd] outline-none"
+              className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1a1a1a] outline-none"
             >
               {events.map((ev) => (
                 <option key={ev.eventId} value={ev.eventId}>
@@ -93,12 +93,12 @@ export default function ReportPage() {
           {/* STATS — top row */}
           <div className="grid grid-cols-4 gap-5">
             {[
-              { label: "Total Registrations", value: totalRegs, subtitle: "Ticket holders", color: "text-[#d4c9a8]" },
+              { label: "Total Registrations", value: totalRegs, subtitle: "Ticket holders", color: "text-[#EB4203]" },
               { label: "Total Check-ins", value: totalCheckins, subtitle: "People attended", color: "text-blue-400" },
               { label: "Total Page Views", value: totalViews, subtitle: "Landing page visits", color: "text-purple-400" },
               { label: "Gross Revenue", value: `$${totalRev.toFixed(2)}`, subtitle: "Before platform fee", color: "text-green-400" },
             ].map((stat, i) => (
-              <div key={i} className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#2a2a2a] rounded-2xl p-6">
+              <div key={i} className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#e5e7eb] rounded-2xl p-6">
                 <div className="text-[10px] text-[#555] uppercase tracking-wider mb-2 font-bold">{stat.label}</div>
                 <div className={`font-display text-3xl font-bold mb-1 ${stat.color}`}>{stat.value}</div>
                 <div className="text-xs text-[#666]">{stat.subtitle}</div>
@@ -108,7 +108,7 @@ export default function ReportPage() {
 
           {/* STATS — commission breakdown row */}
           <div className="grid grid-cols-2 gap-5">
-            <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#2a2a2a] rounded-2xl p-6 flex items-center gap-5">
+            <div className="bg-gradient-to-br from-[#1e1e1e] to-[#252525] border border-[#e5e7eb] rounded-2xl p-6 flex items-center gap-5">
               <div className="w-10 h-10 rounded-xl bg-[#2a1a1a] flex items-center justify-center flex-shrink-0">
                 <TrendingDown size={18} className="text-red-400" />
               </div>
@@ -133,13 +133,13 @@ export default function ReportPage() {
           {/* AUDIT LOGS & FEEDBACK */}
           <div className="grid grid-cols-[2fr_1.2fr] gap-8">
             {/* AUDIT LOGS */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <History size={18} className="text-[#d4c9a8]" /> Immutable Compliance Logs
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <History size={18} className="text-[#EB4203]" /> Immutable Compliance Logs
               </h2>
               <div className="overflow-x-auto max-h-[400px]">
-                <table className="w-full text-left text-xs text-[#ddd]">
-                  <thead className="bg-[#161616] text-[10px] text-[#555] uppercase tracking-wider sticky top-0 z-10">
+                <table className="w-full text-left text-xs text-[#1a1a1a]">
+                  <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider sticky top-0 z-10">
                     <tr>
                       <th className="p-4 rounded-l-xl">Action</th>
                       <th className="p-4">Resource</th>
@@ -148,13 +148,13 @@ export default function ReportPage() {
                   </thead>
                   <tbody className="divide-y divide-[#222]">
                     {auditLogs.slice(0, 10).map((log) => (
-                      <tr key={log.logId} className="hover:bg-[#252525] transition-colors">
+                      <tr key={log.logId} className="hover:bg-[#ffffff] transition-colors">
                         <td className="p-4 font-medium text-white flex items-center gap-2">
                           <ShieldAlert size={12} className="text-orange-400" />
                           {log.action}
                         </td>
-                        <td className="p-4 text-[#888] font-mono text-[10px]">{log.entityType}</td>
-                        <td className="p-4 text-[#888]">{new Date(log.timestamp).toLocaleString()}</td>
+                        <td className="p-4 text-[#555] font-mono text-[10px]">{log.entityType}</td>
+                        <td className="p-4 text-[#555]">{new Date(log.timestamp).toLocaleString()}</td>
                       </tr>
                     ))}
                     {auditLogs.length === 0 && (
@@ -170,13 +170,13 @@ export default function ReportPage() {
             </div>
 
             {/* ATTENDEE FEEDBACK */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6 flex flex-col">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <MessageSquare size={18} className="text-[#d4c9a8]" /> Attendee Feedback <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 flex flex-col">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <MessageSquare size={18} className="text-[#EB4203]" /> Attendee Feedback <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <div className="flex-1 space-y-4 overflow-y-auto max-h-[400px] pr-2">
                 {feedbacks.map((f) => (
-                  <div key={f.feedbackId} className="p-4 bg-[#161616] border border-[#2a2a2a] rounded-xl space-y-2">
+                  <div key={f.feedbackId} className="p-4 bg-white border border-[#e5e7eb] rounded-xl space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] text-[#555] font-mono">User ID: {f.userId.substring(0, 8)}...</span>
                       <div className="flex items-center gap-1 text-amber-400 text-xs">
@@ -184,7 +184,7 @@ export default function ReportPage() {
                         {"☆".repeat(5 - f.rating)}
                       </div>
                     </div>
-                    <p className="text-xs text-[#ccc] italic leading-relaxed">&ldquo;{f.comment}&rdquo;</p>
+                    <p className="text-xs text-[#1a1a1a] italic leading-relaxed">&ldquo;{f.comment}&rdquo;</p>
                   </div>
                 ))}
                 {feedbacks.length === 0 && (

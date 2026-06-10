@@ -185,17 +185,17 @@ export default function AgendaPage() {
   const activeSession = sessions.find((s) => s.sessionId === selectedSessionId || s.id === selectedSessionId);
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Agenda & Sessions</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Agenda & Sessions</h1>
           <div className="flex items-center gap-3">
             <label className="text-xs text-[#666] uppercase tracking-wider font-semibold">Active Event</label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#ddd] outline-none"
+              className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1a1a1a] outline-none"
             >
               {events.map((ev) => (
                 <option key={ev.eventId} value={ev.eventId}>
@@ -209,9 +209,9 @@ export default function AgendaPage() {
         <main className="p-8 space-y-8">
           <div className="grid grid-cols-2 gap-8">
             {/* SESSIONS */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <Clock size={18} className="text-[#d4c9a8]" /> Event Sessions <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <Clock size={18} className="text-[#EB4203]" /> Event Sessions <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <form onSubmit={handleAddSession} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -219,13 +219,13 @@ export default function AgendaPage() {
                     placeholder="Session Title"
                     value={sessionForm.title}
                     onChange={(e) => setSessionForm({ ...sessionForm, title: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <select
                     value={sessionForm.format}
                     onChange={(e) => setSessionForm({ ...sessionForm, format: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                   >
                     <option value="IN_PERSON">In Person</option>
                     <option value="VIRTUAL">Virtual</option>
@@ -237,14 +237,14 @@ export default function AgendaPage() {
                     placeholder="Description"
                     value={sessionForm.description}
                     onChange={(e) => setSessionForm({ ...sessionForm, description: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   />
                   <input
                     type="number"
                     placeholder="Capacity"
                     value={sessionForm.capacity || ""}
                     onChange={(e) => setSessionForm({ ...sessionForm, capacity: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -254,7 +254,7 @@ export default function AgendaPage() {
                       type="datetime-local"
                       value={sessionForm.startTime}
                       onChange={(e) => setSessionForm({ ...sessionForm, startTime: e.target.value })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                       required
                     />
                   </div>
@@ -264,7 +264,7 @@ export default function AgendaPage() {
                       type="datetime-local"
                       value={sessionForm.endTime}
                       onChange={(e) => setSessionForm({ ...sessionForm, endTime: e.target.value })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                       required
                     />
                   </div>
@@ -275,7 +275,7 @@ export default function AgendaPage() {
                     <select
                       value={sessionForm.trackId}
                       onChange={(e) => setSessionForm({ ...sessionForm, trackId: e.target.value })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                     >
                       <option value="">No Track Selected</option>
                       {tracks.map((t) => (
@@ -289,7 +289,7 @@ export default function AgendaPage() {
                         type="checkbox"
                         checked={sessionForm.isRecorded}
                         onChange={(e) => setSessionForm({ ...sessionForm, isRecorded: e.target.checked })}
-                        className="rounded border-[#333] bg-[#252525]"
+                        className="rounded border-[#e5e7eb] bg-[#ffffff]"
                       />
                       Is Recorded?
                     </label>
@@ -301,13 +301,13 @@ export default function AgendaPage() {
                       placeholder="Recording URL (optional)"
                       value={sessionForm.recordingUrl}
                       onChange={(e) => setSessionForm({ ...sessionForm, recordingUrl: e.target.value })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     />
                   </div>
                 )}
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus size={14} /> Add Session
                 </button>
@@ -320,13 +320,13 @@ export default function AgendaPage() {
                     onClick={() => setSelectedSessionId(s.sessionId)}
                     className={`p-3.5 border rounded-xl cursor-pointer transition-colors ${
                       selectedSessionId === s.sessionId 
-                        ? "bg-[#252525] border-[#d4c9a8]/50" 
-                        : "bg-[#161616] border-[#2a2a2a] hover:border-[#333]"
+                        ? "bg-[#ffffff] border-[#F7E998]/50" 
+                        : "bg-white border-[#e5e7eb] hover:border-[#e5e7eb]"
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <div className="text-xs font-bold text-white">{s.title}</div>
-                      <span className="text-[9px] px-2 py-0.5 rounded bg-white/5 text-[#888]">{s.format}</span>
+                      <div className="text-xs font-bold text-[#1a1a1a]">{s.title}</div>
+                      <span className="text-[9px] px-2 py-0.5 rounded bg-white/5 text-[#555]">{s.format}</span>
                     </div>
                     <div className="text-[10px] text-[#555] mt-1">{s.description || "No description"}</div>
                   </div>
@@ -340,9 +340,9 @@ export default function AgendaPage() {
             {/* SPEAKERS & ATTENDEES */}
             <div className="space-y-8">
               {/* SPEAKERS */}
-              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-                <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                  <Mic size={18} className="text-[#d4c9a8]" /> Session Speakers {activeSession && <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeSession.title})</span>}
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                  <Mic size={18} className="text-[#EB4203]" /> Session Speakers {activeSession && <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeSession.title})</span>}
                 </h2>
                 {selectedSessionId ? (
                   <>
@@ -353,13 +353,13 @@ export default function AgendaPage() {
                           placeholder="Speaker Email Address"
                           value={speakerForm.email}
                           onChange={(e) => setSpeakerForm({ ...speakerForm, email: e.target.value })}
-                          className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                          className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                           required
                         />
                         <select
                           value={speakerForm.role}
                           onChange={(e) => setSpeakerForm({ ...speakerForm, role: e.target.value })}
-                          className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                          className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                         >
                           <option value="SPEAKER">Speaker</option>
                           <option value="MODERATOR">Moderator</option>
@@ -369,7 +369,7 @@ export default function AgendaPage() {
                       </div>
                       <button
                         type="submit"
-                        className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <Plus size={14} /> Add Speaker
                       </button>
@@ -377,10 +377,10 @@ export default function AgendaPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       {speakers.map((sp) => (
-                        <div key={sp.id || sp.speakerId} className="flex items-center gap-3 p-3 bg-[#161616] border border-[#2a2a2a] rounded-xl">
+                        <div key={sp.id || sp.speakerId} className="flex items-center gap-3 p-3 bg-white border border-[#e5e7eb] rounded-xl">
                           <img src={`https://api.dicebear.com/6.x/initials/svg?seed=${sp.speakerId}`} alt="Speaker" className="w-8 h-8 rounded-full bg-[#222]" />
                           <div>
-                            <div className="text-xs font-bold text-white">User ID: {sp.speakerId.substring(0, 8)}...</div>
+                            <div className="text-xs font-bold text-[#1a1a1a]">User ID: {sp.speakerId.substring(0, 8)}...</div>
                             <div className="text-[9px] text-[#555] line-clamp-1">Role: {sp.role || "SPEAKER"}</div>
                           </div>
                         </div>
@@ -396,15 +396,15 @@ export default function AgendaPage() {
               </div>
 
               {/* ATTENDEES */}
-              <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-                <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                  <Users size={18} className="text-[#d4c9a8]" /> Registered Attendees
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                  <Users size={18} className="text-[#EB4203]" /> Registered Attendees
                 </h2>
                 {selectedSessionId ? (
                   <div className="space-y-3 max-h-[200px] overflow-y-auto">
                     {attendees.map((a) => (
-                      <div key={a.attendeeId} className="flex justify-between items-center p-3 bg-[#161616] border border-[#2a2a2a] rounded-xl">
-                        <div className="text-xs font-bold text-white">User ID: {a.userId.substring(0, 8)}...</div>
+                      <div key={a.attendeeId} className="flex justify-between items-center p-3 bg-white border border-[#e5e7eb] rounded-xl">
+                        <div className="text-xs font-bold text-[#1a1a1a]">User ID: {a.userId.substring(0, 8)}...</div>
                         <div className="text-[10px] text-green-400 bg-green-500/10 px-2 py-0.5 rounded">Registered</div>
                       </div>
                     ))}

@@ -515,10 +515,10 @@ export default function AttendeeDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f0e8] flex flex-col">
-      <nav className="flex items-center justify-between px-10 py-5 bg-white border-b border-[#e0d8c8]">
+    <div className="min-h-screen bg-[#ffffff] flex flex-col">
+      <nav className="flex items-center justify-between px-10 py-5 bg-white border-b border-[#e5e7eb]">
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
-          Yow<span className="text-[#8a7d5a]">Event</span>
+          Yow<span className="text-[#EB4203]">Event</span>
         </Link>
         <div className="flex items-center gap-6">
           <Link
@@ -530,7 +530,7 @@ export default function AttendeeDashboard() {
           {isOrganizer && (
             <Link
               href="/admin"
-              className="text-sm font-semibold text-[#8a7d5a] hover:text-[#73684a] flex items-center gap-1.5 transition-colors"
+              className="text-sm font-semibold text-[#EB4203] hover:text-[#73684a] flex items-center gap-1.5 transition-colors"
             >
               💼 Switch to Organizer View
             </Link>
@@ -555,7 +555,7 @@ export default function AttendeeDashboard() {
           {activeTab !== "overview" && (
             <button 
               onClick={() => setActiveTab("overview")}
-              className="px-4 py-2 bg-white border border-[#e0d8c8] rounded-xl text-sm font-semibold hover:bg-stone-50 transition-colors"
+              className="px-4 py-2 bg-white border border-[#e5e7eb] rounded-xl text-sm font-semibold hover:bg-stone-50 transition-colors"
             >
               ← Back to Overview
             </button>
@@ -565,7 +565,7 @@ export default function AttendeeDashboard() {
         {activeTab === "overview" && (
           <>
             <div className="grid md:grid-cols-3 gap-6">
-              <div onClick={() => setActiveTab("tickets")} className="bg-white rounded-2xl border border-[#e0d8c8] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <div onClick={() => setActiveTab("tickets")} className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
                 <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center text-[#1a1a1a] mb-4 group-hover:scale-110 transition-transform">
                   <Ticket size={24} />
                 </div>
@@ -573,7 +573,7 @@ export default function AttendeeDashboard() {
                 <p className="text-sm text-[#888]">View and download your purchased tickets.</p>
               </div>
 
-              <div onClick={() => setActiveTab("saved")} className="bg-white rounded-2xl border border-[#e0d8c8] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <div onClick={() => setActiveTab("saved")} className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
                 <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center text-[#1a1a1a] mb-4 group-hover:scale-110 transition-transform">
                   <Calendar size={24} />
                 </div>
@@ -581,7 +581,7 @@ export default function AttendeeDashboard() {
                 <p className="text-sm text-[#888]">Events you have bookmarked for later.</p>
               </div>
 
-              <div onClick={() => setActiveTab("settings")} className="bg-white rounded-2xl border border-[#e0d8c8] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+              <div onClick={() => setActiveTab("settings")} className="bg-white rounded-2xl border border-[#e5e7eb] p-6 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
                 <div className="w-12 h-12 bg-stone-100 rounded-xl flex items-center justify-center text-[#1a1a1a] mb-4 group-hover:scale-110 transition-transform">
                   <Settings size={24} />
                 </div>
@@ -600,12 +600,12 @@ export default function AttendeeDashboard() {
                   <h2 className="font-display text-xl font-bold text-[#1a1a1a] mb-4">Upcoming Events</h2>
                   <div className="grid md:grid-cols-3 gap-4">
                     {upcoming.map(t => (
-                      <div key={t.orderId} className="bg-white border border-[#e0d8c8] rounded-2xl p-5 flex flex-col gap-2 shadow-sm">
+                      <div key={t.orderId} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex flex-col gap-2 shadow-sm">
                         <p className="font-bold text-sm text-[#1a1a1a] line-clamp-2">{t.eventTitle}</p>
                         <p className="text-xs text-[#666]">{t.eventDate}</p>
                         <button
                           onClick={() => setActiveTab("tickets")}
-                          className="mt-auto text-xs font-semibold text-[#8a7d5a] hover:underline text-left cursor-pointer"
+                          className="mt-auto text-xs font-semibold text-[#EB4203] hover:underline text-left cursor-pointer"
                         >
                           View Ticket →
                         </button>
@@ -622,9 +622,9 @@ export default function AttendeeDashboard() {
                 <p className="text-sm text-[#888] mb-4">Based on events you have attended</p>
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {recommendations.map((ev: any) => (
-                    <Link key={ev.eventId} href={`/events/${ev.eventId}`} className="bg-white border border-[#e0d8c8] rounded-2xl p-5 hover:shadow-md transition-shadow block group">
-                      <div className="w-full h-20 bg-gradient-to-br from-[#e8e0cc] to-[#c8bb96] rounded-xl mb-3 group-hover:opacity-90 transition-opacity"></div>
-                      <p className="font-bold text-sm text-[#1a1a1a] line-clamp-2 group-hover:text-[#8a7d5a] transition-colors">{ev.title}</p>
+                    <Link key={ev.eventId} href={`/events/${ev.eventId}`} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 hover:shadow-md transition-shadow block group">
+                      <div className="w-full h-20 bg-gradient-to-br from-[#fffbeb] to-[#efe084] rounded-xl mb-3 group-hover:opacity-90 transition-opacity"></div>
+                      <p className="font-bold text-sm text-[#1a1a1a] line-clamp-2 group-hover:text-[#EB4203] transition-colors">{ev.title}</p>
                       <p className="text-xs text-[#888] mt-1">{ev.status}</p>
                     </Link>
                   ))}
@@ -634,14 +634,14 @@ export default function AttendeeDashboard() {
 
             <div className="mt-12 bg-[#1a1a1a] rounded-2xl p-8 text-white flex flex-col md:flex-row items-center justify-between">
               <div>
-                <h3 className="font-display font-bold text-xl mb-2 text-[#d4c9a8]">Ready to host your own events?</h3>
+                <h3 className="font-display font-bold text-xl mb-2 text-[#F7E998]">Ready to host your own events?</h3>
                 <p className="text-sm text-[#aaa] max-w-lg">
                   Upgrade to an Organizer account to start creating and managing your own events, selling tickets, and accessing analytics.
                 </p>
               </div>
               <button
                 onClick={openUpgradeModal}
-                className="mt-6 md:mt-0 px-6 py-3 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] font-bold rounded-xl transition-colors cursor-pointer whitespace-nowrap"
+                className="mt-6 md:mt-0 px-6 py-3 bg-[#EB4203] hover:bg-[#c23b02] text-white font-bold rounded-xl transition-colors cursor-pointer whitespace-nowrap"
               >
                 Upgrade to Organizer
               </button>
@@ -650,7 +650,7 @@ export default function AttendeeDashboard() {
         )}
 
         {activeTab === "settings" && (
-          <div className="bg-white rounded-2xl border border-[#e0d8c8] p-8 max-w-2xl">
+          <div className="bg-white rounded-2xl border border-[#e5e7eb] p-8 max-w-2xl">
             <h2 className="font-display text-2xl font-bold mb-6 text-[#1a1a1a]">Profile Settings</h2>
             
             {profileMsg.text && (
@@ -661,9 +661,9 @@ export default function AttendeeDashboard() {
 
             <div className="mb-8 flex items-center gap-6">
               {profileForm.avatar ? (
-                <img src={profileForm.avatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-[#e0d8c8]" />
+                <img src={profileForm.avatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-[#e5e7eb]" />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-[#f5f0e8] flex items-center justify-center text-[#888] font-bold text-2xl border-2 border-[#e0d8c8]">
+                <div className="w-20 h-20 rounded-full bg-[#ffffff] flex items-center justify-center text-[#888] font-bold text-2xl border-2 border-[#e5e7eb]">
                   {profileForm.firstName?.charAt(0) || "U"}
                 </div>
               )}
@@ -683,7 +683,7 @@ export default function AttendeeDashboard() {
                   <input 
                     value={profileForm.firstName}
                     onChange={e => setProfileForm({...profileForm, firstName: e.target.value})}
-                    className="w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#f5f0e8] outline-none border-[#e0d8c8] focus:bg-white focus:border-[#8a7d5a]" 
+                    className="w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none border-[#e5e7eb] focus:bg-white focus:border-[#EB4203]" 
                     required
                   />
                 </div>
@@ -692,7 +692,7 @@ export default function AttendeeDashboard() {
                   <input 
                     value={profileForm.lastName}
                     onChange={e => setProfileForm({...profileForm, lastName: e.target.value})}
-                    className="w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#f5f0e8] outline-none border-[#e0d8c8] focus:bg-white focus:border-[#8a7d5a]" 
+                    className="w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none border-[#e5e7eb] focus:bg-white focus:border-[#EB4203]" 
                     required
                   />
                 </div>
@@ -713,7 +713,7 @@ export default function AttendeeDashboard() {
                 <input 
                   value={profileForm.phone}
                   onChange={e => setProfileForm({...profileForm, phone: e.target.value})}
-                  className="w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#f5f0e8] outline-none border-[#e0d8c8] focus:bg-white focus:border-[#8a7d5a]" 
+                  className="w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none border-[#e5e7eb] focus:bg-white focus:border-[#EB4203]" 
                 />
               </div>
 
@@ -729,30 +729,30 @@ export default function AttendeeDashboard() {
         )}
 
         {activeTab === "tickets" && (
-          <div className="bg-white rounded-2xl border border-[#e0d8c8] p-8 min-h-[400px]">
+          <div className="bg-white rounded-2xl border border-[#e5e7eb] p-8 min-h-[400px]">
             <h2 className="font-display text-2xl font-bold mb-6 text-[#1a1a1a]">My Tickets</h2>
             {ticketsLoading ? (
               <div className="flex flex-col items-center justify-center h-48 text-[#888]">
-                <div className="w-8 h-8 border-4 border-stone-200 border-t-[#d4c9a8] rounded-full animate-spin mb-4" />
+                <div className="w-8 h-8 border-4 border-stone-200 border-t-[#EB4203] rounded-full animate-spin mb-4" />
                 Loading your tickets...
               </div>
             ) : myTickets.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-[#888] text-center">
-                <Ticket size={48} className="text-[#d4c9a8] mb-4" />
+                <Ticket size={48} className="text-[#F7E998] mb-4" />
                 <p className="max-w-sm">You haven't purchased any tickets yet. Explore events and book your spot!</p>
               </div>
             ) : (
               <div className="grid gap-4">
                 {myTickets.map((ticket, i) => (
-                  <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-5 border border-[#e0d8c8] rounded-xl hover:border-[#8a7d5a] transition-colors bg-[#f5f0e8]/30">
+                  <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-5 border border-[#e5e7eb] rounded-xl hover:border-[#EB4203] transition-colors bg-[#ffffff]/30">
                     <div className="flex items-start gap-4 mb-4 md:mb-0">
-                      <div className="w-12 h-12 rounded-lg bg-[#d4c9a8]/20 flex items-center justify-center text-[#8a7d5a] flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-[#F7E998]/20 flex items-center justify-center text-[#EB4203] flex-shrink-0">
                         <Calendar size={20} />
                       </div>
                       <div>
                         <h3 className="font-bold text-[#1a1a1a] text-lg">{ticket.eventTitle}</h3>
                         <p className="text-sm text-[#666] flex items-center gap-2 mt-1 font-medium">
-                          <span className="text-[#8a7d5a] bg-[#8a7d5a]/10 px-2 py-0.5 rounded">By: {ticket.organizerName}</span>
+                          <span className="text-[#EB4203] bg-[#EB4203]/10 px-2 py-0.5 rounded">By: {ticket.organizerName}</span>
                           <span>•</span>
                           {ticket.eventDate}
                         </p>
@@ -866,22 +866,22 @@ export default function AttendeeDashboard() {
         )}
 
         {activeTab === "saved" && (
-          <div className="bg-white rounded-2xl border border-[#e0d8c8] p-8 min-h-[400px]">
+          <div className="bg-white rounded-2xl border border-[#e5e7eb] p-8 min-h-[400px]">
             <h2 className="font-display text-2xl font-bold mb-6 text-[#1a1a1a]">Saved Events</h2>
             {savedEventsLoading ? (
               <div className="flex flex-col items-center justify-center h-48 text-[#888]">
-                <div className="w-8 h-8 border-4 border-stone-200 border-t-[#d4c9a8] rounded-full animate-spin mb-4" />
+                <div className="w-8 h-8 border-4 border-stone-200 border-t-[#EB4203] rounded-full animate-spin mb-4" />
                 Loading your saved events...
               </div>
             ) : savedEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-[#888] text-center">
-                <Calendar size={48} className="text-[#d4c9a8] mb-4" />
+                <Calendar size={48} className="text-[#F7E998] mb-4" />
                 <p className="max-w-sm">You haven't bookmarked any events. Save events you are interested in to find them easily later.</p>
               </div>
             ) : (
               <div className="grid gap-4">
                 {savedEvents.map((ev, i) => (
-                  <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-5 border border-[#e0d8c8] rounded-xl hover:border-[#8a7d5a] transition-colors bg-white">
+                  <div key={i} className="flex flex-col md:flex-row md:items-center justify-between p-5 border border-[#e5e7eb] rounded-xl hover:border-[#EB4203] transition-colors bg-white">
                     <div className="flex items-start gap-4 mb-4 md:mb-0">
                       {ev.imageUrl ? (
                         <Link href={`/events/${ev.eventId}`}>
@@ -895,11 +895,11 @@ export default function AttendeeDashboard() {
                         </Link>
                       )}
                       <div>
-                        <h3 className="font-bold text-[#1a1a1a] text-lg hover:text-[#8a7d5a] transition-colors cursor-pointer">
+                        <h3 className="font-bold text-[#1a1a1a] text-lg hover:text-[#EB4203] transition-colors cursor-pointer">
                           <Link href={`/events/${ev.eventId}`}>{ev.eventTitle}</Link>
                         </h3>
                         <p className="text-sm text-[#666] flex items-center gap-2 mt-1">
-                          <span className="font-medium text-[#8a7d5a]">{ev.organizerName}</span>
+                          <span className="font-medium text-[#EB4203]">{ev.organizerName}</span>
                           <span>•</span>
                           {ev.eventDate}
                         </p>
@@ -944,7 +944,7 @@ export default function AttendeeDashboard() {
                       className={`rounded-2xl p-4 border-2 text-left transition-all cursor-pointer ${
                         selectedPlan === plan
                           ? "border-[#1a1a1a] bg-[#1a1a1a] text-white"
-                          : "border-[#e0d8c8] bg-white text-[#1a1a1a] hover:border-[#8a7d5a]"
+                          : "border-[#e5e7eb] bg-white text-[#1a1a1a] hover:border-[#EB4203]"
                       }`}
                     >
                       <div className="text-xs font-bold uppercase tracking-wider mb-2 opacity-60">{plan}</div>
@@ -976,7 +976,7 @@ export default function AttendeeDashboard() {
             {upgradeStep === "payment" && (
               <div className="p-8">
                 <button type="button" onClick={() => setUpgradeStep("workspace")}
-                  className="text-xs font-semibold text-[#8a7d5a] hover:underline mb-4 block cursor-pointer">
+                  className="text-xs font-semibold text-[#EB4203] hover:underline mb-4 block cursor-pointer">
                   ← Back
                 </button>
                 <h2 className="font-display text-2xl font-bold tracking-tight mb-1">Payment</h2>
@@ -988,7 +988,7 @@ export default function AttendeeDashboard() {
                 <div className="space-y-3 mb-5">
                   {/* Card */}
                   <button type="button" onClick={() => setUpgradePaymentMethod("stripe")}
-                    className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === "stripe" ? "border-[#635bff] bg-[#f5f5ff]" : "border-[#e0d8c8] hover:border-[#aaa]"}`}>
+                    className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === "stripe" ? "border-[#635bff] bg-[#f5f5ff]" : "border-[#e5e7eb] hover:border-[#aaa]"}`}>
                     <div className="w-10 h-10 bg-[#635bff] rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0">S</div>
                     <div className="flex-1">
                       <div className="font-bold text-sm text-[#1a1a1a]">Credit / Debit Card</div>
@@ -999,7 +999,7 @@ export default function AttendeeDashboard() {
 
                   {/* MTN */}
                   <button type="button" onClick={() => setUpgradePaymentMethod("mtn_mobile_money")}
-                    className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === "mtn_mobile_money" ? "border-[#ffcc00] bg-[#fffdf0]" : "border-[#e0d8c8] hover:border-[#ffcc00]/70"}`}>
+                    className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === "mtn_mobile_money" ? "border-[#ffcc00] bg-[#fffdf0]" : "border-[#e5e7eb] hover:border-[#ffcc00]/70"}`}>
                     <div className="w-10 h-10 bg-[#ffcc00] rounded-xl flex items-center justify-center font-black text-[10px] text-[#1a1a1a] shrink-0">MTN</div>
                     <div className="flex-1">
                       <div className="font-bold text-sm text-[#1a1a1a]">MTN Mobile Money</div>
@@ -1010,7 +1010,7 @@ export default function AttendeeDashboard() {
 
                   {/* Orange */}
                   <button type="button" onClick={() => setUpgradePaymentMethod("orange_money")}
-                    className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === "orange_money" ? "border-[#ff6600] bg-[#fff8f5]" : "border-[#e0d8c8] hover:border-[#ff6600]/70"}`}>
+                    className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === "orange_money" ? "border-[#ff6600] bg-[#fff8f5]" : "border-[#e5e7eb] hover:border-[#ff6600]/70"}`}>
                     <div className="w-10 h-10 bg-[#ff6600] rounded-xl flex items-center justify-center font-black text-[10px] text-white shrink-0">OM</div>
                     <div className="flex-1">
                       <div className="font-bold text-sm text-[#1a1a1a]">Orange Money</div>
@@ -1027,14 +1027,14 @@ export default function AttendeeDashboard() {
                       {upgradePaymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number
                     </label>
                     <div className="flex gap-2">
-                      <div className="px-3 py-2.5 bg-[#f5f0e8] border border-[#e0d8c8] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
+                      <div className="px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
                       <input
                         type="tel"
                         placeholder="6XXXXXXXX"
                         value={upgradePhone}
                         onChange={e => setUpgradePhone(e.target.value.replace(/\D/g, ""))}
                         maxLength={9}
-                        className="flex-1 px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#f5f0e8] outline-none border-[#e0d8c8] focus:bg-white focus:border-[#8a7d5a]"
+                        className="flex-1 px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none border-[#e5e7eb] focus:bg-white focus:border-[#EB4203]"
                       />
                     </div>
                     <p className="text-[10px] text-[#888] mt-1">Enter your 9-digit number without country code</p>
@@ -1057,7 +1057,7 @@ export default function AttendeeDashboard() {
             {upgradeStep === "workspace" && (
               <div className="p-8">
                 <button type="button" onClick={() => setUpgradeStep("plan")}
-                  className="text-xs font-semibold text-[#8a7d5a] hover:underline mb-4 block cursor-pointer">
+                  className="text-xs font-semibold text-[#EB4203] hover:underline mb-4 block cursor-pointer">
                   ← Back
                 </button>
                 <h2 className="font-display text-2xl font-bold tracking-tight mb-1">Set up your workspace</h2>
@@ -1070,7 +1070,7 @@ export default function AttendeeDashboard() {
                 <form onSubmit={handleWorkspaceContinue} className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Account Type</label>
-                    <div className="flex bg-[#f5f0e8] rounded-xl p-1 border border-[#e0d8c8]">
+                    <div className="flex bg-[#ffffff] rounded-xl p-1 border border-[#e5e7eb]">
                       {(["INDIVIDUAL", "ORGANIZATION"] as const).map((t) => (
                         <button
                           key={t}
@@ -1091,7 +1091,7 @@ export default function AttendeeDashboard() {
                       value={upgradeForm.workspaceName}
                       onChange={(e) => setUpgradeForm(f => ({ ...f, workspaceName: e.target.value }))}
                       placeholder={upgradeForm.type === "INDIVIDUAL" ? "e.g. Jane Doe" : "e.g. Acme Events"}
-                      className="w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#f5f0e8] outline-none border-[#e0d8c8] focus:bg-white focus:border-[#8a7d5a]"
+                      className="w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none border-[#e5e7eb] focus:bg-white focus:border-[#EB4203]"
                       required
                     />
                   </div>
@@ -1116,7 +1116,7 @@ export default function AttendeeDashboard() {
       {/* CONFIRM REFUND MODAL */}
       {refundConfirmTicket && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-[#e0d8c8] animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-[#e5e7eb] animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setRefundConfirmTicket(null)}
               className="absolute top-6 right-6 text-[#888] hover:text-[#1a1a1a] transition-colors cursor-pointer"
@@ -1124,8 +1124,8 @@ export default function AttendeeDashboard() {
               <X size={20} />
             </button>
             <h2 className="font-display text-2xl font-bold tracking-tight text-[#1a1a1a] mb-4">Request Refund</h2>
-            <div className="bg-[#f5f0e8] rounded-2xl p-5 mb-6 border border-[#e0d8c8]">
-              <div className="text-xs font-bold text-[#8a7d5a] uppercase tracking-wider mb-1">Event</div>
+            <div className="bg-[#ffffff] rounded-2xl p-5 mb-6 border border-[#e5e7eb]">
+              <div className="text-xs font-bold text-[#EB4203] uppercase tracking-wider mb-1">Event</div>
               <div className="font-bold text-[#1a1a1a] text-base mb-3">{refundConfirmTicket.eventTitle}</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1162,7 +1162,7 @@ export default function AttendeeDashboard() {
       {/* CONFIRM DELETE MODAL */}
       {deleteConfirmTicket && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-[#e0d8c8] animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-[#e5e7eb] animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setDeleteConfirmTicket(null)}
               className="absolute top-6 right-6 text-[#888] hover:text-[#1a1a1a] transition-colors cursor-pointer"
@@ -1170,8 +1170,8 @@ export default function AttendeeDashboard() {
               <X size={20} />
             </button>
             <h2 className="font-display text-2xl font-bold tracking-tight text-[#1a1a1a] mb-4">Delete Ticket</h2>
-            <div className="bg-[#f5f0e8] rounded-2xl p-5 mb-6 border border-[#e0d8c8]">
-              <div className="text-xs font-bold text-[#8a7d5a] uppercase tracking-wider mb-1">Event</div>
+            <div className="bg-[#ffffff] rounded-2xl p-5 mb-6 border border-[#e5e7eb]">
+              <div className="text-xs font-bold text-[#EB4203] uppercase tracking-wider mb-1">Event</div>
               <div className="font-bold text-[#1a1a1a] text-base mb-3">{deleteConfirmTicket.eventTitle}</div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1209,7 +1209,7 @@ export default function AttendeeDashboard() {
       {refundLoadingId && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-3xl p-8 shadow-2xl flex flex-col items-center justify-center max-w-sm text-center">
-            <div className="w-12 h-12 border-4 border-stone-200 border-t-[#8a7d5a] rounded-full animate-spin mb-4" />
+            <div className="w-12 h-12 border-4 border-stone-200 border-t-[#EB4203] rounded-full animate-spin mb-4" />
             <h3 className="font-display font-bold text-lg text-[#1a1a1a] mb-1">Processing Refund</h3>
             <p className="text-xs text-[#666]">Connecting to Stripe. Please do not close this window.</p>
           </div>
@@ -1230,7 +1230,7 @@ export default function AttendeeDashboard() {
       {/* REFUND STATUS MODAL (SUCCESS/ERROR) */}
       {refundStatus && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-[#e0d8c8] text-center animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl relative border border-[#e5e7eb] text-center animate-in fade-in zoom-in duration-200">
             <button 
               onClick={() => setRefundStatus(null)}
               className="absolute top-6 right-6 text-[#888] hover:text-[#1a1a1a] transition-colors cursor-pointer"

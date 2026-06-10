@@ -71,6 +71,8 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
   const tokenWasSent = !!(auth?.token && !options.skipAuth);
   if (tokenWasSent) {
     headers.set("Authorization", `${auth.type} ${auth.token}`);
+    if (auth.tenantId) headers.set("X-Tenant-Id", auth.tenantId);
+    if (auth.userId)   headers.set("X-User-Id",   auth.userId);
   }
 
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {

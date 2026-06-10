@@ -65,7 +65,7 @@ export default function EventMap({ latitude, longitude, venueName }: EventMapPro
 
   return (
     <div 
-      className="w-full h-56 rounded-2xl overflow-hidden border border-[#e0d8c8] shadow-inner mt-4 z-10" 
+      className="w-full h-56 rounded-2xl overflow-hidden border border-[#e5e7eb] shadow-inner mt-4 z-10" 
       ref={mapRef} 
     />
   );

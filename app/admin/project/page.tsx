@@ -134,18 +134,18 @@ export default function ProjectPage() {
   const activeEvent = events.find((e) => e.eventId === selectedEventId || e.id === selectedEventId);
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Ticketing & Coupons</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Ticketing & Coupons</h1>
           <div className="flex items-center gap-3">
             <label className="text-xs text-[#666] uppercase tracking-wider font-semibold">Active Event</label>
             <select
               value={selectedEventId}
               onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-[#222] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#ddd] outline-none"
+              className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1a1a1a] outline-none"
             >
               {events.map((ev) => (
                 <option key={ev.eventId} value={ev.eventId}>
@@ -159,9 +159,9 @@ export default function ProjectPage() {
         <main className="p-8 space-y-8">
           {/* TICKET TYPES */}
           <div className="grid grid-cols-2 gap-8">
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <Ticket size={18} className="text-[#d4c9a8]" /> Ticket Tiers <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <Ticket size={18} className="text-[#EB4203]" /> Ticket Tiers <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <form onSubmit={handleAddTicket} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -169,7 +169,7 @@ export default function ProjectPage() {
                     placeholder="Tier Name (e.g. VIP Pass)"
                     value={ticketForm.name}
                     onChange={(e) => setTicketForm({ ...ticketForm, name: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <input
@@ -177,7 +177,7 @@ export default function ProjectPage() {
                     placeholder="Price ($)"
                     value={ticketForm.price || ""}
                     onChange={(e) => setTicketForm({ ...ticketForm, price: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                 </div>
@@ -186,14 +186,14 @@ export default function ProjectPage() {
                     placeholder="Description"
                     value={ticketForm.description}
                     onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                   />
                   <input
                     type="number"
                     placeholder="Capacity Available"
                     value={ticketForm.quantityAvailable || ""}
                     onChange={(e) => setTicketForm({ ...ticketForm, quantityAvailable: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none focus:border-[#d4c9a8]"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]"
                     required
                   />
                 </div>
@@ -204,7 +204,7 @@ export default function ProjectPage() {
                       type="datetime-local"
                       value={ticketForm.saleStart}
                       onChange={(e) => setTicketForm({ ...ticketForm, saleStart: e.target.value })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#d4c9a8]"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F7E998]"
                       required
                     />
                   </div>
@@ -214,7 +214,7 @@ export default function ProjectPage() {
                       type="datetime-local"
                       value={ticketForm.saleEnd}
                       onChange={(e) => setTicketForm({ ...ticketForm, saleEnd: e.target.value })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#d4c9a8]"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F7E998]"
                       required
                     />
                   </div>
@@ -227,14 +227,14 @@ export default function ProjectPage() {
                       placeholder="Max Per Order"
                       value={ticketForm.maxPerOrder || ""}
                       onChange={(e) => setTicketForm({ ...ticketForm, maxPerOrder: Number(e.target.value) })}
-                      className="w-full bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#d4c9a8]"
+                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F7E998]"
                       required
                     />
                   </div>
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus size={14} /> Add Ticket Tier
                 </button>
@@ -243,13 +243,13 @@ export default function ProjectPage() {
               {/* LIST */}
               <div className="space-y-3">
                 {ticketTypes.map((t) => (
-                  <div key={t.ticketId} className="flex justify-between items-center p-3.5 bg-[#161616] border border-[#2a2a2a] rounded-xl">
+                  <div key={t.ticketId} className="flex justify-between items-center p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
                     <div>
-                      <div className="text-xs font-bold text-white">{t.name}</div>
+                      <div className="text-xs font-bold text-[#1a1a1a]">{t.name}</div>
                       <div className="text-[10px] text-[#555] mt-0.5">{t.description || "No description"}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs font-bold text-[#d4c9a8]">${t.price}</div>
+                      <div className="text-xs font-bold text-[#EB4203]">${t.price}</div>
                       <div className="text-[9px] text-[#555] mt-0.5">{t.quantitySold}/{t.quantityAvailable} sold</div>
                     </div>
                   </div>
@@ -261,9 +261,9 @@ export default function ProjectPage() {
             </div>
 
             {/* COUPONS */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-              <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-                <Tag size={18} className="text-[#d4c9a8]" /> Coupon Codes <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+                <Tag size={18} className="text-[#EB4203]" /> Coupon Codes <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
               <form onSubmit={handleAddCoupon} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -271,13 +271,13 @@ export default function ProjectPage() {
                     placeholder="Promo Code (e.g. DISCOUNT20)"
                     value={couponForm.code}
                     onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <select
                     value={couponForm.type}
                     onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
                   >
                     <option value="PERCENTAGE">Percentage (%)</option>
                     <option value="FIXED">Fixed Amount ($)</option>
@@ -289,7 +289,7 @@ export default function ProjectPage() {
                     placeholder="Discount Value"
                     value={couponForm.value || ""}
                     onChange={(e) => setCouponForm({ ...couponForm, value: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                   <input
@@ -297,13 +297,13 @@ export default function ProjectPage() {
                     placeholder="Max Uses"
                     value={couponForm.maxUses || ""}
                     onChange={(e) => setCouponForm({ ...couponForm, maxUses: Number(e.target.value) })}
-                    className="bg-[#252525] border border-[#333] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
+                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Plus size={14} /> Add Coupon
                 </button>
@@ -312,9 +312,9 @@ export default function ProjectPage() {
               {/* LIST */}
               <div className="space-y-3">
                 {coupons.map((c) => (
-                  <div key={c.couponId} className="flex justify-between items-center p-3.5 bg-[#161616] border border-[#2a2a2a] rounded-xl">
+                  <div key={c.couponId} className="flex justify-between items-center p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
                     <div>
-                      <div className="text-xs font-bold text-white tracking-wider">{c.code}</div>
+                      <div className="text-xs font-bold text-[#1a1a1a] tracking-wider">{c.code}</div>
                       <div className="text-[9px] text-[#555] mt-0.5">Expires in 30 days</div>
                     </div>
                     <div className="text-right">
@@ -333,13 +333,13 @@ export default function ProjectPage() {
           </div>
 
           {/* ORDERS */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-              <DollarSign size={18} className="text-[#d4c9a8]" /> Recent Orders
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+              <DollarSign size={18} className="text-[#EB4203]" /> Recent Orders
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#ddd]">
-                <thead className="bg-[#161616] text-[10px] text-[#555] uppercase tracking-wider">
+              <table className="w-full text-left text-xs text-[#1a1a1a]">
+                <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
                     <th className="p-4 rounded-l-xl">Order ID</th>
                     <th className="p-4">Date</th>
@@ -356,17 +356,17 @@ export default function ProjectPage() {
                     const fee = parseFloat(o.platformFee) || 0;
                     const net = gross - fee;
                     return (
-                      <tr key={o.orderId} className="hover:bg-[#252525] transition-colors">
+                      <tr key={o.orderId} className="hover:bg-[#ffffff] transition-colors">
                         <td className="p-4 font-mono text-[10px] text-[#999]">{o.orderId?.substring(0, 8)}...</td>
-                        <td className="p-4 text-[#888]">{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}</td>
-                        <td className="p-4 text-white font-medium">${gross.toFixed(2)}</td>
-                        <td className="p-4 text-[#888]">${(parseFloat(o.discountAmount) || 0).toFixed(2)}</td>
+                        <td className="p-4 text-[#555]">{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}</td>
+                        <td className="p-4 text-[#1a1a1a] font-medium">${gross.toFixed(2)}</td>
+                        <td className="p-4 text-[#555]">${(parseFloat(o.discountAmount) || 0).toFixed(2)}</td>
                         <td className="p-4 text-red-400 font-medium">-${fee.toFixed(2)}</td>
                         <td className="p-4 text-green-400 font-semibold">${net.toFixed(2)}</td>
                         <td className="p-4">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              o.status === "PAID" ? "bg-green-500/15 text-green-400" : "bg-zinc-700/50 text-zinc-400"
+                              o.status === "PAID" ? "bg-green-50 text-green-700 border border-green-100" : "bg-stone-100 text-stone-600 border border-stone-200"
                             }`}
                           >
                             {o.status}
@@ -388,13 +388,13 @@ export default function ProjectPage() {
           </div>
 
           {/* REFUNDS */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
               <DollarSign size={18} className="text-red-400" /> Refund History
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#ddd]">
-                <thead className="bg-[#161616] text-[10px] text-[#555] uppercase tracking-wider">
+              <table className="w-full text-left text-xs text-[#1a1a1a]">
+                <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
                     <th className="p-4 rounded-l-xl">Refund ID</th>
                     <th className="p-4">Payment ID</th>
@@ -408,16 +408,16 @@ export default function ProjectPage() {
                   {refunds.map((r) => {
                     const amount = parseFloat(r.amount) || 0;
                     return (
-                      <tr key={r.refundId} className="hover:bg-[#252525] transition-colors">
+                      <tr key={r.refundId} className="hover:bg-[#ffffff] transition-colors">
                         <td className="p-4 font-mono text-[10px] text-[#999]">{r.refundId?.substring(0, 8)}...</td>
                         <td className="p-4 font-mono text-[10px] text-[#999]">{r.paymentId?.substring(0, 8)}...</td>
-                        <td className="p-4 text-white font-medium">${amount.toFixed(2)}</td>
-                        <td className="p-4 text-[#888]">{r.reason || "No reason provided"}</td>
-                        <td className="p-4 text-[#888]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
+                        <td className="p-4 text-[#1a1a1a] font-medium">${amount.toFixed(2)}</td>
+                        <td className="p-4 text-[#555]">{r.reason || "No reason provided"}</td>
+                        <td className="p-4 text-[#555]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
                         <td className="p-4">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              r.status === "SUCCESSFUL" ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
+                              r.status === "SUCCESSFUL" ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
                             }`}
                           >
                             {r.status}

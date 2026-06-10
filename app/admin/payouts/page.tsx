@@ -85,15 +85,15 @@ export default function PayoutsPage() {
   };
 
   return (
-    <div className="flex bg-[#111] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
-        <header className="h-[60px] bg-[#161616] border-b border-[#222] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-white">Organizer Balance & Payouts</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">Organizer Balance & Payouts</h1>
           <button
             onClick={fetchPayoutDetails}
-            className="w-8 h-8 bg-[#222] border border-[#333] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+            className="w-8 h-8 bg-white border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -103,22 +103,22 @@ export default function PayoutsPage() {
           {/* BALANCE METRICS & ACTION ROW */}
           <div className="grid md:grid-cols-[1.5fr_2fr] gap-8">
             {/* Balance Card */}
-            <div className="bg-gradient-to-br from-[#161619] to-[#1c1c20] border border-[#2a2a2a] rounded-2xl p-8 flex flex-col justify-between">
+            <div className="bg-white border border-[#e5e7eb] shadow-sm border border-[#e5e7eb] rounded-2xl p-8 flex flex-col justify-between">
               <div>
                 <span className="text-[#666] text-xs font-semibold uppercase tracking-wider block mb-2">Available Balance</span>
-                <div className="text-4xl font-bold text-white font-display flex items-baseline gap-2">
+                <div className="text-4xl font-bold text-[#1a1a1a] font-display flex items-baseline gap-2">
                   <span>{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="text-sm font-semibold text-[#d4c9a8]">{currency}</span>
+                  <span className="text-sm font-semibold text-[#EB4203]">{currency}</span>
                 </div>
                 <p className="text-[10px] text-[#555] mt-2 leading-relaxed">
                   Calculated from gross ticket sales minus refunded orders and previous payouts.
                 </p>
               </div>
 
-              <div className="pt-6 border-t border-[#222] mt-6">
+              <div className="pt-6 border-t border-[#e5e7eb] mt-6">
                 <a
                   href="/admin/seo"
-                  className="inline-flex items-center gap-1.5 text-xs text-[#d4c9a8] hover:text-[#c8bb96] transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs text-[#EB4203] hover:text-[#efe084] transition-colors"
                 >
                   <Landmark size={14} /> Configure payout destination settings →
                 </a>
@@ -126,9 +126,9 @@ export default function PayoutsPage() {
             </div>
 
             {/* Payout Request Panel */}
-            <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8">
-              <h2 className="font-display font-bold text-white mb-2 flex items-center gap-2">
-                <Send size={18} className="text-[#d4c9a8]" /> Request Payout
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8">
+              <h2 className="font-display font-bold text-[#EB4203] mb-2 flex items-center gap-2">
+                <Send size={18} className="text-[#EB4203]" /> Request Payout
               </h2>
               <p className="text-xs text-[#666] mb-5">
                 Transfer your funds to your configured Mobile Money account or Bank Card.
@@ -141,7 +141,7 @@ export default function PayoutsPage() {
                     <select
                       value={provider}
                       onChange={(e) => setProvider(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white outline-none focus:border-[#d4c9a8]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-white outline-none focus:border-[#F7E998]/50 transition-colors"
                     >
                       <option value="momo">MTN / Orange Mobile Money</option>
                       <option value="stripe">Stripe Payout (Connected Card)</option>
@@ -157,7 +157,7 @@ export default function PayoutsPage() {
                       placeholder="0.00"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#252525] border border-[#333] rounded-xl text-xs text-white placeholder:text-[#555] outline-none focus:border-[#d4c9a8]/50 transition-colors"
+                      className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors"
                     />
                   </div>
                 </div>
@@ -165,7 +165,7 @@ export default function PayoutsPage() {
                 <button
                   type="submit"
                   disabled={submitting || balance <= 0}
-                  className="w-full py-3 bg-[#d4c9a8] hover:bg-[#c8bb96] disabled:opacity-50 text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="w-full py-3 bg-[#F7E998] hover:bg-[#c23b02] disabled:opacity-50 text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <ArrowUpRight size={14} />
                   {submitting ? "Processing Request..." : balance <= 0 ? "No Funds Available" : "Trigger Withdrawal"}
@@ -175,13 +175,13 @@ export default function PayoutsPage() {
           </div>
 
           {/* HISTORY TABLE */}
-          <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-white mb-5 flex items-center gap-2">
-              <Clock size={18} className="text-[#d4c9a8]" /> Withdrawal History
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+              <Clock size={18} className="text-[#EB4203]" /> Withdrawal History
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#ddd]">
-                <thead className="bg-[#161616] text-[10px] text-[#555] uppercase tracking-wider">
+              <table className="w-full text-left text-xs text-[#1a1a1a]">
+                <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
                     <th className="p-4 rounded-l-xl">Withdrawal ID</th>
                     <th className="p-4">Requested Date</th>
@@ -195,18 +195,18 @@ export default function PayoutsPage() {
                   {withdrawals.map((w) => {
                     const amt = parseFloat(w.amount) || 0;
                     return (
-                      <tr key={w.withdrawalId} className="hover:bg-[#252525] transition-colors">
+                      <tr key={w.withdrawalId} className="hover:bg-[#ffffff] transition-colors">
                         <td className="p-4 font-mono text-[10px] text-[#999]">{w.withdrawalId?.substring(0, 8)}...</td>
-                        <td className="p-4 text-[#888]">{w.createdAt ? new Date(w.createdAt).toLocaleDateString() : "—"}</td>
-                        <td className="p-4 text-white font-medium">{amt.toFixed(2)} {w.currency}</td>
+                        <td className="p-4 text-[#555]">{w.createdAt ? new Date(w.createdAt).toLocaleDateString() : "—"}</td>
+                        <td className="p-4 text-[#1a1a1a] font-medium">{amt.toFixed(2)} {w.currency}</td>
                         <td className="p-4 text-zinc-400 capitalize">{w.provider === "momo" ? "Mobile Money" : w.provider}</td>
                         <td className="p-4 font-mono text-[10px] text-[#555]">{w.providerReference || "—"}</td>
                         <td className="p-4">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              w.status === "SUCCESSFUL" ? "bg-green-500/15 text-green-400" :
+                              w.status === "SUCCESSFUL" ? "bg-green-50 text-green-700 border border-green-100" :
                               w.status === "PENDING" ? "bg-amber-500/15 text-amber-400" :
-                              "bg-red-500/15 text-red-400"
+                              "bg-red-50 text-red-700 border border-red-100"
                             }`}
                           >
                             {w.status}
@@ -233,7 +233,7 @@ export default function PayoutsPage() {
       {toast && (
         <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 text-sm px-6 py-3 rounded-full shadow-2xl z-50 transition-all duration-300 ${
           toast.type === "success"
-            ? "bg-[#1a1a1a] border border-[#333] text-white"
+            ? "bg-[#f5f5f5] border border-[#e5e7eb] text-[#1a1a1a]"
             : "bg-red-900/80 border border-red-700 text-red-200"
         }`}>
           {toast.type === "success" ? "✅" : "⚠️"} {toast.msg}

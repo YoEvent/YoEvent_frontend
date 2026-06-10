@@ -128,14 +128,14 @@ function StripeSubscriptionForm({
           <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">
             Card Details
           </label>
-          <div className="px-4 py-3 bg-[#fcfbf9] border border-[#e0d8c8] rounded-xl">
+          <div className="px-4 py-3 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl">
             <CardElement options={cardElementOptions} />
           </div>
           <p className="text-[10px] text-[#888] mt-1.5">Test card: 4242 4242 4242 4242 · any future expiry · any CVC</p>
         </div>
       ) : (
-        <p className="text-[10px] text-[#888] bg-[#f5f0e8] border border-[#e0d8c8] rounded-xl px-4 py-3">
-          Stripe mock mode — no real card required. Set <code className="text-[#8a7d5a]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
+        <p className="text-[10px] text-[#888] bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-3">
+          Stripe mock mode — no real card required. Set <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
         </p>
       )}
       <button
@@ -250,13 +250,13 @@ export default function PricingPage() {
   const displayPlans = plans;
 
   return (
-    <div className="min-h-screen bg-[#f5f0e8] text-[#1a1a1a]">
+    <div className="min-h-screen bg-[#ffffff] text-[#1a1a1a]">
       <Navbar />
 
       {/* HEADER */}
       <main className="max-w-6xl mx-auto px-6 py-20">
         <div className="text-center mb-16">
-          <span className="inline-block bg-[#8a7d5a]/10 border border-[#8a7d5a]/20 rounded-full px-4 py-1.5 text-xs text-[#8a7d5a] uppercase tracking-widest mb-4">Pricing Plans</span>
+          <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-4">Pricing Plans</span>
           <h1 className="font-display text-5xl font-black tracking-tight mb-3">Honest, flexible pricing</h1>
           <p className="text-sm text-[#666] max-w-md mx-auto">Scale your events effortlessly. Upgrade, downgrade, or cancel at any time.</p>
         </div>
@@ -271,11 +271,11 @@ export default function PricingPage() {
                 className={`rounded-3xl p-8 border-[1.5px] flex flex-col justify-between transition-all hover:-translate-y-1 ${
                   isHighlighted
                     ? "bg-[#1a1a1a] text-white border-transparent shadow-2xl relative overflow-hidden"
-                    : "bg-white border-[#e0d8c8] text-[#1a1a1a]"
+                    : "bg-white border-[#e5e7eb] text-[#1a1a1a]"
                 }`}
               >
                 {isHighlighted && (
-                  <div className="absolute top-0 right-0 bg-[#d4c9a8] text-[#1a1a1a] text-[9px] uppercase tracking-wider font-extrabold px-5 py-1.5 rounded-bl-2xl">
+                  <div className="absolute top-0 right-0 bg-[#FF4747] text-white text-[9px] uppercase tracking-wider font-extrabold px-5 py-1.5 rounded-bl-2xl">
                     Most Popular
                   </div>
                 )}
@@ -288,7 +288,7 @@ export default function PricingPage() {
                     </span>
                   </div>
 
-                  <hr className={`my-6 border-t ${isHighlighted ? "border-[#333]" : "border-[#e0d8c8]"}`} />
+                  <hr className={`my-6 border-t ${isHighlighted ? "border-[#333]" : "border-[#e5e7eb]"}`} />
 
                   <ul className="space-y-4 text-xs list-none pl-0">
                     <li className="flex items-start gap-2.5 min-w-0">
@@ -320,7 +320,7 @@ export default function PricingPage() {
                     onClick={() => handleChoosePlan(plan)}
                     className={`w-full py-3.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                       isHighlighted
-                        ? "bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a]"
+                        ? "bg-[#FF4747] hover:bg-[#e03e3e] text-white"
                         : "bg-[#1a1a1a] hover:bg-[#333] text-white"
                     }`}
                   >
@@ -345,9 +345,9 @@ export default function PricingPage() {
               <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-zinc-600 text-xl font-bold bg-transparent border-none cursor-pointer">✕</button>
             </div>
 
-            <div className="p-4 bg-[#f5f0e8] border border-[#e0d8c8] rounded-xl flex justify-between items-center text-xs">
+            <div className="p-4 bg-[#ffffff] border border-[#e5e7eb] rounded-xl flex justify-between items-center text-xs">
               <span className="font-semibold text-[#555]">Plan price:</span>
-              <span className="font-black text-base text-[#8a7d5a]">{formatCfaPrice(selectedPlan.price)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
+              <span className="font-black text-base text-[#FF4747]">{formatCfaPrice(selectedPlan.price)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
             </div>
 
             <div className="space-y-4 text-xs">
@@ -356,7 +356,7 @@ export default function PricingPage() {
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as "momo" | "stripe")}
-                  className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e0d8c8] rounded-xl text-xs text-[#1a1a1a] outline-none"
+                  className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none"
                 >
                   <option value="momo">MTN / Orange Mobile Money</option>
                   <option value="stripe">
@@ -375,7 +375,7 @@ export default function PricingPage() {
                       placeholder="6xxxxxxxxx"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                      className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e0d8c8] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#8a7d5a]"
+                      className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747]"
                     />
                   </div>
                   <button

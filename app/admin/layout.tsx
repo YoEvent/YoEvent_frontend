@@ -54,11 +54,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (accessDenied) {
     return (
-      <div className="flex bg-[#111] min-h-screen text-[#e0e0e0] items-center justify-center p-8">
-        <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-2xl p-8 max-w-md text-center space-y-6">
+      <div className="flex bg-[#f9fafb] min-h-screen text-[#374151] items-center justify-center p-8">
+        <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 max-w-md text-center space-y-6">
           <div className="text-4xl">🔒</div>
-          <h2 className="font-display font-bold text-white text-xl">Organization Feature Only</h2>
-          <p className="text-xs text-[#888] leading-relaxed">
+          <h2 className="font-display font-bold text-[#EB4203] text-xl">Organization Feature Only</h2>
+          <p className="text-xs text-[#555] leading-relaxed">
             Agenda sessions, tracks, customization sponsors, exhibitors, and reports are only available for Organization accounts.
           </p>
           <div className="flex flex-col gap-3">
@@ -67,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 setAccessDenied(false);
                 router.push("/admin");
               }}
-              className="w-full py-2.5 bg-[#d4c9a8] hover:bg-[#c8bb96] text-[#1a1a1a] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+              className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
             >
               Back to Overview
             </button>

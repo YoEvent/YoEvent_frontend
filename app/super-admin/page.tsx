@@ -209,8 +209,8 @@ export default function SuperAdminPage() {
 
   if (loadingClaims) {
     return (
-      <div className="min-h-screen bg-[#0d0d0f] flex flex-col items-center justify-center text-[#e0e0e0]">
-        <div className="w-12 h-12 rounded-full border-4 border-zinc-800 border-t-[#d4c9a8] animate-spin mb-4" />
+      <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center text-[#374151]">
+        <div className="w-12 h-12 rounded-full border-4 border-[#e5e7eb] border-t-[#EB4203] animate-spin mb-4" />
         <span className="text-sm font-semibold tracking-wide text-zinc-500">Checking credentials...</span>
       </div>
     );
@@ -238,10 +238,10 @@ export default function SuperAdminPage() {
   }, 0);
 
   return (
-    <div className="flex bg-[#0d0d0f] min-h-screen text-[#e0e0e0]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       {/* SIDEBAR */}
-      <aside className="w-[230px] bg-[#111114] border-r border-zinc-800/80 flex flex-col fixed h-screen z-50">
-        <div className="px-6 py-7 border-b border-zinc-800/80">
+      <aside className="w-[230px] bg-white border-r border-[#e5e7eb] flex flex-col fixed h-screen z-50">
+        <div className="px-6 py-7 border-b border-[#e5e7eb]">
           <div className="font-display text-lg font-black text-white tracking-tight flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
             YowEvent <span className="text-xs bg-zinc-800 text-amber-400 font-normal px-2 py-0.5 rounded">Platform Admin</span>
@@ -261,8 +261,8 @@ export default function SuperAdminPage() {
                 onClick={() => setActiveTab(id as any)}
                 className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all border-none text-left cursor-pointer ${
                   active 
-                    ? "bg-zinc-800/60 text-white border-r-2 border-amber-400 font-semibold" 
-                    : "text-zinc-500 hover:bg-zinc-800/20 hover:text-zinc-300"
+                    ? "bg-[#f9fafb] text-[#EB4203] border-r-2 border-[#EB4203] font-semibold" 
+                    : "text-[#666] hover:bg-stone-50 hover:text-[#1a1a1a]"
                 }`}
               >
                 <Icon size={16} />
@@ -271,17 +271,17 @@ export default function SuperAdminPage() {
             );
           })}
         </nav>
-        <div className="px-6 py-5 border-t border-zinc-800/80">
+        <div className="px-6 py-5 border-t border-[#e5e7eb]">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-[#1a1a1a] text-xs font-black">
               SA
             </div>
             <div>
-              <div className="text-xs font-semibold text-[#ccc]">Super Administrator</div>
+              <div className="text-xs font-semibold text-[#1a1a1a]">Super Administrator</div>
               <div className="text-[9px] text-zinc-500">Platform Level</div>
             </div>
           </div>
-          <a href="#" onClick={handleLogout} className="flex items-center gap-3 px-0 py-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+          <a href="#" onClick={handleLogout} className="flex items-center gap-3 px-0 py-1 text-xs text-zinc-500 hover:text-[#222] transition-colors">
             <LogOut size={14} /> Log Out
           </a>
         </div>
@@ -290,10 +290,10 @@ export default function SuperAdminPage() {
       {/* MAIN CONTAINER */}
       <div className="ml-[230px] flex-1 flex flex-col">
         {/* HEADER */}
-        <header className="h-[60px] bg-[#111114] border-b border-zinc-800/80 flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-lg font-bold text-white capitalize">{activeTab} Administration</h1>
+        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
+          <h1 className="font-display text-lg font-bold text-[#EB4203] capitalize">{activeTab} Administration</h1>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/60 rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-medium">
+            <div className="flex items-center gap-2 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-medium">
               <span className="w-2 h-2 rounded-full bg-green-500" />
               All Services Live
             </div>
@@ -304,7 +304,7 @@ export default function SuperAdminPage() {
         <main className="p-8 space-y-6 flex-1 overflow-y-auto">
           {loadingData ? (
             <div className="h-64 flex flex-col items-center justify-center text-zinc-500">
-              <div className="w-8 h-8 rounded-full border-2 border-zinc-800 border-t-[#d4c9a8] animate-spin mb-3" />
+              <div className="w-8 h-8 rounded-full border-2 border-[#e5e7eb] border-t-[#EB4203] animate-spin mb-3" />
               <span>Fetching platform data...</span>
             </div>
           ) : (
@@ -320,12 +320,12 @@ export default function SuperAdminPage() {
                       { label: "Global Platform Users", value: users.length, desc: "Registered Profiles", icon: Users },
                       { label: "Monthly Platform Revenue", value: `$${totalRevenue.toFixed(2)}`, desc: "Simulated MRR", icon: ShieldCheck },
                     ].map((m) => (
-                      <div key={m.label} className="bg-gradient-to-br from-[#161619] to-[#1c1c20] border border-zinc-800/60 rounded-2xl p-6">
+                      <div key={m.label} className="bg-white border border-[#e5e7eb] shadow-sm border border-[#e5e7eb] rounded-2xl p-6">
                         <div className="flex items-start justify-between mb-4">
-                          <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider">{m.label}</span>
+                          <span className="text-[#666] text-xs font-semibold uppercase tracking-wider">{m.label}</span>
                           <m.icon className="text-amber-400" size={18} />
                         </div>
-                        <div className="text-3xl font-bold text-white font-display mb-1">{m.value}</div>
+                        <div className="text-3xl font-bold text-[#1a1a1a] font-display mb-1">{m.value}</div>
                         <div className="text-xs text-zinc-500">{m.desc}</div>
                       </div>
                     ))}
@@ -333,16 +333,16 @@ export default function SuperAdminPage() {
 
                   <div className="grid grid-cols-[2fr_1.2fr] gap-6">
                     {/* LIVE SIMULATED SYSTEM LOGS */}
-                    <div className="bg-[#111114] border border-zinc-800/60 rounded-2xl p-6">
+                    <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-display font-bold text-white text-sm">Real-time Platform Logs</h3>
+                        <h3 className="font-display font-bold text-[#EB4203] text-sm">Real-time Platform Logs</h3>
                         <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded font-mono font-bold animate-pulse">LIVE STREAM</span>
                       </div>
-                      <div className="bg-black/40 rounded-xl p-4 font-mono text-xs text-zinc-400 h-64 overflow-y-auto space-y-2.5 border border-zinc-900">
+                      <div className="bg-stone-50 rounded-xl p-4 font-mono text-xs text-zinc-400 h-64 overflow-y-auto space-y-2.5 border border-[#e5e7eb]">
                         {systemLogs.map((log, index) => (
                           <div key={index} className="flex gap-2">
                             <span className="text-zinc-600">[{new Date().toLocaleTimeString()}]</span>
-                            <span className={log.includes("ERROR") ? "text-red-400" : log.includes("WARN") ? "text-amber-400 font-semibold" : "text-zinc-300"}>
+                            <span className={log.includes("ERROR") ? "text-red-400" : log.includes("WARN") ? "text-amber-400 font-semibold" : "text-[#222]"}>
                               {log}
                             </span>
                           </div>
@@ -351,8 +351,8 @@ export default function SuperAdminPage() {
                     </div>
 
                     {/* MICROSERVICES HEALTH */}
-                    <div className="bg-[#111114] border border-zinc-800/60 rounded-2xl p-6">
-                      <h3 className="font-display font-bold text-white text-sm mb-4">Platform Services Health</h3>
+                    <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                      <h3 className="font-display font-bold text-[#EB4203] text-sm mb-4">Platform Services Health</h3>
                       <div className="space-y-4">
                         {[
                           { name: "YowEvent Gateway", port: 8080, status: "Healthy" },
@@ -362,9 +362,9 @@ export default function SuperAdminPage() {
                           { name: "Payment Service", port: 8084, status: "Healthy" },
                           { name: "Notification Service", port: 8085, status: "Healthy" }
                         ].map((srv) => (
-                          <div key={srv.name} className="flex justify-between items-center py-2.5 border-b border-zinc-800/40 text-xs">
+                          <div key={srv.name} className="flex justify-between items-center py-2.5 border-b border-[#e5e7eb]/40 text-xs">
                             <div>
-                              <span className="text-[#ccc] font-medium block">{srv.name}</span>
+                              <span className="text-[#1a1a1a] font-medium block">{srv.name}</span>
                               <span className="text-zinc-500 text-[10px]">Port: {srv.port}</span>
                             </div>
                             <span className="flex items-center gap-1.5 text-xs text-green-400 font-bold bg-green-500/10 px-2.5 py-0.5 rounded-full">
@@ -393,10 +393,10 @@ export default function SuperAdminPage() {
                   </div>
 
                   {/* PLANS TABLE */}
-                  <div className="bg-[#111114] border border-zinc-800/60 rounded-2xl overflow-hidden">
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-900/30">
+                        <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
                           <th className="p-4 pl-6">Plan Name</th>
                           <th className="p-4">Monthly Price</th>
                           <th className="p-4">Billing Cycle</th>
@@ -407,12 +407,12 @@ export default function SuperAdminPage() {
                           <th className="p-4 pr-6 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="text-xs text-zinc-300 divide-y divide-zinc-800/40">
+                      <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
                         {plans.map((plan) => (
                           <tr key={plan.planId} className="hover:bg-zinc-800/10 transition-colors">
-                            <td className="p-4 pl-6 font-bold text-white">{plan.name}</td>
+                            <td className="p-4 pl-6 font-bold text-[#1a1a1a]">{plan.name}</td>
                             <td className="p-4">${plan.price.toFixed(2)}</td>
-                            <td className="p-4"><span className="bg-zinc-800 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-zinc-400">{plan.billingCycle}</span></td>
+                            <td className="p-4"><span className="bg-stone-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-stone-600">{plan.billingCycle}</span></td>
                             <td className="p-4 text-center">{plan.maxEvents === -1 ? "Unlimited" : plan.maxEvents}</td>
                             <td className="p-4 text-center">{plan.maxUsers === -1 ? "Unlimited" : plan.maxUsers}</td>
                             <td className="p-4 text-center">{plan.maxAttendeesPerEvent === -1 ? "Unlimited" : plan.maxAttendeesPerEvent}</td>
@@ -420,14 +420,14 @@ export default function SuperAdminPage() {
                             <td className="p-4 pr-6 text-right space-x-2">
                               <button 
                                 onClick={() => setEditingPlan(plan)}
-                                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-[#ccc] rounded transition-colors cursor-pointer"
+                                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-[#1a1a1a] rounded transition-colors cursor-pointer"
                                 title="Edit Plan"
                               >
                                 <Edit3 size={12} />
                               </button>
                               <button 
                                 onClick={() => deletePlan(plan.planId)}
-                                className="p-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 rounded transition-colors cursor-pointer"
+                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded transition-colors cursor-pointer"
                                 title="Delete Plan"
                               >
                                 <Trash2 size={12} />
@@ -442,9 +442,9 @@ export default function SuperAdminPage() {
                   {/* CREATE PLAN DIALOG */}
                   {creatingPlan && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                      <div className="bg-[#111114] border border-zinc-800 rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
+                      <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
                         <div>
-                          <h3 className="font-display text-lg font-bold text-white">Create Subscription Plan</h3>
+                          <h3 className="font-display text-lg font-bold text-[#EB4203]">Create Subscription Plan</h3>
                           <p className="text-xs text-zinc-500">Configure details for the new pricing tier.</p>
                         </div>
                         <form onSubmit={createPlan} className="space-y-4 text-xs">
@@ -456,7 +456,7 @@ export default function SuperAdminPage() {
                                 value={planForm.name} 
                                 onChange={(e) => setPlanForm({...planForm, name: e.target.value})}
                                 placeholder="ENTERPRISE"
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -465,7 +465,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="0" step="0.01"
                                 value={planForm.price} 
                                 onChange={(e) => setPlanForm({...planForm, price: parseFloat(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -476,7 +476,7 @@ export default function SuperAdminPage() {
                               <select 
                                 value={planForm.billingCycle} 
                                 onChange={(e) => setPlanForm({...planForm, billingCycle: e.target.value})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               >
                                 <option value="MONTHLY">Monthly</option>
                                 <option value="ANNUALLY">Annually</option>
@@ -489,7 +489,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={planForm.maxEvents} 
                                 onChange={(e) => setPlanForm({...planForm, maxEvents: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -501,7 +501,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={planForm.maxUsers} 
                                 onChange={(e) => setPlanForm({...planForm, maxUsers: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -510,7 +510,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={planForm.maxAttendeesPerEvent} 
                                 onChange={(e) => setPlanForm({...planForm, maxAttendeesPerEvent: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -522,15 +522,15 @@ export default function SuperAdminPage() {
                               value={planForm.featuresEnabled} 
                               onChange={(e) => setPlanForm({...planForm, featuresEnabled: e.target.value})}
                               placeholder="BASIC_EVENT,TICKET_SALES,ANALYTICS"
-                              className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                             />
                           </div>
 
-                          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+                          <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
                             <button 
                               type="button" 
                               onClick={() => setCreatingPlan(false)}
-                              className="px-4 py-2 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 rounded-lg cursor-pointer"
+                              className="px-4 py-2 border border-[#e5e7eb] hover:bg-zinc-800 text-[#222] rounded-lg cursor-pointer"
                             >
                               Cancel
                             </button>
@@ -549,9 +549,9 @@ export default function SuperAdminPage() {
                   {/* EDIT PLAN DIALOG */}
                   {editingPlan && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                      <div className="bg-[#111114] border border-zinc-800 rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
+                      <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
                         <div>
-                          <h3 className="font-display text-lg font-bold text-white">Modify Plan: {editingPlan.name}</h3>
+                          <h3 className="font-display text-lg font-bold text-[#EB4203]">Modify Plan: {editingPlan.name}</h3>
                           <p className="text-xs text-zinc-500">Edit billing rates and platform limits.</p>
                         </div>
                         <form onSubmit={savePlanEdit} className="space-y-4 text-xs">
@@ -562,7 +562,7 @@ export default function SuperAdminPage() {
                                 type="text" required
                                 value={editingPlan.name} 
                                 onChange={(e) => setEditingPlan({...editingPlan, name: e.target.value})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -571,7 +571,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="0" step="0.01"
                                 value={editingPlan.price} 
                                 onChange={(e) => setEditingPlan({...editingPlan, price: parseFloat(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -582,7 +582,7 @@ export default function SuperAdminPage() {
                               <select 
                                 value={editingPlan.billingCycle} 
                                 onChange={(e) => setEditingPlan({...editingPlan, billingCycle: e.target.value})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               >
                                 <option value="MONTHLY">Monthly</option>
                                 <option value="ANNUALLY">Annually</option>
@@ -595,7 +595,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={editingPlan.maxEvents} 
                                 onChange={(e) => setEditingPlan({...editingPlan, maxEvents: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -607,7 +607,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={editingPlan.maxUsers} 
                                 onChange={(e) => setEditingPlan({...editingPlan, maxUsers: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -616,7 +616,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={editingPlan.maxAttendeesPerEvent} 
                                 onChange={(e) => setEditingPlan({...editingPlan, maxAttendeesPerEvent: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -627,15 +627,15 @@ export default function SuperAdminPage() {
                               type="text" required
                               value={editingPlan.featuresEnabled} 
                               onChange={(e) => setEditingPlan({...editingPlan, featuresEnabled: e.target.value})}
-                              className="w-full px-3 py-2 border border-zinc-850 rounded-xl bg-zinc-900 text-white outline-none focus:border-amber-400"
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                             />
                           </div>
 
-                          <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800">
+                          <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
                             <button 
                               type="button" 
                               onClick={() => setEditingPlan(null)}
-                              className="px-4 py-2 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 rounded-lg cursor-pointer"
+                              className="px-4 py-2 border border-[#e5e7eb] hover:bg-zinc-800 text-[#222] rounded-lg cursor-pointer"
                             >
                               Cancel
                             </button>
@@ -658,7 +658,7 @@ export default function SuperAdminPage() {
                 <div className="space-y-6">
                   {/* Search Bar */}
                   <div className="flex justify-between items-center gap-4">
-                    <div className="flex items-center gap-2 bg-[#111114] border border-zinc-800/60 rounded-lg px-3 py-2 w-72 text-xs">
+                    <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-lg px-3 py-2 w-72 text-xs">
                       <Search size={14} className="text-zinc-500" />
                       <input 
                         placeholder="Search tenants by name or slug..." 
@@ -671,10 +671,10 @@ export default function SuperAdminPage() {
                   </div>
 
                   {/* TENANTS TABLE */}
-                  <div className="bg-[#111114] border border-zinc-800/60 rounded-2xl overflow-hidden">
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-900/30">
+                        <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
                           <th className="p-4 pl-6">Tenant Name</th>
                           <th className="p-4">Slug</th>
                           <th className="p-4">Active Plan</th>
@@ -684,12 +684,12 @@ export default function SuperAdminPage() {
                           <th className="p-4 pr-6 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="text-xs text-zinc-300 divide-y divide-zinc-800/40">
+                      <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
                         {filteredTenants.map((tenant) => {
                           const planObj = plans.find((p) => p.planId === tenant.planId);
                           return (
                             <tr key={tenant.tenantId} className="hover:bg-zinc-800/10 transition-colors">
-                              <td className="p-4 pl-6 font-bold text-white">{tenant.name}</td>
+                              <td className="p-4 pl-6 font-bold text-[#1a1a1a]">{tenant.name}</td>
                               <td className="p-4 font-mono text-zinc-500">{tenant.slug}</td>
                               <td className="p-4">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -714,13 +714,13 @@ export default function SuperAdminPage() {
                               <td className="p-4 pr-6 text-right flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => viewTenantAttendees(tenant)}
-                                  className="px-3 py-1.5 bg-blue-900/40 hover:bg-blue-800/60 text-blue-400 rounded text-[10px] font-semibold transition-colors cursor-pointer"
+                                  className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-[10px] font-semibold transition-colors cursor-pointer"
                                 >
                                   View Attendees
                                 </button>
                                 <button
                                   onClick={() => toggleTenantType(tenant)}
-                                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-[10px] font-semibold transition-colors cursor-pointer"
+                                  className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-[#1a1a1a] rounded text-[10px] font-semibold transition-colors cursor-pointer"
                                 >
                                   Toggle to {tenant.type === "ORGANIZATION" ? "Individual" : "Organization"}
                                 </button>
@@ -739,7 +739,7 @@ export default function SuperAdminPage() {
                 <div className="space-y-6">
                   {/* Search Bar */}
                   <div className="flex justify-between items-center gap-4">
-                    <div className="flex items-center gap-2 bg-[#111114] border border-zinc-800/60 rounded-lg px-3 py-2 w-72 text-xs">
+                    <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-lg px-3 py-2 w-72 text-xs">
                       <Search size={14} className="text-zinc-500" />
                       <input 
                         placeholder="Search profiles by name or email..." 
@@ -752,10 +752,10 @@ export default function SuperAdminPage() {
                   </div>
 
                   {/* USERS TABLE */}
-                  <div className="bg-[#111114] border border-zinc-800/60 rounded-2xl overflow-hidden">
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-900/30">
+                        <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
                           <th className="p-4 pl-6">Profile Name</th>
                           <th className="p-4">Email Address</th>
                           <th className="p-4">Associated Workspace ID</th>
@@ -765,15 +765,15 @@ export default function SuperAdminPage() {
                           <th className="p-4 pr-6 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="text-xs text-zinc-300 divide-y divide-zinc-800/40">
+                      <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
                         {filteredUsers.map((user) => (
                           <tr key={user.userId} className="hover:bg-zinc-800/10 transition-colors">
-                            <td className="p-4 pl-6 font-bold text-white">{user.firstName} {user.lastName}</td>
+                            <td className="p-4 pl-6 font-bold text-[#1a1a1a]">{user.firstName} {user.lastName}</td>
                             <td className="p-4 text-zinc-400">{user.email}</td>
                             <td className="p-4 font-mono text-zinc-500 text-[10px]">{user.tenantId || "-"}</td>
                             <td className="p-4">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                user.emailVerified ? "bg-green-500/10 text-green-400" : "bg-zinc-800 text-zinc-500"
+                                user.emailVerified ? "bg-green-50 text-green-700 border border-green-100" : "bg-zinc-800 text-zinc-500"
                               }`}>
                                 {user.emailVerified ? "Verified" : "Pending"}
                               </span>
@@ -827,10 +827,10 @@ export default function SuperAdminPage() {
       {/* TENANT ATTENDEES MODAL */}
       {viewingTenant && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-[#111114] border border-zinc-800 rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="px-8 py-5 border-b border-zinc-800 flex items-center justify-between">
+          <div className="bg-white border border-[#e5e7eb] rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="px-8 py-5 border-b border-[#e5e7eb] flex items-center justify-between">
               <div>
-                <h3 className="font-display text-base font-bold text-white">
+                <h3 className="font-display text-base font-bold text-[#1a1a1a]">
                   Attendees — {viewingTenant.name}
                 </h3>
                 <p className="text-[11px] text-zinc-500 mt-0.5">
@@ -848,17 +848,17 @@ export default function SuperAdminPage() {
             <div className="overflow-y-auto flex-1 p-6">
               {loadingRegs ? (
                 <div className="flex items-center justify-center py-16">
-                  <div className="w-7 h-7 rounded-full border-2 border-zinc-800 border-t-amber-400 animate-spin" />
+                  <div className="w-7 h-7 rounded-full border-2 border-[#e5e7eb] border-t-amber-400 animate-spin" />
                 </div>
               ) : tenantRegistrations.length === 0 ? (
                 <div className="text-center py-16 text-zinc-500 text-sm">No registrations found for this tenant.</div>
               ) : (
                 <>
                   <p className="text-xs text-zinc-500 mb-4">{tenantRegistrations.length} registration{tenantRegistrations.length !== 1 ? "s" : ""} found</p>
-                  <div className="bg-[#0d0d0f] border border-zinc-800/60 rounded-2xl overflow-hidden">
+                  <div className="bg-[#f9fafb] border border-[#e5e7eb] rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-zinc-800 text-[10px] text-zinc-500 uppercase tracking-wider bg-zinc-900/30">
+                        <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
                           <th className="p-3 pl-5">User</th>
                           <th className="p-3">Email</th>
                           <th className="p-3">Event ID</th>
@@ -866,12 +866,12 @@ export default function SuperAdminPage() {
                           <th className="p-3 pr-5">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="text-xs text-zinc-300 divide-y divide-zinc-800/40">
+                      <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
                         {tenantRegistrations.map((reg: any) => {
                           const user = users.find((u: any) => u.userId === reg.userId);
                           return (
                             <tr key={reg.registrationId} className="hover:bg-zinc-800/10">
-                              <td className="p-3 pl-5 font-semibold text-white">
+                              <td className="p-3 pl-5 font-semibold text-[#1a1a1a]">
                                 {user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || "—" : reg.userId?.slice(0, 10) + "…"}
                               </td>
                               <td className="p-3 text-zinc-400">{user?.email || "—"}</td>
@@ -881,7 +881,7 @@ export default function SuperAdminPage() {
                               </td>
                               <td className="p-3 pr-5">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  reg.status === "CONFIRMED" ? "bg-green-500/10 text-green-400" :
+                                  reg.status === "CONFIRMED" ? "bg-green-50 text-green-700 border border-green-100" :
                                   reg.status === "CANCELLED" ? "bg-red-500/10 text-red-400" :
                                   "bg-zinc-800 text-zinc-400"
                                 }`}>

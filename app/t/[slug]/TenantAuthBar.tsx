@@ -41,9 +41,9 @@ export default function TenantAuthBar({ slug }: Props) {
   if (status === "authenticated") {
     return (
       <div className="bg-[#1a1a1a] text-white py-2.5 px-6 flex items-center justify-between text-xs">
-        <span className="text-[#888]">Signed in as <span className="text-[#d4c9a8] font-semibold">{displayName}</span></span>
+        <span className="text-[#888]">Signed in as <span className="text-[#F7E998] font-semibold">{displayName}</span></span>
         <div className="flex items-center gap-4">
-          <Link href="/user/dashboard" className="flex items-center gap-1.5 text-[#d4c9a8] hover:text-white transition-colors font-semibold">
+          <Link href="/user/dashboard" className="flex items-center gap-1.5 text-[#F7E998] hover:text-white transition-colors font-semibold">
             <User size={13} /> My Dashboard
           </Link>
         </div>
@@ -53,7 +53,7 @@ export default function TenantAuthBar({ slug }: Props) {
 
   // Guest
   return (
-    <div className="bg-[#f5f0e8] border-b border-[#e0d8c8] py-3 px-6 flex items-center justify-between flex-wrap gap-3">
+    <div className="bg-[#ffffff] border-b border-[#e5e7eb] py-3 px-6 flex items-center justify-between flex-wrap gap-3">
       <p className="text-xs text-[#666]">
         Sign in or create a free account to register for events.
       </p>
