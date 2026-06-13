@@ -3,13 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart } from "lucide-react";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 
 const links = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/events", label: "Events", icon: Calendar },
+  { href: "/admin/checkin", label: "Check-in", icon: ScanLine },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/agenda", label: "Agenda", icon: MessageCircle },
   { href: "/admin/project", label: "Ticketing", icon: FolderOpen },
   { href: "/admin/payouts", label: "Payouts", icon: DollarSign },

@@ -120,6 +120,8 @@ export const eventService = {
   createEvent: (data: T.EventRequest) => api.post<T.EventResponse>("api/v1/events", data),
   getEventById: (id: string, opts?: ApiRequestInit) => api.get<T.EventResponse>(`api/v1/events/${id}`, opts),
   updateEvent: (id: string, data: T.EventRequest) => api.put<T.EventResponse>(`api/v1/events/${id}`, data),
+  cancelEvent: (id: string) => api.patch<T.EventResponse>(`api/v1/events/${id}/cancel`),
+  cloneEvent: (id: string) => api.post<T.EventResponse>(`api/v1/events/${id}/clone`),
   deleteEvent: (id: string) => api.delete<void>(`api/v1/events/${id}`),
   uploadCoverImage: (id: string, file: File) => {
     const formData = new FormData();
@@ -185,6 +187,11 @@ export const eventService = {
 
   // Registrations
   getMyRegistrations: () => api.get<any[]>("api/v1/registrations/me"),
+  getMyTenantRegistrations: () => api.get<any[]>("api/v1/registrations/mine"),
+  getRegistrationsByEvent: (eventId: string) => api.get<any[]>(`api/v1/registrations/event/${eventId}`),
+  createRegistration: (data: any) => api.post<any>("api/v1/registrations", data),
+  getRegistrationById: (id: string) => api.get<any>(`api/v1/registrations/${id}`),
+  checkInRegistration: (id: string) => api.post<any>(`api/v1/registrations/${id}/checkin`),
 
   // Orders
   getOrders: () => api.get<T.OrderResponse[]>("api/v1/orders"),

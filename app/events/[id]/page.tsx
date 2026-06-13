@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { authService } from "@/app/utils/services/authService";
-import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket } from "lucide-react";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
 
@@ -106,6 +106,8 @@ export default function EventDetailsPage() {
   const [mobileMoneyError, setMobileMoneyError] = useState<string | null>(null);
 
   const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
+  const [eventSchedule, setEventSchedule] = useState<any>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   const [isSaved, setIsSaved] = useState(false);
   const [savedEventId, setSavedEventId] = useState<string | null>(null);
@@ -150,6 +152,7 @@ export default function EventDetailsPage() {
           pollsList,
           qaList,
           feedbacksList,
+          announcsList,
         ] = await Promise.all([
           eventService.getEventLocations({ skipAuth: true }).catch(() => []),
           eventService.getSessions({ skipAuth: true }).catch(() => []),
@@ -163,12 +166,14 @@ export default function EventDetailsPage() {
           eventService.getPolls().catch(() => []),
           eventService.getQaQuestions().catch(() => []),
           eventService.getFeedbacks().catch(() => []),
+          eventService.getAnnouncements().catch(() => []),
         ]);
 
         const schedule = (schedulesList || []).find((s: any) => s.eventId === eventId);
         if (schedule?.endDatetime) {
           setEventEndDate(new Date(schedule.endDatetime));
         }
+        setEventSchedule(schedule || null);
         
         const authData = getStoredAuth();
         if (authData) {
@@ -199,6 +204,7 @@ export default function EventDetailsPage() {
         setPolls((pollsList || []).filter((p: any) => p.eventId === eventId));
         setQaQuestions((qaList || []).filter((q: any) => q.eventId === eventId));
         setFeedbacks((feedbacksList || []).filter((f: any) => f.eventId === eventId));
+        setAnnouncements((announcsList || []).filter((a: any) => a.eventId === eventId));
 
       } catch (err) {
         console.error("Failed to load event data:", err);
@@ -565,10 +571,32 @@ export default function EventDetailsPage() {
               <Bookmark size={28} className={isSaved ? "fill-current" : ""} />
             </button>
           </div>
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            {event.format && (
+              <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full border border-white/30 uppercase tracking-wider">
+                {event.format === "IN_PERSON" ? "In Person" : event.format === "VIRTUAL" ? "Virtual" : "Hybrid"}
+              </span>
+            )}
+            {event.isPaid === false && (
+              <span className="px-3 py-1 bg-green-500/80 text-white text-xs font-bold rounded-full uppercase tracking-wider">Free</span>
+            )}
+            {event.isPaid === true && event.currency && (
+              <span className="px-3 py-1 bg-[#EB4203]/80 text-white text-xs font-bold rounded-full uppercase tracking-wider">Paid · {event.currency}</span>
+            )}
+            {event.maxCapacity != null && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-medium rounded-full">
+                <Users size={12} /> {event.maxCapacity.toLocaleString()} capacity
+              </span>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-6 text-[#F7E998] font-medium">
             <div className="flex items-center gap-2">
               <Calendar size={18} />
-              <span>{new Date(event.startDate).toLocaleDateString()} — {new Date(event.endDate).toLocaleDateString()}</span>
+              <span>
+                {(event.startDate || eventSchedule?.startDatetime)
+                  ? `${new Date(event.startDate || eventSchedule.startDatetime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} — ${new Date(event.endDate || eventSchedule?.endDatetime || event.startDate || eventSchedule.startDatetime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+                  : "Date TBD"}
+              </span>
             </div>
             {locations.length > 0 && (
               <div className="flex items-center gap-2">
@@ -608,6 +636,36 @@ export default function EventDetailsPage() {
             </div>
           )}
 
+          {/* ANNOUNCEMENTS */}
+          {announcements.length > 0 && (
+            <section>
+              <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6 flex items-center gap-3">
+                <Bell size={26} className="text-[#EB4203]" /> Announcements
+              </h2>
+              <div className="space-y-4">
+                {[...announcements]
+                  .sort((a: any, b: any) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0))
+                  .map((ann: any) => (
+                    <div
+                      key={ann.announcementId}
+                      className={`p-5 rounded-2xl border shadow-sm ${ann.isPinned ? "bg-amber-50 border-amber-200" : "bg-white border-[#e5e7eb]"}`}
+                    >
+                      {ann.isPinned && (
+                        <span className="inline-block text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">📌 Pinned</span>
+                      )}
+                      <h3 className="font-bold text-[#1a1a1a] mb-1">{ann.title}</h3>
+                      <p className="text-sm text-[#555] leading-relaxed">{ann.content}</p>
+                      {ann.publishedAt && (
+                        <p className="text-[10px] text-[#aaa] mt-3">
+                          {new Date(ann.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )}
+
           {/* AGENDA */}
           <section>
             <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6">Agenda & Sessions</h2>
@@ -638,11 +696,14 @@ export default function EventDetailsPage() {
                           <h4 className="text-xs uppercase tracking-wider font-bold text-[#888] mb-3">Speakers</h4>
                           <div className="flex flex-wrap gap-4">
                             {sessionSpeakers.map((sp) => (
-                              <div key={sp.speakerId} className="flex items-center gap-3">
-                                <img src={`https://api.dicebear.com/6.x/initials/svg?seed=${sp.speakerId}`} className="w-8 h-8 rounded-full bg-[#ffffff]" alt="Speaker" />
+                              <div key={sp.id || sp.speakerId} className="flex items-center gap-3">
+                                <img
+                                  src={sp.imageUrl || `https://api.dicebear.com/6.x/shapes/svg?seed=${sp.speakerId}`}
+                                  className="w-9 h-9 rounded-full object-cover bg-[#f0ebe1] border border-[#e5e7eb]"
+                                  alt={sp.role || "Speaker"}
+                                />
                                 <div>
-                                  <div className="text-sm font-bold text-[#1a1a1a]">User: {sp.speakerId.substring(0, 8)}</div>
-                                  <div className="text-[10px] text-[#666]">{sp.role}</div>
+                                  <div className="text-sm font-bold text-[#1a1a1a]">{sp.role || "Speaker"}</div>
                                 </div>
                               </div>
                             ))}
@@ -1107,19 +1168,37 @@ export default function EventDetailsPage() {
           {/* REGISTRATION CARD */}
           <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 shadow-xl sticky top-24">
             <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">Attend Event</h3>
+            {ticketTypes.length > 0 && (
+              <div className="mb-5 space-y-2 pt-1">
+                {ticketTypes.slice(0, 3).map(t => (
+                  <div key={t.ticketId} className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-1.5 text-[#555]">
+                      <Ticket size={13} className="text-[#EB4203]" /> {t.name}
+                    </span>
+                    <span className="font-black text-[#EB4203]">
+                      {t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} ${event.currency || "XAF"}`}
+                    </span>
+                  </div>
+                ))}
+                {ticketTypes.length > 3 && (
+                  <p className="text-[10px] text-[#888]">+{ticketTypes.length - 3} more type{ticketTypes.length - 3 > 1 ? "s" : ""}</p>
+                )}
+                <div className="border-t border-[#f0f0f0] pt-1" />
+              </div>
+            )}
             {eventEndDate && new Date() > eventEndDate ? (
               <>
-                <p className="text-[#666] text-sm mb-6">This event has already ended.</p>
+                <p className="text-[#666] text-sm mb-4">This event has already ended.</p>
                 <div className="w-full py-4 bg-[#e5e7eb] text-[#888] font-bold rounded-xl text-center text-sm">
                   Registration Closed
                 </div>
               </>
             ) : (
               <>
-                <p className="text-[#666] text-sm mb-6">Secure your spot before tickets sell out.</p>
+                <p className="text-[#666] text-sm mb-4">Secure your spot before tickets sell out.</p>
                 <button
                   onClick={() => setShowCheckout(true)}
-                  className="w-full py-4 bg-[#EB4203] hover:bg-[#7a6d4a] text-white font-bold rounded-xl transition-colors cursor-pointer shadow-md"
+                  className="w-full py-4 bg-[#EB4203] hover:bg-[#c73a00] text-white font-bold rounded-xl transition-colors cursor-pointer shadow-md"
                 >
                   Register Now
                 </button>
@@ -1129,6 +1208,40 @@ export default function EventDetailsPage() {
               Powered by YowEvent Ticketing
             </p>
           </div>
+
+          {/* SCHEDULE CARD */}
+          {eventSchedule && (
+            <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
+              <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
+                <Calendar size={18} className="text-[#EB4203]" /> Schedule
+              </h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <Clock size={14} className="text-[#EB4203] mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-semibold text-[#1a1a1a] text-xs uppercase tracking-wider mb-0.5">Starts</div>
+                    <div className="text-[#444]">
+                      {new Date(eventSchedule.startDatetime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                    </div>
+                  </div>
+                </div>
+                {eventSchedule.endDatetime && (
+                  <div className="flex items-start gap-3">
+                    <Clock size={14} className="text-[#888] mt-0.5 shrink-0" />
+                    <div>
+                      <div className="font-semibold text-[#1a1a1a] text-xs uppercase tracking-wider mb-0.5">Ends</div>
+                      <div className="text-[#444]">
+                        {new Date(eventSchedule.endDatetime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {eventSchedule.timezone && (
+                  <div className="text-[10px] text-[#aaa] pl-5">{eventSchedule.timezone}</div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* LOCATIONS */}
           {locations.length > 0 && (
