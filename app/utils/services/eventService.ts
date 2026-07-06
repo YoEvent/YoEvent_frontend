@@ -65,6 +65,15 @@ export const eventService = {
   updatePollResponse: (id: string, data: T.PollResponse) => api.put<T.PollResponse>(`api/v1/poll-responses/${id}`, data),
   deletePollResponse: (id: string) => api.delete<void>(`api/v1/poll-responses/${id}`),
 
+  // Volunteer Openings
+  getVolunteerOpenings: () => api.get<T.VolunteerOpeningResponse[]>("api/v1/volunteer-openings"),
+  getStaffMembers: (opts?: any) => api.get<any[]>("api/v1/staff", opts),
+  getStaffByEvent: (eventId: string) => api.get<any[]>(`api/v1/staff/event/${eventId}`),
+  createVolunteerOpening: (data: T.VolunteerOpeningRequest) => api.post<T.VolunteerOpeningResponse>("api/v1/volunteer-openings", data),
+  getVolunteerOpeningById: (id: string) => api.get<T.VolunteerOpeningResponse>(`api/v1/volunteer-openings/${id}`),
+  updateVolunteerOpening: (id: string, data: T.VolunteerOpeningRequest) => api.put<T.VolunteerOpeningResponse>(`api/v1/volunteer-openings/${id}`, data),
+  deleteVolunteerOpening: (id: string) => api.delete<void>(`api/v1/volunteer-openings/${id}`),
+
   // Networkings
   getNetworkings: () => api.get<T.NetworkingResponse[]>("api/v1/networkings"),
   createNetworking: (data: T.NetworkingRequest) => api.post<T.NetworkingResponse>("api/v1/networkings", data),
@@ -108,6 +117,14 @@ export const eventService = {
   deleteEventSchedule: (id: string) => api.delete<void>(`api/v1/eventschedules/${id}`),
 
   // Events
+  searchEvents: (params: { q?: string; category?: string; isPaid?: boolean } = {}, opts?: ApiRequestInit) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.category) qs.set("category", params.category);
+    if (params.isPaid !== undefined) qs.set("isPaid", String(params.isPaid));
+    const queryStr = qs.toString();
+    return api.get<any[]>(`api/v1/search${queryStr ? `?${queryStr}` : ""}`, opts);
+  },
   getEvents: (opts?: any) => api.get<T.EventResponse[]>("api/v1/events", opts),
   getMyEvents: () => api.get<T.EventResponse[]>("api/v1/events/mine"),
   getPublicEventsByTenant: async (tenantId: string) => {
@@ -226,5 +243,21 @@ export const eventService = {
   getEventSections: (eventId?: string) => api.get<any[]>(eventId ? `api/v1/event-sections?eventId=${eventId}` : "api/v1/event-sections"),
   createEventSection: (data: any) => api.post<any>("api/v1/event-sections", data),
   updateEventSection: (id: string, data: any) => api.put<any>(`api/v1/event-sections/${id}`, data),
-  deleteEventSection: (id: string) => api.delete<void>(`api/v1/event-sections/${id}`)
+  deleteEventSection: (id: string) => api.delete<void>(`api/v1/event-sections/${id}`),
+
+  // Event Resources / Assets
+  getEventResources: () => api.get<any[]>("api/v1/resources"),
+  getResourcesByEvent: (eventId: string) => api.get<any[]>(`api/v1/resources/event/${eventId}`),
+  getResourcesByLocation: (locationId: string) => api.get<any[]>(`api/v1/resources/location/${locationId}`),
+  createResource: (data: any) => api.post<any>("api/v1/resources", data),
+  updateResource: (id: string, data: any) => api.put<any>(`api/v1/resources/${id}`, data),
+  deleteResource: (id: string) => api.delete<void>(`api/v1/resources/${id}`),
+
+  // Rooms
+  getRooms: () => api.get<any[]>("api/v1/rooms"),
+  getRoomsByEvent: (eventId: string) => api.get<any[]>(`api/v1/rooms/event/${eventId}`),
+  getRoomsByLocation: (locationId: string) => api.get<any[]>(`api/v1/rooms/location/${locationId}`),
+  createRoom: (data: any) => api.post<any>("api/v1/rooms", data),
+  updateRoom: (id: string, data: any) => api.put<any>(`api/v1/rooms/${id}`, data),
+  deleteRoom: (id: string) => api.delete<void>(`api/v1/rooms/${id}`)
 };

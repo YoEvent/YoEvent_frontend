@@ -19,6 +19,7 @@ export const paymentService = {
   withdraw: (data: { amount: number; provider: string; currency?: string }) =>
     api.post<any>("api/v1/payments/withdrawals", data),
   getWithdrawals: () => api.get<any[]>("api/v1/payments/withdrawals"),
+  deleteWithdrawal: (id: string) => api.delete<void>(`api/v1/payments/withdrawals/${id}`),
   createSubscription: (data: { tenantId: string; planId: string; amount: number; currency: string; provider: string; paymentMethodId?: string }) =>
     api.post<any>("api/v1/subscriptions", data),
 };

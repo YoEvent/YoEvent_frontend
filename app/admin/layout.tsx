@@ -15,16 +15,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!claims) {
       router.push("/login");
       return;
-    } 
-    if (claims.scope?.includes("ATTENDEE")) {
-      router.push("/user/dashboard");
+    }
+
+    const scope: string = claims.scope || "";
+    const hasOrganizerRole = scope.includes("TENANT_OWNER") || scope.includes("ADMIN") || scope.includes("ORGANIZER") || scope.includes("SUPER_ADMIN");
+
+    if (!hasOrganizerRole) {
+      // User has ATTENDEE-only token — redirect to re-login so they get a fresh token
+      router.push("/login?reason=session_expired");
       return;
     }
-    
+
     // Fetch tenant to check if accessing restricted pages as individual creator
     const auth = getStoredAuth();
     if (auth && auth.tenantId) {
-      const restrictedPaths = ["/admin/website", "/admin/agenda", "/admin/report"];
+      const restrictedPaths = ["/admin/website", "/admin/agenda", "/admin/engagements"];
       const isRestrictedPath = restrictedPaths.some(p => path.startsWith(p));
 
       if (isRestrictedPath) {

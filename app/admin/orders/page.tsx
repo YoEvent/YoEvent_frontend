@@ -15,20 +15,26 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterEventId, setFilterEventId] = useState("ALL");
+  const [orderItems, setOrderItems] = useState<any[]>([]);
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [evs, ords] = await Promise.all([
+        const [evs, ords, items, tickets] = await Promise.all([
           eventService.getMyEvents().catch(() => []),
           eventService.getOrders().catch(() => []),
+          eventService.getOrderItems().catch(() => []),
+          eventService.getTicketTypes().catch(() => []),
         ]);
         const myEvents = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
         setEvents(myEvents);
         const myEventIds = new Set(myEvents.map((e: any) => e.eventId));
         const myOrders = (ords || []).filter((o: any) => !o.eventId || myEventIds.has(o.eventId));
         setOrders(myOrders);
+        setOrderItems(items || []);
+        setTicketTypes(tickets || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -157,6 +163,11 @@ export default function OrdersPage() {
                   <tbody className="divide-y divide-[#f5f5f5]">
                     {filtered.map((o: any) => {
                       const event = events.find((ev: any) => ev.eventId === o.eventId);
+                      const oItems = orderItems.filter((oi: any) => oi.orderId === (o.orderId || o.id));
+                      const itemsDesc = oItems.map((oi: any) => {
+                        const tt = ticketTypes.find((t: any) => t.ticketId === oi.ticketTypeId || t.ticketTypeId === oi.ticketTypeId || t.id === oi.ticketTypeId);
+                        return `${oi.quantity} x ${tt ? tt.name : "Ticket"}`;
+                      }).join(", ");
                       return (
                         <tr key={o.orderId || o.id} className="hover:bg-[#fafafa] transition-colors">
                           <td className="px-5 py-4">
@@ -165,7 +176,7 @@ export default function OrdersPage() {
                           <td className="px-5 py-4">
                             <div className="text-xs font-semibold text-[#1a1a1a] max-w-[140px] truncate">{event?.title || o.eventId || "—"}</div>
                           </td>
-                          <td className="px-5 py-4 text-xs text-[#555]">{o.itemCount ?? (o.items?.length ?? "—")}</td>
+                          <td className="px-5 py-4 text-xs text-[#555] font-semibold">{itemsDesc || "—"}</td>
                           <td className="px-5 py-4">
                             <span className="font-bold text-[#1a1a1a]">{Number(o.totalAmount || 0).toLocaleString()}</span>
                             <span className="text-[10px] text-[#aaa] ml-1">FCFA</span>

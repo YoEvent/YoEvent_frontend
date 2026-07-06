@@ -6,7 +6,10 @@ export interface TrackRequest extends Record<string, any> {}
 export interface TrackResponse extends Record<string, any> { id?: string; }
 
 export interface SponsorshipPackageRequest extends Record<string, any> {}
-export interface SponsorshipPackageResponse extends Record<string, any> { id?: string; }
+export interface SponsorshipPackageResponse extends Record<string, any> { id?: string; packageId?: string; applicationStart?: string; applicationEnd?: string; }
+
+export interface VolunteerOpeningRequest extends Record<string, any> {}
+export interface VolunteerOpeningResponse extends Record<string, any> { openingId?: string; applicationStart?: string; applicationEnd?: string; }
 
 export interface SponsorRequest extends Record<string, any> {}
 export interface SponsorResponse extends Record<string, any> { id?: string; }

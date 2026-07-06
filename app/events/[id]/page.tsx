@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { authService } from "@/app/utils/services/authService";
-import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket, Star, ArrowRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
 
@@ -19,54 +19,27 @@ const EventMap = dynamic(() => import("@/components/EventMap"), {
 });
 
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { paymentService } from "@/app/utils/services/paymentService";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key");
 
-const StripeCheckoutForm = ({ onSuccess, total }: { onSuccess: () => void, total: number }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-
-    setIsProcessing(true);
-    const { error } = await stripe.confirmPayment({
-      elements,
-      redirect: 'if_required',
-    });
-
-    if (error) {
-      alert(error.message);
-      setIsProcessing(false);
-    } else {
-      onSuccess();
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <PaymentElement />
-      <button 
-        disabled={isProcessing || !stripe || !elements} 
-        type="submit"
-        className="px-8 py-3 bg-[#1a1a1a] text-white font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer w-full mt-4 disabled:opacity-50"
-      >
-        {isProcessing ? "Processing..." : `Pay $${total.toFixed(2)}`}
-      </button>
-    </form>
-  );
-};
-
 import Navbar from "@/components/Navbar";
 
 export default function EventDetailsPage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <EventDetailsPageContent />
+    </Elements>
+  );
+}
+
+function EventDetailsPageContent() {
   const router = useRouter();
   const params = useParams();
   const eventId = params.id as string;
+  const stripe = useStripe();
+  const elements = useElements();
 
   const [auth, setAuth] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
@@ -75,24 +48,23 @@ export default function EventDetailsPage() {
   // Data states
   const [event, setEvent] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [speakers, setSpeakers] = useState<any[]>([]);
   const [sponsors, setSponsors] = useState<any[]>([]);
   const [exhibitors, setExhibitors] = useState<any[]>([]);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
 
-  // Attendee Hub & Sections states
-  const [activeHubTab, setActiveHubTab] = useState<"polls" | "qa" | "feedback">("polls");
-  const [polls, setPolls] = useState<any[]>([]);
-  const [qaQuestions, setQaQuestions] = useState<any[]>([]);
+  // Feedback section states
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
-  const [newQuestion, setNewQuestion] = useState("");
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState<number | null>(null);
   const [sections, setSections] = useState<any[]>([]);
 
   // Checkout states
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<Record<string, number>>({});
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
@@ -111,8 +83,10 @@ export default function EventDetailsPage() {
 
   const [isSaved, setIsSaved] = useState(false);
   const [savedEventId, setSavedEventId] = useState<string | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const [sponsorshipPackages, setSponsorshipPackages] = useState<any[]>([]);
+  const [volunteerOpenings, setVolunteerOpenings] = useState<any[]>([]);
   const [showSponsorForm, setShowSponsorForm] = useState(false);
   const [showVolunteerForm, setShowVolunteerForm] = useState(false);
   const [sponsorForm, setSponsorForm] = useState({ companyName: "", contactName: "", email: "", phone: "", message: "", packageId: "", logoUrl: "" });
@@ -128,9 +102,10 @@ export default function EventDetailsPage() {
 
     // Fetch event details
     const fetchEventData = async () => {
+      const toArr = (d: any): any[] => Array.isArray(d) ? d : (d?.content ?? []);
       try {
-        const eventsList = await eventService.getEvents({ skipAuth: true });
-        const currentEvent = (eventsList || []).find((e: any) => e.eventId === eventId);
+        const eventsRaw = await eventService.getEvents({ skipAuth: true });
+        const currentEvent = toArr(eventsRaw).find((e: any) => e.eventId === eventId);
         
         if (!currentEvent) {
           router.push("/events");
@@ -149,62 +124,69 @@ export default function EventDetailsPage() {
           schedulesList,
           packagesList,
           sectionsList,
-          pollsList,
-          qaList,
           feedbacksList,
           announcsList,
+          volunteerOpeningsList,
+          staffList,
         ] = await Promise.all([
-          eventService.getEventLocations({ skipAuth: true }).catch(() => []),
-          eventService.getSessions({ skipAuth: true }).catch(() => []),
-          eventService.getSessionSpeakers({ skipAuth: true }).catch(() => []),
-          eventService.getSponsors({ skipAuth: true }).catch(() => []),
-          eventService.getExhibitors({ skipAuth: true }).catch(() => []),
-          eventService.getTicketTypes({ skipAuth: true }).catch(() => []),
+          eventService.getEventLocations().catch(() => []),
+          eventService.getSessions().catch(() => []),
+          eventService.getSessionSpeakers().catch(() => []),
+          eventService.getSponsors().catch(() => []),
+          eventService.getExhibitors().catch(() => []),
+          eventService.getTicketTypes().catch(() => []),
           eventService.getEventSchedules().catch(() => []),
           eventService.getSponsorshipPackages().catch(() => []),
           eventService.getEventSections(eventId).catch(() => []),
-          eventService.getPolls().catch(() => []),
-          eventService.getQaQuestions().catch(() => []),
           eventService.getFeedbacks().catch(() => []),
           eventService.getAnnouncements().catch(() => []),
+          eventService.getVolunteerOpenings().catch(() => []),
+          eventService.getStaffByEvent(eventId).catch(() => []),
         ]);
 
-        const schedule = (schedulesList || []).find((s: any) => s.eventId === eventId);
-        if (schedule?.endDatetime) {
-          setEventEndDate(new Date(schedule.endDatetime));
+        const schedule = toArr(schedulesList).find((s: any) => s.eventId === eventId);
+        const endDt = currentEvent.endDate || schedule?.endDatetime;
+        if (endDt) {
+          setEventEndDate(new Date(endDt));
         }
         setEventSchedule(schedule || null);
-        
+
         const authData = getStoredAuth();
         if (authData) {
           try {
             const userSaved = await eventService.getSavedEventsByUser(authData.userId);
-            const savedItem = (userSaved || []).find((s: any) => s.eventId === eventId);
+            const savedItem = toArr(userSaved).find((s: any) => s.eventId === eventId);
             if (savedItem) {
               setIsSaved(true);
               setSavedEventId(savedItem.id);
             }
           } catch(e) {}
+          try {
+            const myRegs = await eventService.getMyRegistrations();
+            const isReg = toArr(myRegs).some((r: any) => r.eventId === eventId && r.status !== "CANCELLED");
+            setIsRegistered(isReg);
+          } catch(e) {}
         }
 
-        setLocations((locsList || []).filter((l: any) => l.eventId === eventId));
-        
-        const eventSessions = (sessList || []).filter((s: any) => s.eventId === eventId);
+        const filteredLocs = toArr(locsList).filter((l: any) => l.eventId === eventId);
+        setLocations(filteredLocs);
+        if (filteredLocs.length > 0) setSelectedLocationId(filteredLocs[0].locationId);
+
+        const eventSessions = toArr(sessList).filter((s: any) => s.eventId === eventId);
         setSessions(eventSessions);
 
-        // We need all speakers for these sessions
         const sessionIds = eventSessions.map((s: any) => s.sessionId);
-        setSpeakers((speakList || []).filter((sp: any) => sessionIds.includes(sp.sessionId)));
-        
-        setSponsors((sponsList || []).filter((s: any) => s.eventId === eventId));
-        setExhibitors((exhibList || []).filter((e: any) => e.eventId === eventId));
-        setTicketTypes((ticketsList || []).filter((t: any) => t.eventId === eventId));
-        setSponsorshipPackages((packagesList || []).filter((p: any) => p.eventId === eventId));
-        setSections(sectionsList || []);
-        setPolls((pollsList || []).filter((p: any) => p.eventId === eventId));
-        setQaQuestions((qaList || []).filter((q: any) => q.eventId === eventId));
-        setFeedbacks((feedbacksList || []).filter((f: any) => f.eventId === eventId));
-        setAnnouncements((announcsList || []).filter((a: any) => a.eventId === eventId));
+        setSpeakers(toArr(speakList).filter((sp: any) => sessionIds.includes(sp.sessionId)));
+
+        setSponsors(toArr(sponsList).filter((s: any) => s.eventId === eventId));
+        setExhibitors(toArr(exhibList).filter((e: any) => e.eventId === eventId));
+        setTicketTypes(toArr(ticketsList).filter((t: any) => t.eventId === eventId));
+        setSponsorshipPackages(toArr(packagesList).filter((p: any) => p.eventId === eventId));
+        setSections(toArr(sectionsList));
+        setFeedbacks(toArr(feedbacksList).filter((f: any) => f.eventId === eventId));
+        setAnnouncements(toArr(announcsList).filter((a: any) => a.eventId === eventId));
+        setVolunteerOpenings(toArr(volunteerOpeningsList).filter((v: any) => v.eventId === eventId));
+        setStaffMembers(toArr(staffList).filter((s: any) => String(s.eventId) === String(eventId)));
 
       } catch (err) {
         console.error("Failed to load event data:", err);
@@ -237,7 +219,47 @@ export default function EventDetailsPage() {
     return () => clearInterval(interval);
   }, [mobileMoneyWaiting, mobileMoneyPaymentId]);
 
+  useEffect(() => {
+    if (orderSuccess) {
+      setIsRegistered(true);
+    }
+  }, [orderSuccess]);
+
   const isLoggedIn = mounted && auth !== null;
+  const isEventOver = !!(eventEndDate && new Date() > eventEndDate);
+
+  const isSponsorApplicationOpen = (() => {
+    if (isEventOver) return false;
+    const now = new Date();
+    if (sponsorshipPackages.length === 0) return true;
+    return sponsorshipPackages.some(p => {
+      const afterStart = !p.applicationStart || now >= new Date(p.applicationStart);
+      const beforeEnd = !p.applicationEnd || now <= new Date(p.applicationEnd);
+      return afterStart && beforeEnd;
+    });
+  })();
+
+  const isVolunteerApplicationOpen = (() => {
+    if (isEventOver) return false;
+    const now = new Date();
+    if (volunteerOpenings.length === 0) return true;
+    return volunteerOpenings.some(v => {
+      const afterStart = !v.applicationStart || now >= new Date(v.applicationStart);
+      const beforeEnd = !v.applicationEnd || now <= new Date(v.applicationEnd);
+      return afterStart && beforeEnd;
+    });
+  })();
+
+  const isRegistrationClosed = (() => {
+    if (ticketTypes.length === 0) return isEventOver;
+    const now = new Date();
+    const hasActiveSale = ticketTypes.some(t => {
+      const afterStart = !t.saleStart || now >= new Date(t.saleStart);
+      const beforeEnd = !t.saleEnd || now <= new Date(t.saleEnd);
+      return afterStart && beforeEnd;
+    });
+    return !hasActiveSale;
+  })();
 
   // Checkout Handlers
   const handleQuantityChange = (ticketId: string, delta: number) => {
@@ -262,7 +284,13 @@ export default function EventDetailsPage() {
       const valid = (coupons || []).find((c: any) => c.code === couponCode && c.eventId === eventId);
       if (valid) {
         setAppliedCoupon(valid);
-        alert(`Coupon applied: ${valid.discountValue}% off`);
+        const discountType = valid.type || "PERCENTAGE";
+        const val = parseFloat(valid.value) || 0;
+        if (discountType === "PERCENTAGE") {
+          alert(`Coupon applied: ${val}% off`);
+        } else {
+          alert(`Coupon applied: -${val.toLocaleString()} FCFA`);
+        }
       } else {
         alert("Invalid coupon code");
         setAppliedCoupon(null);
@@ -275,20 +303,25 @@ export default function EventDetailsPage() {
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
     if (appliedCoupon) {
-      return subtotal * (1 - (appliedCoupon.discountValue / 100));
+      const discountType = appliedCoupon.type || "PERCENTAGE";
+      const val = parseFloat(appliedCoupon.value) || 0;
+      if (discountType === "PERCENTAGE") {
+        return subtotal * (1 - (val / 100));
+      } else {
+        return Math.max(0, subtotal - val);
+      }
     }
     return subtotal;
   };
 
   const handleCheckoutSubmit = async () => {
-    if (eventEndDate && new Date() > eventEndDate) {
+    if (isRegistrationClosed) {
       alert("Ticket sales for this event have closed.");
       setShowCheckout(false);
       return;
     }
     if (!auth) {
-      alert("Please log in to purchase tickets.");
-      router.push("/login");
+      setShowLoginPrompt(true);
       return;
     }
 
@@ -331,18 +364,70 @@ export default function EventDetailsPage() {
 
       await Promise.all(itemPromises);
 
+      // 2b. Create Registrations
+      const regPromises: any[] = [];
+      ticketTypes.forEach(t => {
+        const qty = selectedTickets[t.ticketId] || 0;
+        for (let i = 0; i < qty; i++) {
+          regPromises.push(
+            eventService.createRegistration({
+              tenantId: event.tenantId,
+              eventId: eventId,
+              userId: auth.userId,
+              ticketTypeId: t.ticketId,
+              status: "CONFIRMED",
+              qrCode: `YOEVENT:${eventId}:${auth.userId}:${Date.now()}_${t.ticketId}_${i}`,
+            })
+          );
+        }
+      });
+      await Promise.all(regPromises);
+
+      if (total <= 0) {
+        setOrderSuccess(true);
+        setIsProcessing(false);
+        return;
+      }
+
       // 3. Create Payment based on selected method
       if (paymentMethod === "stripe") {
+        if (!stripe || !elements) {
+          alert("Stripe has not loaded yet. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) {
+          alert("Please fill in your credit card details.");
+          setIsProcessing(false);
+          return;
+        }
+
         const paymentRes = await paymentService.createPayment({
           orderId: order.orderId || order.id,
           tenantId: event.tenantId,
           amount: total,
-          currency: "usd",
+          currency: event.currency || "XAF",
           method: "card",
           provider: "stripe",
         });
+
         if (paymentRes.clientSecret) {
-          setClientSecret(paymentRes.clientSecret);
+          if (paymentRes.clientSecret.startsWith("mock_")) {
+            setOrderSuccess(true);
+          } else {
+            const { error: confirmError } = await stripe.confirmCardPayment(paymentRes.clientSecret, {
+              payment_method: {
+                card: cardElement,
+              }
+            });
+            if (confirmError) {
+              alert("Payment confirmation failed: " + confirmError.message);
+              setIsProcessing(false);
+              return;
+            }
+            setOrderSuccess(true);
+          }
         } else {
           setOrderSuccess(true);
         }
@@ -374,7 +459,6 @@ export default function EventDetailsPage() {
 
   const toggleSaveEvent = async () => {
     if (!auth) {
-      alert("Please log in to save events");
       router.push("/login");
       return;
     }
@@ -396,6 +480,10 @@ export default function EventDetailsPage() {
 
   const handleSponsorApply = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isSponsorApplicationOpen) {
+      alert("Sponsorship applications are closed.");
+      return;
+    }
     if (!sponsorForm.companyName || !sponsorForm.email) return;
     setAppLoading(true);
     setApplicationMsg(null);
@@ -424,6 +512,10 @@ export default function EventDetailsPage() {
 
   const handleVolunteerApply = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isVolunteerApplicationOpen) {
+      alert("Volunteer applications are closed.");
+      return;
+    }
     if (!volunteerForm.name || !volunteerForm.email) return;
     setAppLoading(true);
     setApplicationMsg(null);
@@ -450,59 +542,6 @@ export default function EventDetailsPage() {
     }
   };
 
-  const handleVotePoll = async (pollId: string, option: string) => {
-    if (!auth) {
-      alert("Please log in to vote in polls");
-      router.push("/login");
-      return;
-    }
-    try {
-      await eventService.createPollResponse({
-        pollId,
-        userId: auth.userId,
-        response: option,
-      } as any);
-      alert("Thank you for voting!");
-    } catch (err: any) {
-      alert(err.message || "Failed to submit vote");
-    }
-  };
-
-  const handlePostQuestion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auth) {
-      alert("Please log in to ask a question");
-      router.push("/login");
-      return;
-    }
-    try {
-      const q = await eventService.createQaQuestion({
-        eventId,
-        questionText: newQuestion,
-        userId: auth.userId,
-        upvotes: 0,
-      });
-      setQaQuestions(prev => [q, ...prev]);
-      setNewQuestion("");
-    } catch (err: any) {
-      alert(err.message || "Failed to post question");
-    }
-  };
-
-  const handleUpvoteQuestion = async (qaId: string) => {
-    try {
-      const q = qaQuestions.find(item => (item.qaQuestionId || item.id) === qaId);
-      if (q) {
-        const updated = await eventService.updateQaQuestion(qaId, {
-          ...q,
-          upvotes: (q.upvotes || 0) + 1,
-        });
-        setQaQuestions(prev => prev.map(item => (item.qaQuestionId || item.id) === qaId ? updated : item));
-      }
-    } catch (err: any) {
-      console.error(err);
-    }
-  };
 
   const handlePostFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -608,8 +647,20 @@ export default function EventDetailsPage() {
         </div>
       </div>
 
+      {isEventOver && (
+        <div className="max-w-7xl mx-auto px-16 pt-8">
+          <div className="flex items-center gap-3 bg-[#1a1a1a] text-white px-6 py-4 rounded-2xl">
+            <Clock size={18} className="text-[#F7E998] shrink-0" />
+            <div>
+              <span className="font-bold text-sm">This event has ended.</span>
+              <span className="text-[#aaa] text-sm ml-2">You can still browse sessions, locations, and past announcements.</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-7xl mx-auto px-16 py-16 grid grid-cols-1 lg:grid-cols-3 gap-16">
-        
+
         {/* LEFT CONTENT: About, Sessions */}
         <div className="lg:col-span-2 space-y-16">
           
@@ -620,6 +671,95 @@ export default function EventDetailsPage() {
               <p>{event.description || "No description provided."}</p>
             </div>
           </section>
+
+          {/* VENUE PICKER */}
+          {locations.length > 0 && (() => {
+            const activeLoc = locations.find(l => l.locationId === selectedLocationId) || locations[0];
+            const isVirtual = activeLoc.type === "VIRTUAL";
+            const hasMap = !isVirtual && activeLoc.latitude != null && activeLoc.longitude != null;
+            return (
+              <section>
+                <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6 flex items-center gap-3">
+                  <MapPin size={26} className="text-[#EB4203]" /> Venue
+                </h2>
+
+                {/* Location selector — only shown when there are multiple */}
+                {locations.length > 1 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {locations.map((loc) => {
+                      const active = loc.locationId === selectedLocationId;
+                      const label = loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Online") : (loc.venueName || loc.city || "Venue");
+                      return (
+                        <button
+                          key={loc.locationId}
+                          onClick={() => setSelectedLocationId(loc.locationId)}
+                          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border-2 transition-all cursor-pointer ${active ? "border-[#EB4203] bg-[#fff4ef] text-[#EB4203]" : "border-[#e5e7eb] text-[#555] hover:border-[#EB4203]/50"}`}
+                        >
+                          {loc.type === "VIRTUAL" ? <Link2 size={13} /> : <MapPin size={13} />}
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Selected location detail card */}
+                <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
+                  {hasMap && (
+                    <EventMap latitude={activeLoc.latitude} longitude={activeLoc.longitude} venueName={activeLoc.venueName} className="w-full h-72 z-10" />
+                  )}
+                  <div className="p-5 border-t border-[#e5e7eb] flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#fff4ef] flex items-center justify-center shrink-0 mt-0.5">
+                      {isVirtual ? <Link2 size={18} className="text-[#EB4203]" /> : <MapPin size={18} className="text-[#EB4203]" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[#1a1a1a] text-sm">
+                        {isVirtual ? (activeLoc.virtualPlatform || "Online Event") : activeLoc.venueName}
+                      </div>
+                      <div className="text-xs text-[#666] mt-0.5">
+                        {isVirtual
+                          ? <a href={activeLoc.virtualLink} target="_blank" rel="noopener noreferrer" className="text-[#EB4203] hover:underline break-all">{activeLoc.virtualLink}</a>
+                          : [activeLoc.address, activeLoc.city, activeLoc.country].filter(Boolean).join(", ")}
+                      </div>
+
+                      {/* Info grid */}
+                      <div className="mt-4 grid grid-cols-3 gap-3">
+                        <div className="bg-[#faf9f7] rounded-xl p-3 text-center">
+                          <div className="text-lg font-black text-[#1a1a1a]">{ticketTypes.length}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">Ticket Types</div>
+                          {ticketTypes.length > 0 && (
+                            <div className="text-[10px] text-[#EB4203] font-semibold mt-1">
+                              from {Math.min(...ticketTypes.map((t: any) => t.price ?? 0)).toLocaleString()} FCFA
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-[#faf9f7] rounded-xl p-3 text-center">
+                          <div className="text-lg font-black text-[#1a1a1a]">{volunteerOpenings.length}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">Volunteer Roles</div>
+                          {volunteerOpenings.length > 0 && (
+                            <div className="text-[10px] text-green-600 font-semibold mt-1">
+                              {volunteerOpenings.reduce((s: number, v: any) => s + (v.maxVolunteers || 0), 0)} slots
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-[#faf9f7] rounded-xl p-3 text-center">
+                          <div className="text-lg font-black text-[#1a1a1a]">{sessions.length}</div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">Sessions</div>
+                        </div>
+                      </div>
+                    </div>
+                    {hasMap && (
+                      <a href={`https://www.openstreetmap.org/?mlat=${activeLoc.latitude}&mlon=${activeLoc.longitude}#map=15/${activeLoc.latitude}/${activeLoc.longitude}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-1.5 px-4 py-2 border border-[#e5e7eb] rounded-xl text-xs font-semibold text-[#555] hover:border-[#EB4203] hover:text-[#EB4203] transition-colors">
+                        <Navigation size={13} /> Open in Maps
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
 
           {/* CUSTOM EVENT SECTIONS */}
           {sections && sections.length > 0 && (
@@ -698,12 +838,17 @@ export default function EventDetailsPage() {
                             {sessionSpeakers.map((sp) => (
                               <div key={sp.id || sp.speakerId} className="flex items-center gap-3">
                                 <img
-                                  src={sp.imageUrl || `https://api.dicebear.com/6.x/shapes/svg?seed=${sp.speakerId}`}
+                                  src={sp.photoUrl || sp.imageUrl || `https://api.dicebear.com/6.x/shapes/svg?seed=${sp.speakerId}`}
                                   className="w-9 h-9 rounded-full object-cover bg-[#f0ebe1] border border-[#e5e7eb]"
-                                  alt={sp.role || "Speaker"}
+                                  alt={sp.name || sp.role || "Speaker"}
                                 />
                                 <div>
-                                  <div className="text-sm font-bold text-[#1a1a1a]">{sp.role || "Speaker"}</div>
+                                  <div className="text-sm font-bold text-[#1a1a1a]">{sp.name || sp.role || "Speaker"}</div>
+                                  {(sp.title || sp.company) && (
+                                    <div className="text-[10px] text-[#888]">
+                                      {sp.title}{sp.title && sp.company && " at "}{sp.company}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -733,13 +878,20 @@ export default function EventDetailsPage() {
                 ))}
               </div>
             )}
-            <button
-              onClick={() => setShowSponsorForm(v => !v)}
-              className="px-5 py-2.5 border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] text-sm font-semibold rounded-xl hover:bg-[#1a1a1a] hover:text-white transition-colors cursor-pointer"
-            >
-              {showSponsorForm ? "Cancel" : "Apply as Sponsor"}
-            </button>
-            {showSponsorForm && (
+            {!isSponsorApplicationOpen ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
+                <Clock size={14} className="shrink-0" />
+                <span>Sponsorship applications are closed.</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowSponsorForm(v => !v)}
+                className="px-5 py-2.5 border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] text-sm font-semibold rounded-xl hover:bg-[#1a1a1a] hover:text-white transition-colors cursor-pointer"
+              >
+                {showSponsorForm ? "Cancel" : "Apply as Sponsor"}
+              </button>
+            )}
+            {isSponsorApplicationOpen && showSponsorForm && (
               <form onSubmit={handleSponsorApply} className="mt-6 space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
@@ -853,18 +1005,86 @@ export default function EventDetailsPage() {
             )}
           </section>
 
+          {/* TEAM */}
+          {staffMembers.length > 0 && (() => {
+            const activeLoc = locations.find(l => l.locationId === selectedLocationId);
+            const locStaff = activeLoc
+              ? staffMembers.filter((s: any) => s.locationId === activeLoc.locationId || s.locationId == null)
+              : staffMembers;
+            const roleColors: Record<string, string> = {
+              ORGANIZER: "bg-purple-100 text-purple-700",
+              HOST: "bg-blue-100 text-blue-700",
+              COORDINATOR: "bg-indigo-100 text-indigo-700",
+              MODERATOR: "bg-amber-100 text-amber-700",
+              SECURITY: "bg-red-100 text-red-700",
+              VOLUNTEER: "bg-green-100 text-green-700",
+            };
+            return (
+              <section>
+                <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-2 flex items-center gap-3">
+                  <Users size={26} className="text-[#EB4203]" /> Meet the Team
+                </h2>
+                {locations.length > 1 && activeLoc && (
+                  <p className="text-sm text-[#888] mb-6">
+                    Showing team for <span className="font-semibold text-[#1a1a1a]">{activeLoc.venueName || activeLoc.virtualPlatform || activeLoc.city}</span>
+                  </p>
+                )}
+                {locStaff.length === 0 ? (
+                  <p className="text-[#888] italic text-sm">No team members listed for this location.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {locStaff.map((member: any) => {
+                      const initials = (member.name || "?").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                      const roleKey = (member.role || "").toUpperCase().split(" ")[0];
+                      const roleBadge = roleColors[roleKey] || "bg-[#f0ebe1] text-[#888]";
+                      return (
+                        <div key={member.staffId} className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex flex-col items-center text-center gap-2 shadow-sm hover:border-[#EB4203]/30 transition-colors">
+                          <div className="w-14 h-14 rounded-full bg-[#fff4ef] flex items-center justify-center text-[#EB4203] font-black text-lg shrink-0">
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-[#1a1a1a] leading-tight">{member.name}</div>
+                            {member.role && (
+                              <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${roleBadge}`}>
+                                {member.role}
+                              </span>
+                            )}
+                          </div>
+                          {member.shiftStart && (
+                            <div className="text-[10px] text-[#aaa] flex items-center gap-1">
+                              <Clock size={10} />
+                              {new Date(member.shiftStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {member.shiftEnd && <> – {new Date(member.shiftEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })()}
+
           <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
             <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-3">Get Involved as a Volunteer</h2>
             <p className="text-[#666] text-sm leading-relaxed mb-6">
               Join our volunteer team and help make this event an unforgettable experience. Whether you have a few hours or the whole day, we welcome all skills and levels of commitment.
             </p>
-            <button
-              onClick={() => setShowVolunteerForm(v => !v)}
-              className="px-5 py-2.5 border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] text-sm font-semibold rounded-xl hover:bg-[#1a1a1a] hover:text-white transition-colors cursor-pointer"
-            >
-              {showVolunteerForm ? "Cancel" : "Apply to Volunteer"}
-            </button>
-            {showVolunteerForm && (
+            {!isVolunteerApplicationOpen ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
+                <Clock size={14} className="shrink-0" />
+                <span>Volunteer applications are closed.</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowVolunteerForm(v => !v)}
+                className="px-5 py-2.5 border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] text-sm font-semibold rounded-xl hover:bg-[#1a1a1a] hover:text-white transition-colors cursor-pointer"
+              >
+                {showVolunteerForm ? "Cancel" : "Apply to Volunteer"}
+              </button>
+            )}
+            {isVolunteerApplicationOpen && showVolunteerForm && (
               <form onSubmit={handleVolunteerApply} className="mt-6 space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
@@ -968,197 +1188,173 @@ export default function EventDetailsPage() {
             </div>
           )}
 
-          {/* ATTENDEE ENGAGEMENT HUB */}
+          {/* ATTENDEE FEEDBACK & COMMENTS */}
           <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
-            <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6">Attendee Engagement Hub</h2>
-            
-            {/* Tabs */}
-            <div className="flex gap-4 border-b border-[#f0ebe1] pb-3 mb-6">
-              {[
-                { id: "polls", label: "Live Polls" },
-                { id: "qa", label: "Q&A Forum" },
-                { id: "feedback", label: "Feedback & Comments" }
-              ].map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveHubTab(t.id as any)}
-                  className={`px-4 py-2 text-sm font-bold border-none bg-transparent cursor-pointer transition-all ${
-                    activeHubTab === t.id ? "text-[#EB4203] border-b-2 border-[#EB4203]" : "text-[#888] hover:text-[#555]"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-2">Feedback &amp; Comments</h2>
+            <p className="text-sm text-[#888] mb-6">Share your thoughts on this event. Star ratings are available after the event ends.</p>
 
-            {/* Live Polls Tab */}
-            {activeHubTab === "polls" && (
-              <div className="space-y-6">
-                {polls.length === 0 ? (
-                  <p className="text-[#666] italic text-sm">No live polls for this event.</p>
-                ) : (
-                  polls.map((poll) => (
-                    <div key={poll.pollId || poll.id} className="p-5 border border-[#e5e7eb] rounded-xl bg-[#faf9f7] space-y-4">
-                      <h4 className="font-bold text-sm text-[#1a1a1a]">{poll.question}</h4>
-                      {(() => {
-                        const options = Array.isArray(poll.options) 
-                          ? poll.options 
-                          : typeof poll.options === "string" 
-                            ? poll.options.split(",").map((o: string) => o.trim())
-                            : [];
-                        return (
-                          <div className="space-y-2">
-                            {options.map((opt: string) => (
-                              <button
-                                key={opt}
-                                onClick={() => handleVotePoll(poll.pollId || poll.id, opt)}
-                                className="w-full text-left px-4 py-2 border border-[#e5e7eb] rounded-lg text-xs hover:bg-[#EB4203] hover:text-white transition-all bg-white font-medium cursor-pointer"
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* Q&A Tab */}
-            {activeHubTab === "qa" && (
-              <div className="space-y-6">
-                <form onSubmit={handlePostQuestion} className="space-y-3">
-                  <input
-                    placeholder="Ask a question..."
-                    value={newQuestion}
-                    onChange={e => setNewQuestion(e.target.value)}
-                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-[#1a1a1a] text-white text-xs font-bold rounded-lg hover:bg-[#333] transition-colors cursor-pointer"
+            {/* Redirect banner for Q&A / Polls */}
+            {auth && (
+              <div className="flex items-start gap-4 p-4 mb-6 bg-gradient-to-r from-[#FF4747]/5 to-transparent border border-[#FF4747]/20 rounded-2xl">
+                <div className="w-9 h-9 rounded-xl bg-[#FF4747]/10 flex items-center justify-center shrink-0">
+                  <Bell size={16} className="text-[#FF4747]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-[#1a1a1a] mb-0.5">Looking for Q&amp;A or Live Polls?</p>
+                  <p className="text-xs text-[#888] mb-2">If you hold a ticket for this event, head to your dashboard to participate in live polls and post questions.</p>
+                  <Link
+                    href="/user/dashboard"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF4747] hover:underline"
                   >
-                    Post Question
-                  </button>
-                </form>
-
-                <div className="space-y-3 pt-4 border-t border-[#f0ebe1]">
-                  {qaQuestions.map((q) => (
-                    <div key={q.qaQuestionId || q.id} className="p-4 border border-[#e5e7eb] rounded-xl bg-[#faf9f7]">
-                      <p className="text-xs font-bold text-[#1a1a1a]">{q.questionText}</p>
-                      <div className="flex justify-between items-center text-[10px] text-[#888] mt-2">
-                        <span>Posted by Attendee</span>
-                        <button
-                          onClick={() => handleUpvoteQuestion(q.qaQuestionId || q.id)}
-                          className="flex items-center gap-1 text-[#EB4203] hover:underline cursor-pointer border-none bg-transparent font-semibold"
-                        >
-                          ▲ Upvote ({q.upvotes || 0})
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {qaQuestions.length === 0 && (
-                    <p className="text-[#666] italic text-sm">No questions asked yet. Be the first!</p>
-                  )}
+                    Go to My Dashboard <ArrowRight size={12} />
+                  </Link>
                 </div>
               </div>
             )}
 
-            {/* Feedback Tab */}
-            {activeHubTab === "feedback" && (
-              <div className="space-y-6">
-                <form onSubmit={handlePostFeedback} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1">Feedback Type</label>
-                    <div className="flex gap-4 text-xs font-medium mt-1">
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="ratingType"
-                          checked={newRating === null}
-                          onChange={() => setNewRating(null)}
-                        />
-                        Comment only
-                      </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="ratingType"
-                          checked={newRating !== null}
-                          onChange={() => setNewRating(5)}
-                        />
-                        Star Review (Requires ended event)
-                      </label>
-                    </div>
-                  </div>
+            {/* Feedback form */}
+            <form onSubmit={handlePostFeedback} className="space-y-4 mb-8">
+              <div>
+                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1">Feedback Type</label>
+                <div className="flex gap-4 text-xs font-medium mt-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ratingType"
+                      checked={newRating === null}
+                      onChange={() => setNewRating(null)}
+                    />
+                    Comment only
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="ratingType"
+                      checked={newRating !== null}
+                      onChange={() => setNewRating(5)}
+                    />
+                    Star Review (Requires ended event)
+                  </label>
+                </div>
+              </div>
 
-                  {newRating !== null && (
-                    <div>
-                      <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Rating (1 to 5 Stars)</label>
-                      {eventEndDate && new Date() < eventEndDate ? (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 leading-relaxed font-semibold">
-                          ⚠️ Star ratings are locked until the event ends. You can post a comment instead.
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 text-xl cursor-pointer">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <span
-                              key={star}
-                              onClick={() => setNewRating(star)}
-                              className={star <= (newRating || 0) ? "text-amber-500" : "text-zinc-300"}
-                            >
-                              ★
-                            </span>
+              {newRating !== null && (
+                <div>
+                  <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Rating (1 to 5 Stars)</label>
+                  {eventEndDate && new Date() < eventEndDate ? (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 leading-relaxed font-semibold">
+                      ⚠️ Star ratings are locked until the event ends. You can post a comment instead.
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 text-xl cursor-pointer">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span
+                          key={star}
+                          onClick={() => setNewRating(star)}
+                          className={star <= (newRating || 0) ? "text-amber-500" : "text-zinc-300"}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Your Message</label>
+                <textarea
+                  rows={3}
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  placeholder="Write your feedback or comment..."
+                  className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a] resize-none"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer"
+              >
+                Submit Feedback
+              </button>
+            </form>
+
+            {/* Existing feedback */}
+            <div className="space-y-3 border-t border-[#f0ebe1] pt-6">
+              {feedbacks.map((f) => (
+                <div key={f.feedbackId || f.id} className="p-4 border border-[#e5e7eb] rounded-xl bg-[#faf9f7]">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] uppercase font-bold text-[#888]">Attendee Review</span>
+                    {f.rating && (
+                      <div className="text-amber-500 text-xs">
+                        {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#1a1a1a] leading-relaxed">{f.comments || f.comment}</p>
+                </div>
+              ))}
+              {feedbacks.length === 0 && (
+                <p className="text-[#666] italic text-sm">No comments or feedback yet. Be the first!</p>
+              )}
+            </div>
+          </section>
+
+          {/* REVIEWS & FEEDBACK */}
+          {feedbacks.length > 0 && (() => {
+            const rated = feedbacks.filter((f: any) => f.rating != null && f.rating > 0);
+            const avgRating = rated.length > 0
+              ? rated.reduce((s: number, f: any) => s + f.rating, 0) / rated.length
+              : null;
+            return (
+              <section>
+                <div className="flex items-end justify-between mb-6">
+                  <h2 className="font-display text-3xl font-black text-[#1a1a1a]">Reviews</h2>
+                  {avgRating && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-3xl font-black text-[#1a1a1a]">{avgRating.toFixed(1)}</span>
+                      <div>
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(i => (
+                            <Star key={i} size={14} className={i <= Math.round(avgRating) ? "text-amber-400 fill-amber-400" : "text-[#ddd] fill-[#ddd]"} />
                           ))}
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Your Message</label>
-                    <textarea
-                      rows={3}
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      placeholder="Write your feedback or comment..."
-                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a] resize-none"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer"
-                  >
-                    Submit Feedback
-                  </button>
-                </form>
-
-                <div className="space-y-3 pt-4 border-t border-[#f0ebe1]">
-                  {feedbacks.map((f) => (
-                    <div key={f.feedbackId || f.id} className="p-4 border border-[#e5e7eb] rounded-xl bg-[#faf9f7]">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] uppercase font-bold text-[#888]">Attendee Review</span>
-                        {f.rating && (
-                          <div className="text-amber-500 text-xs">
-                            {"★".repeat(f.rating)}{"☆".repeat(5 - f.rating)}
-                          </div>
-                        )}
+                        <div className="text-xs text-[#888] mt-0.5">{rated.length} rating{rated.length !== 1 ? "s" : ""}</div>
                       </div>
-                      <p className="text-xs text-[#1a1a1a] leading-relaxed">{f.comments || f.comment}</p>
                     </div>
-                  ))}
-                  {feedbacks.length === 0 && (
-                    <p className="text-[#666] italic text-sm">No comments or feedbacks yet.</p>
                   )}
                 </div>
-              </div>
-            )}
-          </section>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {feedbacks.map((f: any) => {
+                    const rating = f.rating ?? 0;
+                    const comment = f.comments || f.comment || "";
+                    const initials = (f.attendeeName || f.userName || "A").split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <div key={f.feedbackId || f.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 shadow-sm">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-9 h-9 rounded-full bg-[#fff4ef] flex items-center justify-center text-[#EB4203] font-black text-xs shrink-0">{initials}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm text-[#1a1a1a]">{f.attendeeName || f.userName || "Attendee"}</div>
+                            <div className="text-[10px] text-[#aaa]">{f.type || "General"}</div>
+                          </div>
+                          {rating > 0 && (
+                            <div className="flex gap-0.5 shrink-0">
+                              {[1,2,3,4,5].map(i => (
+                                <Star key={i} size={11} className={i <= rating ? "text-amber-400 fill-amber-400" : "text-[#ddd] fill-[#ddd]"} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {comment && <p className="text-sm text-[#555] leading-relaxed">{comment}</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })()}
 
         </div>
 
@@ -1167,7 +1363,22 @@ export default function EventDetailsPage() {
           
           {/* REGISTRATION CARD */}
           <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 shadow-xl sticky top-24">
-            <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">Attend Event</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-display text-2xl font-black text-[#1a1a1a]">Attend Event</h3>
+              {isRegistered && (
+                <span className="flex items-center gap-1 px-2.5 py-1 bg-[#e6fcf5] border border-[#c2f9e6] rounded-full text-[10px] text-[#0ca678] font-bold uppercase tracking-wide">
+                  <CheckCircle2 size={10} className="text-[#0ca678]" /> Registered
+                </span>
+              )}
+            </div>
+            {isRegistered && (
+              <div className="mb-4 p-3 bg-[#f4fbf7] border border-[#d3f4e4] rounded-xl flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-[#0ca678] mt-0.5 shrink-0" />
+                <div className="text-xs text-[#2b8a3e] leading-relaxed">
+                  <strong>Spot Secured:</strong> You already have a ticket for this event. Live polls are active for you!
+                </div>
+              </div>
+            )}
             {ticketTypes.length > 0 && (
               <div className="mb-5 space-y-2 pt-1">
                 {ticketTypes.slice(0, 3).map(t => (
@@ -1186,9 +1397,11 @@ export default function EventDetailsPage() {
                 <div className="border-t border-[#f0f0f0] pt-1" />
               </div>
             )}
-            {eventEndDate && new Date() > eventEndDate ? (
+            {isRegistrationClosed ? (
               <>
-                <p className="text-[#666] text-sm mb-4">This event has already ended.</p>
+                <p className="text-[#666] text-sm mb-4">
+                  {isEventOver ? "This event has already ended." : "Ticket sales for this event have closed."}
+                </p>
                 <div className="w-full py-4 bg-[#e5e7eb] text-[#888] font-bold rounded-xl text-center text-sm">
                   Registration Closed
                 </div>
@@ -1244,39 +1457,74 @@ export default function EventDetailsPage() {
           )}
 
           {/* LOCATIONS */}
-          {locations.length > 0 && (
-            <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
-              <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
-                <Navigation size={18} className="text-[#EB4203]" /> Location Details
-              </h3>
-              <div className="space-y-4">
-                {locations.map((loc) => (
-                  <div key={loc.locationId} className="flex flex-col gap-1">
-                    <div className="flex gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#ffffff] flex items-center justify-center shrink-0">
-                        {loc.type === "VIRTUAL" ? <Link2 size={14} className="text-[#EB4203]" /> : <MapPin size={14} className="text-[#EB4203]" />}
+          {locations.length > 0 && (() => {
+            const activeLoc = locations.find(l => l.locationId === selectedLocationId) || locations[0];
+            const isVirtual = activeLoc.type === "VIRTUAL";
+            return (
+              <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
+                <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
+                  <Navigation size={18} className="text-[#EB4203]" /> Venue
+                </h3>
+
+                {/* Pills */}
+                {locations.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {locations.map((loc) => {
+                      const active = loc.locationId === selectedLocationId;
+                      const label = loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Online") : (loc.venueName || loc.city || "Venue");
+                      return (
+                        <button key={loc.locationId} onClick={() => setSelectedLocationId(loc.locationId)}
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${active ? "border-[#EB4203] bg-[#fff4ef] text-[#EB4203]" : "border-[#e5e7eb] text-[#666] hover:border-[#EB4203]/40"}`}>
+                          {loc.type === "VIRTUAL" ? <Link2 size={11} /> : <MapPin size={11} />}
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Active location info */}
+                <div className="space-y-3">
+                  <div className="flex gap-3 items-start">
+                    <div className="w-8 h-8 rounded-full bg-[#fff4ef] flex items-center justify-center shrink-0">
+                      {isVirtual ? <Link2 size={14} className="text-[#EB4203]" /> : <MapPin size={14} className="text-[#EB4203]" />}
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-[#1a1a1a]">
+                        {isVirtual ? (activeLoc.virtualPlatform || "Online Event") : activeLoc.venueName}
                       </div>
-                      <div>
-                        <div className="font-bold text-sm text-[#1a1a1a]">
-                          {loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}
-                        </div>
-                        <div className="text-xs text-[#666] mt-1">
-                          {loc.type === "VIRTUAL" ? (
-                            <a href={loc.virtualLink} target="_blank" className="text-[#EB4203] hover:underline break-all">{loc.virtualLink}</a>
-                          ) : (
-                            `${loc.address || ""}, ${loc.city || ""} ${loc.country || ""}`
-                          )}
-                        </div>
+                      <div className="text-xs text-[#666] mt-0.5">
+                        {isVirtual
+                          ? <a href={activeLoc.virtualLink} target="_blank" rel="noopener noreferrer" className="text-[#EB4203] hover:underline break-all">{activeLoc.virtualLink}</a>
+                          : [activeLoc.address, activeLoc.city, activeLoc.country].filter(Boolean).join(", ")}
                       </div>
                     </div>
-                    {loc.type !== "VIRTUAL" && loc.latitude != null && loc.longitude != null && (
-                      <EventMap latitude={loc.latitude} longitude={loc.longitude} venueName={loc.venueName} />
-                    )}
                   </div>
-                ))}
+
+                  {/* Stats row */}
+                  <div className="grid grid-cols-3 gap-2 pt-2">
+                    <div className="bg-[#faf9f7] rounded-xl p-2.5 text-center">
+                      <div className="font-black text-[#1a1a1a] text-base">{ticketTypes.length}</div>
+                      <div className="text-[9px] uppercase tracking-wider text-[#888] font-semibold">Tickets</div>
+                      {ticketTypes.length > 0 && (
+                        <div className="text-[9px] text-[#EB4203] font-bold mt-0.5">
+                          from {Math.min(...ticketTypes.map((t: any) => t.price ?? 0)).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-[#faf9f7] rounded-xl p-2.5 text-center">
+                      <div className="font-black text-[#1a1a1a] text-base">{volunteerOpenings.length}</div>
+                      <div className="text-[9px] uppercase tracking-wider text-[#888] font-semibold">Vol. Roles</div>
+                    </div>
+                    <div className="bg-[#faf9f7] rounded-xl p-2.5 text-center">
+                      <div className="font-black text-[#1a1a1a] text-base">{sessions.length}</div>
+                      <div className="text-[9px] uppercase tracking-wider text-[#888] font-semibold">Sessions</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* SPONSORS & EXHIBITORS */}
           {(sponsors.length > 0 || exhibitors.length > 0) && (
@@ -1324,6 +1572,29 @@ export default function EventDetailsPage() {
       <Footer />
 
       {/* CHECKOUT MODAL */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-8 shadow-2xl relative">
+            <button onClick={() => setShowLoginPrompt(false)} className="absolute top-5 right-5 text-[#aaa] hover:text-[#1a1a1a] cursor-pointer">
+              <X size={20} />
+            </button>
+            <div className="w-12 h-12 rounded-2xl bg-[#FF4747]/10 flex items-center justify-center mb-5">
+              <Ticket size={22} className="text-[#FF4747]" />
+            </div>
+            <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">Sign in to continue</h2>
+            <p className="text-sm text-[#888] mb-6 leading-relaxed">You need an account to purchase tickets. It only takes a minute to sign up.</p>
+            <div className="flex flex-col gap-3">
+              <Link href={`/login?from=/events/${eventId}`} className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold text-center hover:bg-[#e03e3e] transition-colors">
+                Log in
+              </Link>
+              <Link href={`/register?from=/events/${eventId}`} className="w-full py-3 border-2 border-[#1a1a1a] text-[#1a1a1a] rounded-xl text-sm font-bold text-center hover:bg-[#f5f5f5] transition-colors">
+                Create an account
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCheckout && (
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -1422,140 +1693,132 @@ export default function EventDetailsPage() {
                     </div>
                     {appliedCoupon && (
                       <div className="mt-3 text-xs font-bold text-green-600 flex items-center gap-1">
-                        <CheckCircle2 size={14} /> Coupon "{appliedCoupon.code}" applied! (-{appliedCoupon.discountValue}%)
+                        <CheckCircle2 size={14} /> Coupon "{appliedCoupon.code}" applied! (-{appliedCoupon.type === "FLAT" ? `${parseFloat(appliedCoupon.value).toLocaleString()} FCFA` : `${appliedCoupon.value}%`})
                       </div>
                     )}
                   </div>
 
-                  {clientSecret ? (
-                    <div className="mb-8 p-5 bg-white border border-[#e5e7eb] rounded-2xl">
-                      <h3 className="text-sm font-bold text-[#1a1a1a] uppercase tracking-wider mb-4">Complete Payment</h3>
-                      {clientSecret.startsWith("mock_") ? (
-                        <div className="text-center">
-                          <p className="text-sm text-[#666] mb-4">Test mode is active. Click below to simulate a successful payment.</p>
-                          <button 
-                            onClick={() => setOrderSuccess(true)}
-                            className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-colors cursor-pointer w-full"
-                          >
-                            Complete Mock Payment
-                          </button>
+                  {/* PAYMENT METHOD SELECTOR */}
+                  {calculateTotal() > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-sm font-bold text-[#1a1a1a] uppercase tracking-wider mb-4">Payment Method</h3>
+                      <div className="space-y-3">
+                        {/* Stripe */}
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("stripe")}
+                          className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "stripe" ? "border-[#635bff] bg-[#f5f5ff]" : "border-[#e5e7eb] hover:border-[#aaa]"}`}
+                        >
+                          <div className="w-10 h-10 bg-[#635bff] rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0">S</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-sm text-[#1a1a1a]">Credit / Debit Card</div>
+                            <div className="text-xs text-[#666]">Visa, Mastercard — powered by Stripe</div>
+                          </div>
+                          {paymentMethod === "stripe" && <div className="w-4 h-4 rounded-full bg-[#635bff] shrink-0" />}
+                        </button>
+
+                        {/* MTN Mobile Money */}
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("mtn_mobile_money")}
+                          className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "mtn_mobile_money" ? "border-[#ffcc00] bg-[#fffdf0]" : "border-[#e5e7eb] hover:border-[#ffcc00]/70"}`}
+                        >
+                          <div className="w-10 h-10 bg-[#ffcc00] rounded-xl flex items-center justify-center font-black text-[10px] text-[#1a1a1a] shrink-0">MTN</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-sm text-[#1a1a1a]">MTN Mobile Money</div>
+                            <div className="text-xs text-[#666]">Pay via USSD push — works on all MTN numbers</div>
+                          </div>
+                          {paymentMethod === "mtn_mobile_money" && <div className="w-4 h-4 rounded-full bg-[#ffcc00] shrink-0" />}
+                        </button>
+
+                        {/* Orange Money */}
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod("orange_money")}
+                          className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "orange_money" ? "border-[#ff6600] bg-[#fff8f5]" : "border-[#e5e7eb] hover:border-[#ff6600]/70"}`}
+                        >
+                          <div className="w-10 h-10 bg-[#ff6600] rounded-xl flex items-center justify-center font-black text-[10px] text-white shrink-0">OM</div>
+                          <div className="flex-1">
+                            <div className="font-bold text-sm text-[#1a1a1a]">Orange Money</div>
+                            <div className="text-xs text-[#666]">Pay via USSD push — works on all Orange numbers</div>
+                          </div>
+                          {paymentMethod === "orange_money" && <div className="w-4 h-4 rounded-full bg-[#ff6600] shrink-0" />}
+                        </button>
+                      </div>
+
+                      {/* Stripe Credit Card inputs */}
+                      {paymentMethod === "stripe" && (
+                        <div className="mt-4 space-y-2">
+                          <label className="block text-xs font-bold text-[#555] uppercase tracking-wider mb-1">
+                            Card Details
+                          </label>
+                          <div className="border border-[#e5e7eb] rounded-xl px-4 py-3 bg-white">
+                            <CardElement options={{ style: { base: { fontSize: "14px", color: "#1a1a1a", fontFamily: "inherit", "::placeholder": { color: "#aab7c4" } } } }} />
+                          </div>
+                          <p className="text-[10px] text-[#888] mt-1">Payments are processed instantly and secured by Stripe.</p>
                         </div>
-                      ) : (
-                        <Elements stripe={stripePromise} options={{ clientSecret }}>
-                          <StripeCheckoutForm onSuccess={() => setOrderSuccess(true)} total={calculateTotal()} />
-                        </Elements>
+                      )}
+
+                      {/* Phone number input + refund notice for Mobile Money */}
+                      {(paymentMethod === "mtn_mobile_money" || paymentMethod === "orange_money") && (
+                        <div className="mt-4 space-y-3">
+                          <div>
+                            <label className="block text-xs font-bold text-[#555] uppercase tracking-wider mb-1.5">
+                              {paymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number
+                            </label>
+                            <div className="flex gap-2">
+                              <div className="px-3 py-3 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
+                              <input
+                                type="tel"
+                                placeholder="6XXXXXXXX"
+                                value={phoneNumber}
+                                onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                                maxLength={9}
+                                className="flex-1 border border-[#e5e7eb] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
+                              />
+                            </div>
+                            <p className="text-[10px] text-[#888] mt-1">Enter your 9-digit number without the country code</p>
+                          </div>
+
+                          {/* Refund policy notice */}
+                          <div className="flex gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+                            <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
+                            <div>
+                              <p className="text-xs font-bold text-amber-800 mb-0.5">Refund Policy for Mobile Money</p>
+                              <p className="text-[11px] text-amber-700 leading-relaxed">
+                                Mobile Money payments <span className="font-semibold">cannot be refunded automatically</span>. If this event is cancelled, a refund will be processed manually to this number within <span className="font-semibold">3–5 business days</span>. For card payments, refunds are instant.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
-                  ) : (
-                    <>
-                      {/* PAYMENT METHOD SELECTOR */}
-                      <div className="mb-8">
-                        <h3 className="text-sm font-bold text-[#1a1a1a] uppercase tracking-wider mb-4">Payment Method</h3>
-                        <div className="space-y-3">
-                          {/* Stripe */}
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("stripe")}
-                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "stripe" ? "border-[#635bff] bg-[#f5f5ff]" : "border-[#e5e7eb] hover:border-[#aaa]"}`}
-                          >
-                            <div className="w-10 h-10 bg-[#635bff] rounded-xl flex items-center justify-center text-white font-black text-xs shrink-0">S</div>
-                            <div className="flex-1">
-                              <div className="font-bold text-sm text-[#1a1a1a]">Credit / Debit Card</div>
-                              <div className="text-xs text-[#666]">Visa, Mastercard — powered by Stripe</div>
-                            </div>
-                            {paymentMethod === "stripe" && <div className="w-4 h-4 rounded-full bg-[#635bff] shrink-0" />}
-                          </button>
-
-                          {/* MTN Mobile Money */}
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("mtn_mobile_money")}
-                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "mtn_mobile_money" ? "border-[#ffcc00] bg-[#fffdf0]" : "border-[#e5e7eb] hover:border-[#ffcc00]/70"}`}
-                          >
-                            <div className="w-10 h-10 bg-[#ffcc00] rounded-xl flex items-center justify-center font-black text-[10px] text-[#1a1a1a] shrink-0">MTN</div>
-                            <div className="flex-1">
-                              <div className="font-bold text-sm text-[#1a1a1a]">MTN Mobile Money</div>
-                              <div className="text-xs text-[#666]">Pay via USSD push — works on all MTN numbers</div>
-                            </div>
-                            {paymentMethod === "mtn_mobile_money" && <div className="w-4 h-4 rounded-full bg-[#ffcc00] shrink-0" />}
-                          </button>
-
-                          {/* Orange Money */}
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("orange_money")}
-                            className={`w-full flex items-center gap-4 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${paymentMethod === "orange_money" ? "border-[#ff6600] bg-[#fff8f5]" : "border-[#e5e7eb] hover:border-[#ff6600]/70"}`}
-                          >
-                            <div className="w-10 h-10 bg-[#ff6600] rounded-xl flex items-center justify-center font-black text-[10px] text-white shrink-0">OM</div>
-                            <div className="flex-1">
-                              <div className="font-bold text-sm text-[#1a1a1a]">Orange Money</div>
-                              <div className="text-xs text-[#666]">Pay via USSD push — works on all Orange numbers</div>
-                            </div>
-                            {paymentMethod === "orange_money" && <div className="w-4 h-4 rounded-full bg-[#ff6600] shrink-0" />}
-                          </button>
-                        </div>
-
-                        {/* Phone number input + refund notice for Mobile Money */}
-                        {(paymentMethod === "mtn_mobile_money" || paymentMethod === "orange_money") && (
-                          <div className="mt-4 space-y-3">
-                            <div>
-                              <label className="block text-xs font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                                {paymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number
-                              </label>
-                              <div className="flex gap-2">
-                                <div className="px-3 py-3 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
-                                <input
-                                  type="tel"
-                                  placeholder="6XXXXXXXX"
-                                  value={phoneNumber}
-                                  onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                                  maxLength={9}
-                                  className="flex-1 border border-[#e5e7eb] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
-                                />
-                              </div>
-                              <p className="text-[10px] text-[#888] mt-1">Enter your 9-digit number without the country code</p>
-                            </div>
-
-                            {/* Refund policy notice */}
-                            <div className="flex gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
-                              <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
-                              <div>
-                                <p className="text-xs font-bold text-amber-800 mb-0.5">Refund Policy for Mobile Money</p>
-                                <p className="text-[11px] text-amber-700 leading-relaxed">
-                                  Mobile Money payments <span className="font-semibold">cannot be refunded automatically</span>. If this event is cancelled, a refund will be processed manually to this number within <span className="font-semibold">3–5 business days</span>. For card payments, refunds are instant.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="border-t border-[#e5e7eb] pt-6">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[#666]">Subtotal</span>
-                          <span className="font-bold text-[#1a1a1a]">{calculateSubtotal().toLocaleString()} FCFA</span>
-                        </div>
-                        {appliedCoupon && (
-                          <div className="flex items-center justify-between mb-2 text-green-600">
-                            <span>Discount</span>
-                            <span className="font-bold">-{(calculateSubtotal() - calculateTotal()).toLocaleString()} FCFA</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-dashed border-[#e5e7eb]">
-                          <span className="text-lg font-black text-[#1a1a1a]">Total</span>
-                          <span className="text-2xl font-black text-[#EB4203]">{calculateTotal().toLocaleString()} FCFA</span>
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={handleCheckoutSubmit}
-                        disabled={isProcessing}
-                        className="w-full mt-8 py-4 bg-[#1a1a1a] text-white font-black text-lg rounded-xl hover:bg-[#333] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        {isProcessing ? "Processing..." : "Proceed to Payment"}
-                      </button>
-                    </>
                   )}
+
+                  <div className="border-t border-[#e5e7eb] pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[#666]">Subtotal</span>
+                      <span className="font-bold text-[#1a1a1a]">{calculateSubtotal().toLocaleString()} FCFA</span>
+                    </div>
+                    {appliedCoupon && (
+                      <div className="flex items-center justify-between mb-2 text-green-600">
+                        <span>Discount</span>
+                        <span className="font-bold">-{(calculateSubtotal() - calculateTotal()).toLocaleString()} FCFA</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-dashed border-[#e5e7eb]">
+                      <span className="text-lg font-black text-[#1a1a1a]">Total</span>
+                      <span className="text-2xl font-black text-[#EB4203]">{calculateTotal().toLocaleString()} FCFA</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleCheckoutSubmit}
+                    disabled={isProcessing}
+                    className="w-full mt-8 py-4 bg-[#1a1a1a] text-white font-black text-lg rounded-xl hover:bg-[#333] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isProcessing ? "Processing..." : (calculateTotal() > 0 ? "Proceed to Payment" : "Get Free Ticket")}
+                  </button>
                 </>
               )}
             </div>

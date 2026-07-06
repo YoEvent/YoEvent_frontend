@@ -12,6 +12,7 @@ export default function Navbar() {
   const [auth, setAuth] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
     setAuth(getStoredAuth());
@@ -26,6 +27,16 @@ export default function Navbar() {
   };
 
   const isLoggedIn = mounted && auth !== null;
+
+  const isOrganizer = (() => {
+    if (!auth) return false;
+    try {
+      const claims = getAuthClaims();
+      return claims?.scope && !claims.scope.includes("ATTENDEE") && !claims.scope.includes("SUPER_ADMIN");
+    } catch {
+      return false;
+    }
+  })();
 
   const getLinkClass = (path: string) => {
     const isActive = pathname === path;
@@ -66,11 +77,45 @@ export default function Navbar() {
         <div className="flex-1 hidden md:flex items-center justify-end gap-3">
           {isLoggedIn ? (
             <>
-              <Link href={getDashboardPath()}>
-                <button className="px-5 py-2 text-sm font-semibold bg-[#FF4747] text-white rounded-full hover:bg-[#e03e3e] transition-all cursor-pointer shadow-sm shadow-[#FF4747]/20">
-                  Dashboard
-                </button>
-              </Link>
+              {isOrganizer ? (
+                <div 
+                  className="relative animate-in fade-in duration-200"
+                  onMouseEnter={() => setDropdownOpen(true)}
+                  onMouseLeave={() => setDropdownOpen(false)}
+                >
+                  <button 
+                    onClick={() => setDropdownOpen(prev => !prev)}
+                    className="px-5 py-2 text-sm font-semibold bg-[#FF4747] text-white rounded-full hover:bg-[#e03e3e] transition-all cursor-pointer shadow-sm shadow-[#FF4747]/20 flex items-center gap-1.5"
+                  >
+                    Dashboard <span className="text-[9px] transition-transform duration-200" style={{ display: "inline-block", transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
+                  </button>
+                  {dropdownOpen && (
+                    <div className="absolute right-0 pt-2 w-48 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-xl py-2">
+                        <Link href="/admin" onClick={() => setDropdownOpen(false)}>
+                          <div className="px-4 py-2.5 text-xs font-bold text-[#1a1a1a] hover:bg-[#faf9f7] hover:text-[#FF4747] transition-colors cursor-pointer flex flex-col gap-0.5">
+                            <span>Organizer Dashboard</span>
+                            <span className="text-[10px] text-[#888] font-normal font-sans">Manage your events</span>
+                          </div>
+                        </Link>
+                        <div className="border-t border-[#f0f0f0] my-1" />
+                        <Link href="/user/dashboard" onClick={() => setDropdownOpen(false)}>
+                          <div className="px-4 py-2.5 text-xs font-bold text-[#1a1a1a] hover:bg-[#faf9f7] hover:text-[#FF4747] transition-colors cursor-pointer flex flex-col gap-0.5">
+                            <span>Attendee Dashboard</span>
+                            <span className="text-[10px] text-[#888] font-normal font-sans">View your tickets</span>
+                          </div>
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link href={getDashboardPath()}>
+                  <button className="px-5 py-2 text-sm font-semibold bg-[#FF4747] text-white rounded-full hover:bg-[#e03e3e] transition-all cursor-pointer shadow-sm shadow-[#FF4747]/20">
+                    Dashboard
+                  </button>
+                </Link>
+              )}
               <button onClick={handleLogout} className="px-5 py-2 text-sm font-medium border-[1.5px] border-[#FF4747] text-[#FF4747] rounded-full hover:bg-[#FF4747] hover:text-white transition-all cursor-pointer">
                 Log out
               </button>
@@ -105,9 +150,20 @@ export default function Navbar() {
           ))}
           <div className="flex gap-3 pt-2 border-t border-[#f0f0f0]">
             {isLoggedIn ? (
-              <Link href={getDashboardPath()} className="flex-1">
-                <button className="w-full py-2 text-sm font-semibold bg-[#FF4747] text-white rounded-full cursor-pointer">Dashboard</button>
-              </Link>
+              isOrganizer ? (
+                <div className="flex flex-col gap-2 flex-1">
+                  <Link href="/admin" className="w-full" onClick={() => setMobileOpen(false)}>
+                    <button className="w-full py-2 text-sm font-semibold bg-[#FF4747] text-white rounded-full cursor-pointer">Organizer Dashboard</button>
+                  </Link>
+                  <Link href="/user/dashboard" className="w-full" onClick={() => setMobileOpen(false)}>
+                    <button className="w-full py-2 text-sm font-semibold bg-zinc-100 text-zinc-700 rounded-full cursor-pointer hover:bg-zinc-200">Attendee Dashboard</button>
+                  </Link>
+                </div>
+              ) : (
+                <Link href={getDashboardPath()} className="flex-1" onClick={() => setMobileOpen(false)}>
+                  <button className="w-full py-2 text-sm font-semibold bg-[#FF4747] text-white rounded-full cursor-pointer">Dashboard</button>
+                </Link>
+              )
             ) : (
               <>
                 <Link href="/login" className="flex-1"><button className="w-full py-2 text-sm font-medium border border-[#1a1a1a] text-[#1a1a1a] rounded-full cursor-pointer">Log in</button></Link>

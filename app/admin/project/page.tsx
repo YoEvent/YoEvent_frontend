@@ -1,10 +1,14 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Plus, Tag, Ticket, DollarSign, Calendar as CalIcon } from "lucide-react";
-import { getStoredAuth } from "@/app/utils/api";
+import { Plus, Tag, Ticket, DollarSign, Calendar as CalIcon, Pencil, Trash2, Save, X, Star, ChevronDown } from "lucide-react";
+import { getStoredAuth, api } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { paymentService } from "@/app/utils/services/paymentService";
+
+const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
+const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
+const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer disabled:opacity-50";
 
 export default function ProjectPage() {
   const [events, setEvents] = useState<any[]>([]);
@@ -13,7 +17,10 @@ export default function ProjectPage() {
   const [coupons, setCoupons] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [refunds, setRefunds] = useState<any[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
+  // Forms
+  const [editingTicket, setEditingTicket] = useState<any>(null);
   const [ticketForm, setTicketForm] = useState({
     name: "",
     description: "",
@@ -24,6 +31,7 @@ export default function ProjectPage() {
     maxPerOrder: 5,
   });
 
+  const [editingCoupon, setEditingCoupon] = useState<any>(null);
   const [couponForm, setCouponForm] = useState({
     code: "",
     type: "PERCENTAGE",
@@ -32,6 +40,12 @@ export default function ProjectPage() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const ticketFormRef = useRef<HTMLFormElement>(null);
+  const couponFormRef = useRef<HTMLFormElement>(null);
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   const fetchProjectData = async () => {
     const auth = getStoredAuth();
@@ -75,25 +89,49 @@ export default function ProjectPage() {
   useEffect(() => {
     if (selectedEventId) {
       fetchEventDetails(selectedEventId);
+      setEditingTicket(null);
+      setEditingCoupon(null);
+      setTicketForm({
+        name: "",
+        description: "",
+        price: 0,
+        quantityAvailable: 100,
+        saleStart: new Date().toISOString().slice(0, 16),
+        saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        maxPerOrder: 5,
+      });
+      setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
     }
   }, [selectedEventId]);
 
-  const handleAddTicket = async (e: React.FormEvent) => {
+  const handleSaveTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEventId || !ticketForm.name) return;
+    setSaving(true);
     try {
-      await eventService.createTicketType({
+      const selectedEvent = events.find(e => e.eventId === selectedEventId);
+      const payload = {
         eventId: selectedEventId,
         name: ticketForm.name,
         description: ticketForm.description,
         price: Number(ticketForm.price),
-        currency: "USD",
+        currency: selectedEvent?.currency || "XAF",
         quantityAvailable: Number(ticketForm.quantityAvailable),
-        quantitySold: 0,
+        quantitySold: editingTicket ? editingTicket.quantitySold : 0,
         saleStart: new Date(ticketForm.saleStart).toISOString(),
         saleEnd: new Date(ticketForm.saleEnd).toISOString(),
         maxPerOrder: Number(ticketForm.maxPerOrder),
-      });
+      };
+
+      if (editingTicket) {
+        await eventService.updateTicketType(editingTicket.ticketId || editingTicket.id, payload);
+        setEditingTicket(null);
+        showToast("Ticket tier updated!");
+      } else {
+        await eventService.createTicketType(payload);
+        showToast("Ticket tier added!");
+      }
+
       setTicketForm({ 
         name: "", 
         description: "", 
@@ -103,31 +141,88 @@ export default function ProjectPage() {
         saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
         maxPerOrder: 5
       });
-      fetchEventDetails(selectedEventId);
+      await fetchEventDetails(selectedEventId);
     } catch (err) {
-      console.error("Failed to create ticket type:", err);
+      console.error(err);
+      showToast("Failed to save ticket tier.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleAddCoupon = async (e: React.FormEvent) => {
+  const handleDeleteTicket = async (id: string) => {
+    if (!confirm("Delete this ticket tier?")) return;
+    try {
+      await eventService.deleteTicketType(id);
+      if (editingTicket?.ticketId === id || editingTicket?.id === id) {
+        setEditingTicket(null);
+        setTicketForm({
+          name: "",
+          description: "",
+          price: 0,
+          quantityAvailable: 100,
+          saleStart: new Date().toISOString().slice(0, 16),
+          saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+          maxPerOrder: 5,
+        });
+      }
+      await fetchEventDetails(selectedEventId);
+      showToast("Ticket tier deleted.");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to delete ticket tier.");
+    }
+  };
+
+  const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     const auth = getStoredAuth();
     if (!selectedEventId || !auth || !couponForm.code) return;
+    setSaving(true);
     try {
-      await eventService.createCoupon({
+      const payload = {
         tenantId: auth.tenantId,
         eventId: selectedEventId,
         code: couponForm.code.toUpperCase(),
         type: couponForm.type,
         value: Number(couponForm.value),
         maxUses: Number(couponForm.maxUses),
-        usedCount: 0,
+        usedCount: editingCoupon ? editingCoupon.usedCount : 0,
         expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      });
+      };
+
+      if (editingCoupon) {
+        await eventService.updateCoupon(editingCoupon.couponId || editingCoupon.id, payload);
+        setEditingCoupon(null);
+        showToast("Coupon updated!");
+      } else {
+        await eventService.createCoupon(payload);
+        showToast("Coupon added!");
+      }
+
       setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
-      fetchEventDetails(selectedEventId);
+      await fetchEventDetails(selectedEventId);
     } catch (err) {
-      console.error("Failed to create coupon:", err);
+      console.error(err);
+      showToast("Failed to save coupon.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    if (!confirm("Delete this coupon code?")) return;
+    try {
+      await eventService.deleteCoupon(id);
+      if (editingCoupon?.couponId === id || editingCoupon?.id === id) {
+        setEditingCoupon(null);
+        setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
+      }
+      await fetchEventDetails(selectedEventId);
+      showToast("Coupon code deleted.");
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to delete coupon.");
     }
   };
 
@@ -137,232 +232,351 @@ export default function ProjectPage() {
     <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
       <Sidebar />
       <div className="ml-[220px] flex-1 flex flex-col">
+        {/* TOAST */}
+        {toast && (
+          <div className="fixed top-5 right-5 z-50 bg-[#1a1a1a] text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+            <Star size={12} className="text-[#FF4747]" />
+            {toast}
+          </div>
+        )}
+
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
           <h1 className="font-display text-xl font-bold text-[#EB4203]">Ticketing & Coupons</h1>
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-[#666] uppercase tracking-wider font-semibold">Active Event</label>
-            <select
-              value={selectedEventId}
-              onChange={(e) => setSelectedEventId(e.target.value)}
-              className="bg-white border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-sm text-[#1a1a1a] outline-none"
-            >
-              {events.map((ev) => (
-                <option key={ev.eventId} value={ev.eventId}>
-                  {ev.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          {events.length > 0 && (
+            <div className="relative">
+              <select
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
+                className="appearance-none bg-white border border-[#e5e7eb] text-[#1a1a1a] text-sm rounded-lg px-4 py-1.5 pr-8 outline-none cursor-pointer"
+              >
+                {events.map((ev, idx) => (
+                  <option key={`${ev.eventId || ev.id || idx}-${idx}`} value={ev.eventId || ev.id}>
+                    {ev.title}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+            </div>
+          )}
         </header>
 
-        <main className="p-8 space-y-8">
+        <main className="p-8 space-y-8 max-w-[1400px]">
           {/* TICKET TYPES */}
           <div className="grid grid-cols-2 gap-8">
-            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
               <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
                 <Ticket size={18} className="text-[#EB4203]" /> Ticket Tiers <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
-              <form onSubmit={handleAddTicket} className="space-y-4 mb-6">
+              <form ref={ticketFormRef} onSubmit={handleSaveTicket} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <input
-                    placeholder="Tier Name (e.g. VIP Pass)"
-                    value={ticketForm.name}
-                    onChange={(e) => setTicketForm({ ...ticketForm, name: e.target.value })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Price ($)"
-                    value={ticketForm.price || ""}
-                    onChange={(e) => setTicketForm({ ...ticketForm, price: Number(e.target.value) })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    placeholder="Description"
-                    value={ticketForm.description}
-                    onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Capacity Available"
-                    value={ticketForm.quantityAvailable || ""}
-                    onChange={(e) => setTicketForm({ ...ticketForm, quantityAvailable: Number(e.target.value) })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]"
-                    required
-                  />
+                  <div>
+                    <label className={label}>Tier Name *</label>
+                    <input
+                      placeholder="e.g. VIP Pass"
+                      value={ticketForm.name}
+                      onChange={(e) => setTicketForm({ ...ticketForm, name: e.target.value })}
+                      className={inp}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Price (FCFA) *</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 5000"
+                      value={ticketForm.price || ""}
+                      onChange={(e) => setTicketForm({ ...ticketForm, price: Number(e.target.value) })}
+                      className={inp}
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[9px] font-medium text-[#555] uppercase tracking-wider mb-1">Sale Start</label>
+                    <label className={label}>Description</label>
+                    <input
+                      placeholder="Special access..."
+                      value={ticketForm.description}
+                      onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
+                      className={inp}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Capacity Available *</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 100"
+                      value={ticketForm.quantityAvailable || ""}
+                      onChange={(e) => setTicketForm({ ...ticketForm, quantityAvailable: Number(e.target.value) })}
+                      className={inp}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={label}>Sale Start *</label>
                     <input
                       type="datetime-local"
                       value={ticketForm.saleStart}
                       onChange={(e) => setTicketForm({ ...ticketForm, saleStart: e.target.value })}
-                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F7E998]"
+                      className={inp}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-medium text-[#555] uppercase tracking-wider mb-1">Sale End</label>
+                    <label className={label}>Sale End *</label>
                     <input
                       type="datetime-local"
                       value={ticketForm.saleEnd}
                       onChange={(e) => setTicketForm({ ...ticketForm, saleEnd: e.target.value })}
-                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F7E998]"
+                      className={inp}
                       required
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[9px] font-medium text-[#555] uppercase tracking-wider mb-1">Max Per Order</label>
+                    <label className={label}>Max Per Order *</label>
                     <input
                       type="number"
-                      placeholder="Max Per Order"
+                      placeholder="e.g. 5"
                       value={ticketForm.maxPerOrder || ""}
                       onChange={(e) => setTicketForm({ ...ticketForm, maxPerOrder: Number(e.target.value) })}
-                      className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-[#F7E998]"
+                      className={inp}
                       required
                     />
                   </div>
                 </div>
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Plus size={14} /> Add Ticket Tier
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className={saveBtn}
+                  >
+                    <Save size={13} /> {editingTicket ? (saving ? "Saving..." : "Save Changes") : (saving ? "Adding..." : "Add Ticket Tier")}
+                  </button>
+                  {editingTicket && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTicket(null);
+                        setTicketForm({
+                          name: "",
+                          description: "",
+                          price: 0,
+                          quantityAvailable: 100,
+                          saleStart: new Date().toISOString().slice(0, 16),
+                          saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                          maxPerOrder: 5,
+                        });
+                      }}
+                      className="px-4 py-2.5 bg-stone-100 text-[#555] hover:bg-stone-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
               </form>
 
               {/* LIST */}
               <div className="space-y-3">
-                {ticketTypes.map((t) => (
-                  <div key={t.ticketId} className="flex justify-between items-center p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
-                    <div>
-                      <div className="text-xs font-bold text-[#1a1a1a]">{t.name}</div>
-                      <div className="text-[10px] text-[#555] mt-0.5">{t.description || "No description"}</div>
+                {ticketTypes.map((t, idx) => {
+                  const id = t.ticketId || t.id;
+                  return (
+                    <div key={`${id || idx}-${idx}`} className={`flex justify-between items-center p-3.5 bg-white border rounded-xl hover:border-[#FF4747]/20 transition-all ${editingTicket?.ticketId === id ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-[#1a1a1a] truncate">{t.name}</div>
+                        <div className="text-[10px] text-[#555] mt-0.5 truncate">{t.description || "No description"}</div>
+                      </div>
+                      <div className="text-right shrink-0 flex items-center gap-4">
+                        <div>
+                          <div className="text-xs font-bold text-[#EB4203]">{Number(t.price).toLocaleString()} FCFA</div>
+                          <div className="text-[9px] text-[#555] mt-0.5">{t.quantitySold || 0}/{t.quantityAvailable} sold</div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <button onClick={() => {
+                            setEditingTicket(t);
+                            setTicketForm({
+                              name: t.name || "",
+                              description: t.description || "",
+                              price: t.price || 0,
+                              quantityAvailable: t.quantityAvailable || 100,
+                              saleStart: t.saleStart ? new Date(t.saleStart).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+                              saleEnd: t.saleEnd ? new Date(t.saleEnd).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+                              maxPerOrder: t.maxPerOrder || 5,
+                            });
+                            ticketFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }} className="p-1 text-[#555] hover:bg-stone-100 rounded-md transition-colors cursor-pointer">
+                            <Pencil size={12} />
+                          </button>
+                          <button onClick={() => handleDeleteTicket(id)} className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-[#EB4203]">${t.price}</div>
-                      <div className="text-[9px] text-[#555] mt-0.5">{t.quantitySold}/{t.quantityAvailable} sold</div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {ticketTypes.length === 0 && (
-                  <div className="text-center text-xs text-[#555] py-4">No ticket tiers created yet.</div>
+                  <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">No ticket tiers created yet.</div>
                 )}
               </div>
             </div>
 
             {/* COUPONS */}
-            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
               <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
                 <Tag size={18} className="text-[#EB4203]" /> Coupon Codes <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
               </h2>
-              <form onSubmit={handleAddCoupon} className="space-y-4 mb-6">
+              <form ref={couponFormRef} onSubmit={handleSaveCoupon} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
-                  <input
-                    placeholder="Promo Code (e.g. DISCOUNT20)"
-                    value={couponForm.code}
-                    onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
-                    required
-                  />
-                  <select
-                    value={couponForm.type}
-                    onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                  <div>
+                    <label className={label}>Promo Code *</label>
+                    <input
+                      placeholder="e.g. DISCOUNT20"
+                      value={couponForm.code}
+                      onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })}
+                      className={inp}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Discount Type *</label>
+                    <select
+                      value={couponForm.type}
+                      onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
+                      className={inp}
+                    >
+                      <option value="PERCENTAGE">Percentage (%)</option>
+                      <option value="FIXED">Fixed Amount (FCFA)</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={label}>Discount Value *</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 10"
+                      value={couponForm.value || ""}
+                      onChange={(e) => setCouponForm({ ...couponForm, value: Number(e.target.value) })}
+                      className={inp}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Max Uses *</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 100"
+                      value={couponForm.maxUses || ""}
+                      onChange={(e) => setCouponForm({ ...couponForm, maxUses: Number(e.target.value) })}
+                      className={inp}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className={saveBtn}
                   >
-                    <option value="PERCENTAGE">Percentage (%)</option>
-                    <option value="FIXED">Fixed Amount ($)</option>
-                  </select>
+                    <Save size={13} /> {editingCoupon ? (saving ? "Saving..." : "Save Changes") : (saving ? "Adding..." : "Add Coupon")}
+                  </button>
+                  {editingCoupon && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCoupon(null);
+                        setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
+                      }}
+                      className="px-4 py-2.5 bg-stone-100 text-[#555] hover:bg-stone-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    placeholder="Discount Value"
-                    value={couponForm.value || ""}
-                    onChange={(e) => setCouponForm({ ...couponForm, value: Number(e.target.value) })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Max Uses"
-                    value={couponForm.maxUses || ""}
-                    onChange={(e) => setCouponForm({ ...couponForm, maxUses: Number(e.target.value) })}
-                    className="bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-white placeholder:text-[#555] outline-none"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <Plus size={14} /> Add Coupon
-                </button>
               </form>
 
               {/* LIST */}
               <div className="space-y-3">
-                {coupons.map((c) => (
-                  <div key={c.couponId} className="flex justify-between items-center p-3.5 bg-white border border-[#e5e7eb] rounded-xl">
-                    <div>
-                      <div className="text-xs font-bold text-[#1a1a1a] tracking-wider">{c.code}</div>
-                      <div className="text-[9px] text-[#555] mt-0.5">Expires in 30 days</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-orange-400">
-                        {c.type === "PERCENTAGE" ? `${c.value}% Off` : `$${c.value} Off`}
+                {coupons.map((c, idx) => {
+                  const id = c.couponId || c.id;
+                  return (
+                    <div key={`${id || idx}-${idx}`} className={`flex justify-between items-center p-3.5 bg-white border rounded-xl hover:border-[#FF4747]/20 transition-all ${editingCoupon?.couponId === id ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-[#1a1a1a] tracking-wider font-mono uppercase">{c.code}</div>
+                        <div className="text-[10px] text-[#555] mt-0.5">Expires in 30 days</div>
                       </div>
-                      <div className="text-[9px] text-[#555] mt-0.5">{c.usedCount}/{c.maxUses} uses</div>
+                      <div className="text-right shrink-0 flex items-center gap-4">
+                        <div>
+                          <div className="text-xs font-bold text-orange-500">
+                            {c.type === "PERCENTAGE" ? `${c.value}% Off` : `${Number(c.value).toLocaleString()} FCFA Off`}
+                          </div>
+                          <div className="text-[9px] text-[#555] mt-0.5">{c.usedCount || 0}/{c.maxUses} uses</div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <button onClick={() => {
+                            setEditingCoupon(c);
+                            setCouponForm({
+                              code: c.code || "",
+                              type: c.type || "PERCENTAGE",
+                              value: c.value || 10,
+                              maxUses: c.maxUses || 100,
+                            });
+                            couponFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }} className="p-1 text-[#555] hover:bg-stone-100 rounded-md transition-colors cursor-pointer">
+                            <Pencil size={12} />
+                          </button>
+                          <button onClick={() => handleDeleteCoupon(id)} className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors cursor-pointer">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {coupons.length === 0 && (
-                  <div className="text-center text-xs text-[#555] py-4">No coupons created yet.</div>
+                  <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">No coupons created yet.</div>
                 )}
               </div>
             </div>
           </div>
 
           {/* ORDERS */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
             <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
               <DollarSign size={18} className="text-[#EB4203]" /> Recent Orders
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-[#1a1a1a]">
-                <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider">
+                <thead className="bg-[#f9fafb] text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
                     <th className="p-4 rounded-l-xl">Order ID</th>
                     <th className="p-4">Date</th>
                     <th className="p-4">Gross</th>
                     <th className="p-4">Discount</th>
-                    <th className="p-4 text-red-400/70">Platform Fee</th>
-                    <th className="p-4 text-green-400/70">Net</th>
+                    <th className="p-4 text-red-600/70">Platform Fee</th>
+                    <th className="p-4 text-green-600/70">Net</th>
                     <th className="p-4 rounded-r-xl">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#222]">
-                  {orders.map((o) => {
+                <tbody className="divide-y divide-[#e5e7eb]">
+                  {orders.map((o, idx) => {
                     const gross = parseFloat(o.totalAmount) || 0;
                     const fee = parseFloat(o.platformFee) || 0;
                     const net = gross - fee;
                     return (
-                      <tr key={o.orderId} className="hover:bg-[#ffffff] transition-colors">
-                        <td className="p-4 font-mono text-[10px] text-[#999]">{o.orderId?.substring(0, 8)}...</td>
+                      <tr key={`${o.orderId || idx}-${idx}`} className="hover:bg-[#f9fafb] transition-colors">
+                        <td className="p-4 font-mono text-[10px] text-[#666]">{o.orderId?.substring(0, 8)}...</td>
                         <td className="p-4 text-[#555]">{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}</td>
-                        <td className="p-4 text-[#1a1a1a] font-medium">${gross.toFixed(2)}</td>
-                        <td className="p-4 text-[#555]">${(parseFloat(o.discountAmount) || 0).toFixed(2)}</td>
-                        <td className="p-4 text-red-400 font-medium">-${fee.toFixed(2)}</td>
-                        <td className="p-4 text-green-400 font-semibold">${net.toFixed(2)}</td>
+                        <td className="p-4 text-[#1a1a1a] font-medium">{gross.toLocaleString()} FCFA</td>
+                        <td className="p-4 text-[#555]">{(parseFloat(o.discountAmount) || 0).toLocaleString()} FCFA</td>
+                        <td className="p-4 text-red-500 font-medium">-{fee.toLocaleString()} FCFA</td>
+                        <td className="p-4 text-green-600 font-semibold">{net.toLocaleString()} FCFA</td>
                         <td className="p-4">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
@@ -388,13 +602,13 @@ export default function ProjectPage() {
           </div>
 
           {/* REFUNDS */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
             <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <DollarSign size={18} className="text-red-400" /> Refund History
+              <DollarSign size={18} className="text-red-500" /> Refund History
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-[#1a1a1a]">
-                <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider">
+                <thead className="bg-[#f9fafb] text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
                     <th className="p-4 rounded-l-xl">Refund ID</th>
                     <th className="p-4">Payment ID</th>
@@ -404,14 +618,14 @@ export default function ProjectPage() {
                     <th className="p-4 rounded-r-xl">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#222]">
-                  {refunds.map((r) => {
+                <tbody className="divide-y divide-[#e5e7eb]">
+                  {refunds.map((r, idx) => {
                     const amount = parseFloat(r.amount) || 0;
                     return (
-                      <tr key={r.refundId} className="hover:bg-[#ffffff] transition-colors">
-                        <td className="p-4 font-mono text-[10px] text-[#999]">{r.refundId?.substring(0, 8)}...</td>
-                        <td className="p-4 font-mono text-[10px] text-[#999]">{r.paymentId?.substring(0, 8)}...</td>
-                        <td className="p-4 text-[#1a1a1a] font-medium">${amount.toFixed(2)}</td>
+                      <tr key={`${r.refundId || idx}-${idx}`} className="hover:bg-[#f9fafb] transition-colors">
+                        <td className="p-4 font-mono text-[10px] text-[#666]">{r.refundId?.substring(0, 8)}...</td>
+                        <td className="p-4 font-mono text-[10px] text-[#666]">{r.paymentId?.substring(0, 8)}...</td>
+                        <td className="p-4 text-[#1a1a1a] font-medium">{amount.toLocaleString()} FCFA</td>
                         <td className="p-4 text-[#555]">{r.reason || "No reason provided"}</td>
                         <td className="p-4 text-[#555]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
                         <td className="p-4">

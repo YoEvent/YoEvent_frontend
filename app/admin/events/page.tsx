@@ -1,37 +1,27 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import dynamic from "next/dynamic";
 import {
   Plus, Trash2, Upload, Calendar, MapPin, Ticket, Users, Mic2,
   Radio, Mail, ChevronRight, X, Check, Save, Image as ImageIcon,
   Globe, Wifi, User, Pencil, Tag, Star, ScanLine, Package, QrCode,
-  Building2, Megaphone, Copy, AlertTriangle, MessageSquare
+  Building2, Megaphone, Copy, AlertTriangle, MessageSquare, Layers
 } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 
 const EventMap = dynamic(() => import("@/components/EventMap"), { ssr: false, loading: () => <div className="w-full h-40 bg-[#f5f5f5] rounded-xl animate-pulse" /> });
 
-type EventTab = "overview" | "details" | "schedule" | "location" | "tickets" | "coupons" | "team" | "sessions" | "speakers" | "sponsors" | "registrations" | "vendors" | "announcements" | "feedback" | "live" | "email";
+type EventTab = "overview" | "details" | "schedule" | "location" | "tickets" | "coupons" | "team" | "sessions" | "speakers" | "sponsors" | "registrations" | "vendors" | "announcements" | "feedback" | "live" | "email" | "sections";
 
 const TABS: { id: EventTab; label: string; icon: any }[] = [
   { id: "overview",       label: "Overview",      icon: Globe },
   { id: "details",        label: "Details",       icon: ImageIcon },
   { id: "schedule",       label: "Schedule",      icon: Calendar },
   { id: "location",       label: "Location",      icon: MapPin },
-  { id: "tickets",        label: "Tickets",       icon: Ticket },
-  { id: "coupons",        label: "Coupons",       icon: Tag },
-  { id: "team",           label: "Team",          icon: Users },
-  { id: "sessions",       label: "Sessions",      icon: Mic2 },
-  { id: "speakers",       label: "Speakers",      icon: User },
-  { id: "sponsors",       label: "Sponsors",      icon: Star },
-  { id: "registrations",  label: "Registrations", icon: ScanLine },
-  { id: "vendors",        label: "Vendors",       icon: Building2 },
-  { id: "announcements",  label: "Announce",      icon: Megaphone },
-  { id: "feedback",       label: "Feedback",      icon: MessageSquare },
-  { id: "live",           label: "Live",          icon: Radio },
-  { id: "email",          label: "Email",         icon: Mail },
+  { id: "sections",       label: "Add Section",   icon: Layers }
 ];
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -40,6 +30,7 @@ const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white tex
 const addBtn = "flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer";
 
 export default function EventsPage() {
+  const router = useRouter();
   const auth = getStoredAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -80,6 +71,7 @@ export default function EventsPage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [tracks, setTracks] = useState<any[]>([]);
   const [sessionForm, setSessionForm] = useState({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
+  const [trackForm, setTrackForm] = useState({ name: "", description: "", capacity: 50, locationId: "" });
 
   // ── Live ──
   const [polls, setPolls] = useState<any[]>([]);
@@ -95,7 +87,10 @@ export default function EventsPage() {
   const [sponsors, setSponsors] = useState<any[]>([]);
   const [sponsorPackages, setSponsorPackages] = useState<any[]>([]);
   const [sponsorForm, setSponsorForm] = useState({ name: "", email: "", website: "", logoUrl: "", packageId: "" });
-  const [sponsorPkgForm, setSponsorPkgForm] = useState({ name: "", description: "", price: 0, benefits: "" });
+  const [sponsorPkgForm, setSponsorPkgForm] = useState({ name: "", description: "", price: 0, benefits: "", applicationStart: "", applicationEnd: "" });
+  const [volunteerOpenings, setVolunteerOpenings] = useState<any[]>([]);
+  const [volunteerOpeningForm, setVolunteerOpeningForm] = useState({ title: "", description: "", requirements: "", applicationStart: "", applicationEnd: "", maxVolunteers: 0 });
+  const [editingVolunteerOpening, setEditingVolunteerOpening] = useState<any>(null);
   const [editingSponsor, setEditingSponsor] = useState<any>(null);
 
   // ── Speakers ──
@@ -130,12 +125,18 @@ export default function EventsPage() {
   // ── Feedback ──
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
 
+  // ── Custom Sections ──
+  const [eventSections, setEventSections] = useState<any[]>([]);
+  const [editingSection, setEditingSection] = useState<any>(null);
+  const [sectionForm, setSectionForm] = useState({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+
   // ── Edit mode (null = create, set = editing that record) ──
   const [editingLocation, setEditingLocation] = useState<any>(null);
   const [editingTicket,   setEditingTicket]   = useState<any>(null);
   const [editingMember,   setEditingMember]   = useState<any>(null);
   const [editingSession,  setEditingSession]  = useState<any>(null);
   const [editingPoll,     setEditingPoll]     = useState<any>(null);
+  const [editingTrack,    setEditingTrack]    = useState<any>(null);
 
   // Form refs — used to trigger submit from the header "Save" button
   const locFormRef     = useRef<HTMLFormElement>(null);
@@ -177,7 +178,7 @@ export default function EventsPage() {
       (!tenantId || !item.tenantId || item.tenantId === tenantId);
 
     try {
-      const [ev, cats, locs, tix, scheds, sess, trks, pls, qas, camps, nets, spons, sponsPkgs, spkrs, cpns, exhbs, anncs, fdbks] = await Promise.all([
+      const [ev, cats, locs, tix, scheds, sess, trks, pls, qas, camps, nets, spons, sponsPkgs, spkrs, cpns, exhbs, anncs, fdbks, volOpenings, sectionsList] = await Promise.all([
         eventService.getEventById(id).catch(() => null),
         eventService.getEventCategories().catch(() => []),
         eventService.getEventLocations().catch(() => []),
@@ -196,6 +197,8 @@ export default function EventsPage() {
         eventService.getExhibitors().catch(() => []),
         eventService.getAnnouncements().catch(() => []),
         eventService.getFeedbacks().catch(() => []),
+        eventService.getVolunteerOpenings().catch(() => []),
+        eventService.getEventSections(id).catch(() => []),
       ]);
 
       // Populate event details directly from the fetched event (avoids stale state)
@@ -224,6 +227,8 @@ export default function EventsPage() {
       setExhibitors((exhbs || []).filter(byEvent));
       setAnnouncements((anncs || []).filter(byEvent));
       setFeedbacks((fdbks || []).filter(byEvent));
+      setVolunteerOpenings((volOpenings || []).filter(byEvent));
+      setEventSections(sectionsList || []);
 
       const sched = (scheds || []).find((s: any) => s.eventId === id || s.event?.eventId === id);
       setSchedule(sched || null);
@@ -235,6 +240,54 @@ export default function EventsPage() {
   useEffect(() => { if (tab === "registrations" && selectedId) loadRegistrations(); }, [tab, selectedId]);
 
   const selectedEvent = events.find(e => e.eventId === selectedId);
+
+  // ── Custom Sections Actions ──
+  const saveSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedId) return;
+    setSaving(true);
+    try {
+      if (editingSection) {
+        await eventService.updateEventSection(editingSection.sectionId || editingSection.id, {
+          ...sectionForm,
+          eventId: selectedId,
+          tenantId: auth?.tenantId
+        });
+        showToast("Section updated successfully!");
+        setEditingSection(null);
+      } else {
+        await eventService.createEventSection({
+          ...sectionForm,
+          eventId: selectedId,
+          tenantId: auth?.tenantId
+        });
+        showToast("Section created successfully!");
+      }
+      setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+      const secs = await eventService.getEventSections(selectedId).catch(() => []);
+      setEventSections(secs || []);
+    } catch (err: any) {
+      showToast(err.message || "Failed to save section");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteSection = async (sectionId: string) => {
+    if (!confirm("Are you sure you want to delete this section?")) return;
+    try {
+      await eventService.deleteEventSection(sectionId);
+      showToast("Section deleted!");
+      const secs = await eventService.getEventSections(selectedId).catch(() => []);
+      setEventSections(secs || []);
+      if (editingSection && (editingSection.sectionId === sectionId || editingSection.id === sectionId)) {
+        setEditingSection(null);
+        setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+      }
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete section");
+    }
+  };
 
   // ── Create new event ──
   const handleCreateEvent = async (e: React.FormEvent) => {
@@ -277,8 +330,11 @@ export default function EventsPage() {
       const filtered = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
       setEvents(filtered);
       showToast("Details saved!");
-    } catch { showToast("Failed to save details."); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      showToast(err.message || "Failed to save details.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Save schedule ──
@@ -293,8 +349,11 @@ export default function EventsPage() {
         setSchedule(s);
       }
       showToast("Schedule saved!");
-    } catch { showToast("Failed to save schedule."); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      showToast(err.message || "Failed to save schedule.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Save location (create or update) ──
@@ -313,8 +372,11 @@ export default function EventsPage() {
       }
       setLocForm({ venueName: "", address: "", city: "", country: "Cameroon", isVirtual: false, virtualPlatform: "", virtualLink: "", latitude: 3.848, longitude: 11.502 });
       await loadEventData(selectedId);
-    } catch { showToast(editingLocation ? "Failed to update location." : "Failed to add location."); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      showToast(err.message || (editingLocation ? "Failed to update location." : "Failed to add location."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Save ticket (create or update) ──
@@ -345,8 +407,11 @@ export default function EventsPage() {
       }
       setTicketForm({ name: "", description: "", price: 0, quantity: 100, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingTicket ? "Failed to update ticket." : "Failed to add ticket."); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      showToast(err.message || (editingTicket ? "Failed to update ticket." : "Failed to add ticket."));
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Save team member (create or update) ──
@@ -405,8 +470,42 @@ export default function EventsPage() {
       }
       setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingSession ? "Failed to update session." : "Failed to add session."); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      showToast(err.message || (editingSession ? "Failed to update session." : "Failed to add session."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Save track ──
+  const saveTrack = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackForm.name.trim()) return;
+    setSaving(true);
+    try {
+      const payload = {
+        eventId: selectedId,
+        tenantId: auth?.tenantId,
+        name: trackForm.name,
+        description: trackForm.description || undefined,
+        capacity: trackForm.capacity || undefined,
+        locationId: trackForm.locationId || undefined,
+      };
+      if (editingTrack) {
+        await eventService.updateTrack(editingTrack.trackId || editingTrack.id, payload);
+        setEditingTrack(null);
+        showToast("Track updated!");
+      } else {
+        await eventService.createTrack(payload);
+        showToast("Track created!");
+      }
+      setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+      await loadEventData(selectedId);
+    } catch (err: any) {
+      showToast(err.message || "Failed to save track.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // ── Save poll (create or update) ──
@@ -493,11 +592,45 @@ export default function EventsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await eventService.createSponsorshipPackage({ eventId: selectedId, tenantId: auth?.tenantId, name: sponsorPkgForm.name, description: sponsorPkgForm.description, price: Number(sponsorPkgForm.price), benefits: sponsorPkgForm.benefits });
-      setSponsorPkgForm({ name: "", description: "", price: 0, benefits: "" });
+      await eventService.createSponsorshipPackage({
+        eventId: selectedId, tenantId: auth?.tenantId,
+        name: sponsorPkgForm.name, description: sponsorPkgForm.description,
+        price: Number(sponsorPkgForm.price), benefits: sponsorPkgForm.benefits,
+        applicationStart: sponsorPkgForm.applicationStart ? new Date(sponsorPkgForm.applicationStart).toISOString() : undefined,
+        applicationEnd: sponsorPkgForm.applicationEnd ? new Date(sponsorPkgForm.applicationEnd).toISOString() : undefined,
+      });
+      setSponsorPkgForm({ name: "", description: "", price: 0, benefits: "", applicationStart: "", applicationEnd: "" });
       await loadEventData(selectedId);
       showToast("Package created!");
     } catch { showToast("Failed to create package."); }
+    finally { setSaving(false); }
+  };
+
+  // ── Save volunteer opening ──
+  const saveVolunteerOpening = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    const payload = {
+      eventId: selectedId, tenantId: auth?.tenantId,
+      title: volunteerOpeningForm.title, description: volunteerOpeningForm.description,
+      requirements: volunteerOpeningForm.requirements,
+      maxVolunteers: volunteerOpeningForm.maxVolunteers || undefined,
+      applicationStart: volunteerOpeningForm.applicationStart ? new Date(volunteerOpeningForm.applicationStart).toISOString() : undefined,
+      applicationEnd: volunteerOpeningForm.applicationEnd ? new Date(volunteerOpeningForm.applicationEnd).toISOString() : undefined,
+      status: "ACTIVE",
+    };
+    try {
+      if (editingVolunteerOpening) {
+        await eventService.updateVolunteerOpening(editingVolunteerOpening.openingId || editingVolunteerOpening.id, payload);
+        setEditingVolunteerOpening(null);
+        showToast("Volunteer opening updated!");
+      } else {
+        await eventService.createVolunteerOpening(payload);
+        showToast("Volunteer opening created!");
+      }
+      setVolunteerOpeningForm({ title: "", description: "", requirements: "", applicationStart: "", applicationEnd: "", maxVolunteers: 0 });
+      await loadEventData(selectedId);
+    } catch { showToast("Failed to save volunteer opening."); }
     finally { setSaving(false); }
   };
 
@@ -664,6 +797,7 @@ export default function EventsPage() {
       case "feedback":      return feedbacks.length > 0 ? "done" : "empty";
       case "live":          return polls.length > 0 || qaQuestions.length > 0 ? "done" : "empty";
       case "email":         return campaigns.length > 0 ? "done" : "empty";
+      case "sections":      return eventSections.length > 0 ? "done" : "empty";
       default:              return "empty";
     }
   };
@@ -767,6 +901,7 @@ export default function EventsPage() {
                   {tab === "announcements"  && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? "Saving…" : "Save"}</> : <><Megaphone size={13} />{saving ? "Posting…" : "Post Announcement"}</>}</button>}
                   {tab === "live"          && <button onClick={() => pollFormRef.current?.requestSubmit()}    disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? "Saving…" : "Save Poll"}</> : <><Plus size={13} />{saving ? "Creating…" : "Add Poll"}</>}</button>}
                   {tab === "email"         && <button onClick={() => emailFormRef.current?.requestSubmit()}   disabled={saving} className={saveBtn}><Mail size={13} />{saving ? "Saving…" : "Schedule Email"}</button>}
+                  {tab === "sections"      && <button onClick={saveSection}                   disabled={saving} className={saveBtn}><Save size={13} />{saving ? "Saving…" : editingSection ? "Save Section" : "Add Section"}</button>}
                 </div>
               </header>
 
@@ -887,7 +1022,7 @@ export default function EventsPage() {
                             <span className="font-bold text-sm text-[#1a1a1a]">Tickets</span>
                             {tickets.length > 0 && <span className="text-[10px] font-bold bg-[#FF4747]/10 text-[#FF4747] px-1.5 py-0.5 rounded-full">{tickets.length}</span>}
                           </div>
-                          <button onClick={() => setTab("tickets")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
+                          <button onClick={() => router.push("/admin/project")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
                         </div>
                         {tickets.length > 0 ? (
                           <div className="space-y-1.5">
@@ -914,7 +1049,7 @@ export default function EventsPage() {
                             <span className="font-bold text-sm text-[#1a1a1a]">Team</span>
                             {team.length > 0 && <span className="text-[10px] font-bold bg-[#FF4747]/10 text-[#FF4747] px-1.5 py-0.5 rounded-full">{team.length}</span>}
                           </div>
-                          <button onClick={() => setTab("team")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
+                          <button onClick={() => router.push("/admin/team")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
                         </div>
                         {team.length > 0 ? (
                           <div className="flex items-center gap-2 flex-wrap">
@@ -942,7 +1077,7 @@ export default function EventsPage() {
                             <span className="font-bold text-sm text-[#1a1a1a]">Sessions</span>
                             {sessions.length > 0 && <span className="text-[10px] font-bold bg-[#FF4747]/10 text-[#FF4747] px-1.5 py-0.5 rounded-full">{sessions.length}</span>}
                           </div>
-                          <button onClick={() => setTab("sessions")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
+                          <button onClick={() => router.push("/admin/agenda")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
                         </div>
                         {sessions.length > 0 ? (
                           <div className="space-y-1.5">
@@ -966,7 +1101,7 @@ export default function EventsPage() {
                             <Radio size={15} className="text-[#FF4747]" />
                             <span className="font-bold text-sm text-[#1a1a1a]">Live</span>
                           </div>
-                          <button onClick={() => setTab("live")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
+                          <button onClick={() => router.push("/admin/engagements")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
                         </div>
                         {polls.length > 0 || qaQuestions.length > 0 ? (
                           <div className="space-y-1.5 text-xs text-[#555]">
@@ -992,7 +1127,7 @@ export default function EventsPage() {
                             <span className="font-bold text-sm text-[#1a1a1a]">Email Campaigns</span>
                             {campaigns.length > 0 && <span className="text-[10px] font-bold bg-[#FF4747]/10 text-[#FF4747] px-1.5 py-0.5 rounded-full">{campaigns.length}</span>}
                           </div>
-                          <button onClick={() => setTab("email")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
+                          <button onClick={() => router.push("/admin/support")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">Edit <ChevronRight size={11} /></button>
                         </div>
                         {campaigns.length > 0 ? (
                           <div className="grid md:grid-cols-3 gap-3">
@@ -1133,8 +1268,8 @@ export default function EventsPage() {
                       </div>
                       <div className="flex items-center gap-3 pt-1">
                         <button type="button" onClick={() => setDetailsForm(f => ({ ...f, isPaid: !f.isPaid }))}
-                          className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${detailsForm.isPaid ? "bg-[#FF4747]" : "bg-[#e5e7eb]"}`}>
-                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${detailsForm.isPaid ? "translate-x-5" : "translate-x-0.5"}`} />
+                          className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${detailsForm.isPaid ? "bg-[#FF4747]" : "bg-[#e5e7eb]"}`}>
+                          <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${detailsForm.isPaid ? "translate-x-5" : "translate-x-0"}`} />
                         </button>
                         <span className="text-xs font-semibold text-[#555]">Paid Event</span>
                         <span className="text-xs text-[#aaa]">{detailsForm.isPaid ? "Attendees pay to register" : "Free entry"}</span>
@@ -1444,81 +1579,181 @@ export default function EventsPage() {
 
                 {/* ── SESSIONS TAB ── */}
                 {tab === "sessions" && (
-                  <div className="max-w-4xl space-y-6">
-                    {sessions.length > 0 && (
-                      <div className="space-y-3">
-                        {sessions.map(s => (
-                          <div key={s.sessionId || s.id} className={`bg-white border rounded-2xl p-5 flex items-start gap-4 transition-colors ${editingSession?.sessionId === s.sessionId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
-                            <div className="w-10 h-10 rounded-xl bg-[#F7E998]/50 flex items-center justify-center shrink-0"><Mic2 size={18} className="text-[#7a6a00]" /></div>
-                            <div className="flex-1">
-                              <div className="font-bold text-sm text-[#1a1a1a]">{s.title}</div>
-                              {s.description && <div className="text-xs text-[#888] mt-0.5">{s.description}</div>}
-                              <div className="flex gap-3 mt-2 text-[10px] text-[#aaa]">
-                                <span className="px-2 py-0.5 bg-[#fafafa] border border-[#f0f0f0] rounded font-medium">{s.type}</span>
-                                {s.maxCapacity && <span>Cap: {s.maxCapacity}</span>}
-                                {tracks.find(t => (t.trackId || t.id) === (s.trackId || s.track?.trackId)) && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded font-medium">{tracks.find(t => (t.trackId || t.id) === (s.trackId || s.track?.trackId))?.name}</span>}
+                  <div className="max-w-5xl grid md:grid-cols-[1.7fr_1.3fr] gap-6">
+                    <div className="space-y-6">
+                      {/* Existing sessions */}
+                      {sessions.length > 0 ? (
+                        <div className="space-y-3">
+                          {sessions.map(s => (
+                            <div key={s.sessionId || s.id} className={`bg-white border rounded-2xl p-5 flex items-start gap-4 transition-colors ${editingSession?.sessionId === s.sessionId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                              <div className="w-10 h-10 rounded-xl bg-[#F7E998]/50 flex items-center justify-center shrink-0"><Mic2 size={18} className="text-[#7a6a00]" /></div>
+                              <div className="flex-1">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{s.title}</div>
+                                {s.description && <div className="text-xs text-[#888] mt-0.5">{s.description}</div>}
+                                <div className="flex gap-3 mt-2 text-[10px] text-[#aaa]">
+                                  <span className="px-2 py-0.5 bg-[#fafafa] border border-[#f0f0f0] rounded font-medium">{s.type}</span>
+                                  {s.maxCapacity && <span>Cap: {s.maxCapacity}</span>}
+                                  {tracks.find(t => (t.trackId || t.id) === (s.trackId || s.track?.trackId)) && <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded font-medium">{tracks.find(t => (t.trackId || t.id) === (s.trackId || s.track?.trackId))?.name}</span>}
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button type="button" onClick={() => {
+                                  setEditingSession(s);
+                                  setSessionForm({ title: s.title || "", description: s.description || "", type: s.type || "TALK", startTime: s.startTime ? new Date(s.startTime).toISOString().slice(0, 16) : "", endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "", capacity: s.maxCapacity || 50, trackId: s.trackId || s.track?.trackId || "", locationId: s.locationId || "" });
+                                  sessionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer">
+                                  <Pencil size={11} /> Edit
+                                </button>
+                                <button type="button" onClick={async () => { if (!confirm("Delete this session?")) return; try { await eventService.deleteSession(s.sessionId || s.id); if (editingSession?.sessionId === s.sessionId) { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); } await loadEventData(selectedId); showToast("Session deleted!"); } catch { showToast("Failed to delete session."); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                                  <Trash2 size={11} /> Delete
+                                </button>
                               </div>
                             </div>
-                            <div className="flex gap-1.5 shrink-0">
-                              <button type="button" onClick={() => {
-                                setEditingSession(s);
-                                setSessionForm({ title: s.title || "", description: s.description || "", type: s.type || "TALK", startTime: s.startTime ? new Date(s.startTime).toISOString().slice(0, 16) : "", endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "", capacity: s.maxCapacity || 50, trackId: s.trackId || s.track?.trackId || "", locationId: s.locationId || "" });
-                                sessionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                              }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer">
-                                <Pencil size={11} /> Edit
-                              </button>
-                              <button type="button" onClick={async () => { if (!confirm("Delete this session?")) return; try { await eventService.deleteSession(s.sessionId || s.id); if (editingSession?.sessionId === s.sessionId) { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); } await loadEventData(selectedId); showToast("Session deleted!"); } catch { showToast("Failed to delete session."); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
-                                <Trash2 size={11} /> Delete
-                              </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-10 bg-white border border-[#e5e7eb] rounded-3xl text-xs text-[#888] italic">No sessions created yet.</div>
+                      )}
+
+                      <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
+                        <div className="flex items-center justify-between mb-5">
+                          <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSession ? "Edit Session" : "Add Session"}</h3>
+                          {editingSession && (
+                            <button type="button" onClick={() => { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                          )}
+                        </div>
+                        <form ref={sessionFormRef} onSubmit={saveSession} className="space-y-4">
+                          <div><label className={label}>Session Title *</label><input required placeholder="e.g. Opening Keynote" value={sessionForm.title} onChange={e => setSessionForm(f => ({ ...f, title: e.target.value }))} className={inp} /></div>
+                          <div><label className={label}>Description</label><textarea value={sessionForm.description} onChange={e => setSessionForm(f => ({ ...f, description: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <label className={label}>Type</label>
+                              <select value={sessionForm.type} onChange={e => setSessionForm(f => ({ ...f, type: e.target.value }))} className={inp}>
+                                {["TALK", "WORKSHOP", "PANEL", "NETWORKING", "BREAK", "OTHER"].map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                            </div>
+                            <div><label className={label}>Start Time</label><input type="datetime-local" value={sessionForm.startTime} onChange={e => setSessionForm(f => ({ ...f, startTime: e.target.value }))} className={inp} /></div>
+                            <div><label className={label}>End Time</label><input type="datetime-local" value={sessionForm.endTime} onChange={e => setSessionForm(f => ({ ...f, endTime: e.target.value }))} className={inp} /></div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div><label className={label}>Capacity</label><input type="number" min={1} value={sessionForm.capacity} onChange={e => setSessionForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} /></div>
+                            <div>
+                              <label className={label}>Track</label>
+                              <select value={sessionForm.trackId} onChange={e => setSessionForm(f => ({ ...f, trackId: e.target.value }))} className={inp}>
+                                <option value="">— No track —</option>
+                                {tracks.map(t => <option key={t.trackId || t.id} value={t.trackId || t.id}>{t.name}</option>)}
+                              </select>
                             </div>
                           </div>
-                        ))}
+                          {locations.length > 0 && (
+                            <div>
+                              <label className={label}>Location</label>
+                              <select value={sessionForm.locationId} onChange={e => setSessionForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
+                                <option value="">— All locations —</option>
+                                {locations.map(loc => (
+                                  <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <button type="submit" disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? "Saving..." : "Save Session"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Session"}</>}</button>
+                        </form>
                       </div>
-                    )}
+                    </div>
 
-                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSession ? "Edit Session" : "Add Session"}</h3>
-                        {editingSession && (
-                          <button type="button" onClick={() => { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                    {/* Tracks Column */}
+                    <div className="space-y-6">
+                      <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 space-y-4">
+                        <div>
+                          <h3 className="font-bold text-sm text-[#1a1a1a]">Event Tracks</h3>
+                          <p className="text-[10px] text-[#888] mt-0.5">Define topics, rooms, or parallel streams for your sessions.</p>
+                        </div>
+
+                        {tracks.length > 0 ? (
+                          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {tracks.map(t => (
+                              <div key={t.trackId || t.id} className={`p-3 bg-[#fafafa] border rounded-xl flex items-center justify-between gap-3 transition-colors ${editingTrack?.trackId === t.trackId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#f0f0f0]"}`}>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-xs text-[#1a1a1a] truncate">{t.name}</div>
+                                  {t.description && <div className="text-[10px] text-[#888] truncate">{t.description}</div>}
+                                  {t.capacity && <div className="text-[9px] text-[#aaa] mt-0.5">Capacity: {t.capacity}</div>}
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  <button type="button" onClick={() => {
+                                    setEditingTrack(t);
+                                    setTrackForm({
+                                      name: t.name || "",
+                                      description: t.description || "",
+                                      capacity: t.capacity || 50,
+                                      locationId: t.locationId || "",
+                                    });
+                                  }} className="p-1 text-[#555] hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer" title="Edit Track">
+                                    <Pencil size={11} />
+                                  </button>
+                                  <button type="button" onClick={async () => {
+                                    if (!confirm(`Delete track "${t.name}"?`)) return;
+                                    try {
+                                      await eventService.deleteTrack(t.trackId || t.id);
+                                      if (editingTrack?.trackId === t.trackId) {
+                                        setEditingTrack(null);
+                                        setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+                                      }
+                                      await loadEventData(selectedId);
+                                      showToast("Track deleted!");
+                                    } catch (err: any) {
+                                      showToast(err.message || "Failed to delete track.");
+                                    }
+                                  }} className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Delete Track">
+                                    <Trash2 size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6 bg-[#fafafa] border border-dashed border-[#e5e7eb] rounded-xl text-[11px] text-[#aaa] italic">No tracks added yet.</div>
                         )}
+
+                        <form onSubmit={saveTrack} className="border-t border-[#f0f0f0] pt-4 space-y-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold text-xs text-[#1a1a1a]">{editingTrack ? "Edit Track" : "New Track"}</h4>
+                            {editingTrack && (
+                              <button type="button" onClick={() => {
+                                setEditingTrack(null);
+                                setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+                              }} className="text-[10px] text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                            )}
+                          </div>
+                          <div>
+                            <label className={label}>Track Name *</label>
+                            <input required placeholder="e.g. Technical, Business" value={trackForm.name} onChange={e => setTrackForm(f => ({ ...f, name: e.target.value }))} className={inp} />
+                          </div>
+                          <div>
+                            <label className={label}>Description</label>
+                            <input placeholder="e.g. Advanced technical talks" value={trackForm.description} onChange={e => setTrackForm(f => ({ ...f, description: e.target.value }))} className={inp} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className={label}>Capacity</label>
+                              <input type="number" min={1} value={trackForm.capacity} onChange={e => setTrackForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
+                            </div>
+                            {locations.length > 0 && (
+                              <div>
+                                <label className={label}>Location</label>
+                                <select value={trackForm.locationId} onChange={e => setTrackForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
+                                  <option value="">— Select Location —</option>
+                                  {locations.map(loc => (
+                                    <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                          <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
+                            {editingTrack ? <><Save size={13} /> {saving ? "Saving..." : "Save Track"}</> : <><Plus size={13} /> {saving ? "Creating..." : "Add Track"}</>}
+                          </button>
+                        </form>
                       </div>
-                      <form ref={sessionFormRef} onSubmit={saveSession} className="space-y-4">
-                        <div><label className={label}>Session Title *</label><input required placeholder="e.g. Opening Keynote" value={sessionForm.title} onChange={e => setSessionForm(f => ({ ...f, title: e.target.value }))} className={inp} /></div>
-                        <div><label className={label}>Description</label><textarea value={sessionForm.description} onChange={e => setSessionForm(f => ({ ...f, description: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label className={label}>Type</label>
-                            <select value={sessionForm.type} onChange={e => setSessionForm(f => ({ ...f, type: e.target.value }))} className={inp}>
-                              {["TALK", "WORKSHOP", "PANEL", "NETWORKING", "BREAK", "OTHER"].map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                          </div>
-                          <div><label className={label}>Start Time</label><input type="datetime-local" value={sessionForm.startTime} onChange={e => setSessionForm(f => ({ ...f, startTime: e.target.value }))} className={inp} /></div>
-                          <div><label className={label}>End Time</label><input type="datetime-local" value={sessionForm.endTime} onChange={e => setSessionForm(f => ({ ...f, endTime: e.target.value }))} className={inp} /></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div><label className={label}>Capacity</label><input type="number" min={1} value={sessionForm.capacity} onChange={e => setSessionForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} /></div>
-                          <div>
-                            <label className={label}>Track</label>
-                            <select value={sessionForm.trackId} onChange={e => setSessionForm(f => ({ ...f, trackId: e.target.value }))} className={inp}>
-                              <option value="">— No track —</option>
-                              {tracks.map(t => <option key={t.trackId || t.id} value={t.trackId || t.id}>{t.name}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        {locations.length > 0 && (
-                          <div>
-                            <label className={label}>Location</label>
-                            <select value={sessionForm.locationId} onChange={e => setSessionForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                              <option value="">— All locations —</option>
-                              {locations.map(loc => (
-                                <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                        <button type="submit" disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? "Saving..." : "Save Session"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Session"}</>}</button>
-                      </form>
                     </div>
                   </div>
                 )}
@@ -1714,7 +1949,39 @@ export default function EventsPage() {
                           </div>
                         </div>
                         <div><label className={label}>Bio</label><textarea placeholder="Brief speaker biography..." value={speakerForm.bio} onChange={e => setSpeakerForm(f => ({ ...f, bio: e.target.value }))} rows={3} className={inp + " resize-none"} /></div>
-                        <div><label className={label}>Photo URL</label><input type="url" placeholder="https://..." value={speakerForm.photoUrl} onChange={e => setSpeakerForm(f => ({ ...f, photoUrl: e.target.value }))} className={inp} /></div>
+                        
+                        <div>
+                          <label className={label}>Speaker Photo</label>
+                          <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
+                            {speakerForm.photoUrl ? (
+                              <img src={speakerForm.photoUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover border-2 border-[#f0f0f0] shrink-0" />
+                            ) : (
+                              <div className="w-14 h-14 rounded-full bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
+                                <User size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-sm font-semibold text-[#1a1a1a]">{speakerForm.photoUrl ? "Click to change" : "Upload photo"}</div>
+                              <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                            </div>
+                            <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setSaving(true);
+                                const res = await eventService.uploadImage(f);
+                                setSpeakerForm(f => ({ ...f, photoUrl: res.url }));
+                                showToast("Photo uploaded successfully!");
+                              } catch (err: any) {
+                                showToast("Failed to upload photo: " + (err.message || err));
+                              } finally {
+                                setSaving(false);
+                              }
+                            }} />
+                          </label>
+                          {speakerForm.photoUrl && <button type="button" onClick={() => setSpeakerForm(f => ({ ...f, photoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove photo</button>}
+                        </div>
+
                         <button type="submit" disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? "Saving..." : "Save Speaker"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Speaker"}</>}</button>
                       </form>
                     </div>
@@ -1738,11 +2005,17 @@ export default function EventsPage() {
                           ))}
                         </div>
                       ) : <p className="text-xs text-[#aaa] italic mb-4">No packages yet.</p>}
-                      <form onSubmit={saveSponsorPackage} className="grid grid-cols-4 gap-3">
-                        <input required placeholder="Package name" value={sponsorPkgForm.name} onChange={e => setSponsorPkgForm(f => ({ ...f, name: e.target.value }))} className={inp} />
-                        <input type="number" min={0} placeholder="Price (FCFA)" value={sponsorPkgForm.price || ""} onChange={e => setSponsorPkgForm(f => ({ ...f, price: Number(e.target.value) }))} className={inp} />
-                        <input placeholder="Benefits" value={sponsorPkgForm.benefits} onChange={e => setSponsorPkgForm(f => ({ ...f, benefits: e.target.value }))} className={inp} />
-                        <button type="submit" disabled={saving} className={saveBtn + " justify-center"}><Plus size={13} />{saving ? "..." : "Add"}</button>
+                      <form onSubmit={saveSponsorPackage} className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                          <input required placeholder="Package name" value={sponsorPkgForm.name} onChange={e => setSponsorPkgForm(f => ({ ...f, name: e.target.value }))} className={inp} />
+                          <input type="number" min={0} placeholder="Price (FCFA)" value={sponsorPkgForm.price || ""} onChange={e => setSponsorPkgForm(f => ({ ...f, price: Number(e.target.value) }))} className={inp} />
+                          <input placeholder="Benefits" value={sponsorPkgForm.benefits} onChange={e => setSponsorPkgForm(f => ({ ...f, benefits: e.target.value }))} className={inp} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 items-end">
+                          <div><label className={label}>Applications Open</label><input type="datetime-local" value={sponsorPkgForm.applicationStart} onChange={e => setSponsorPkgForm(f => ({ ...f, applicationStart: e.target.value }))} className={inp} /></div>
+                          <div><label className={label}>Applications Close</label><input type="datetime-local" value={sponsorPkgForm.applicationEnd} onChange={e => setSponsorPkgForm(f => ({ ...f, applicationEnd: e.target.value }))} className={inp} /></div>
+                          <button type="submit" disabled={saving} className={saveBtn + " justify-center h-[38px]"}><Plus size={13} />{saving ? "..." : "Add Package"}</button>
+                        </div>
                       </form>
                     </div>
 
@@ -1786,8 +2059,79 @@ export default function EventsPage() {
                             </select>
                           </div>
                         </div>
-                        <div><label className={label}>Logo URL</label><input type="url" placeholder="https://..." value={sponsorForm.logoUrl} onChange={e => setSponsorForm(f => ({ ...f, logoUrl: e.target.value }))} className={inp} /></div>
+                        <div>
+                          <label className={label}>Sponsor Logo</label>
+                          <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
+                            {sponsorForm.logoUrl ? (
+                              <img src={sponsorForm.logoUrl} alt="Preview" className="w-14 h-14 rounded-lg object-contain border-2 border-[#f0f0f0] shrink-0 bg-[#fafafa]" />
+                            ) : (
+                              <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
+                                <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-sm font-semibold text-[#1a1a1a]">{sponsorForm.logoUrl ? "Click to change" : "Upload logo"}</div>
+                              <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                            </div>
+                            <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setSaving(true);
+                                const res = await eventService.uploadImage(f);
+                                setSponsorForm(f => ({ ...f, logoUrl: res.url }));
+                                showToast("Logo uploaded successfully!");
+                              } catch (err: any) {
+                                showToast("Failed to upload logo: " + (err.message || err));
+                              } finally {
+                                setSaving(false);
+                              }
+                            }} />
+                          </label>
+                          {sponsorForm.logoUrl && <button type="button" onClick={() => setSponsorForm(f => ({ ...f, logoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove logo</button>}
+                        </div>
                         <button type="submit" disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? "Saving..." : "Save Sponsor"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Sponsor"}</>}</button>
+                      </form>
+                    </div>
+
+                    {/* Volunteer Openings */}
+                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6">
+                      <h3 className="font-bold text-sm text-[#1a1a1a] mb-1">Volunteer Program</h3>
+                      <p className="text-xs text-[#888] mb-4">Configure when people can apply to volunteer at this event.</p>
+                      {volunteerOpenings.length > 0 && (
+                        <div className="space-y-3 mb-5">
+                          {volunteerOpenings.map((v: any) => (
+                            <div key={v.openingId || v.id} className={`border rounded-xl p-4 flex items-start gap-3 ${editingVolunteerOpening?.openingId === v.openingId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{v.title}</div>
+                                {v.applicationStart && <div className="text-xs text-[#888] mt-0.5">Open: {new Date(v.applicationStart).toLocaleString()}</div>}
+                                {v.applicationEnd && <div className="text-xs text-[#888]">Close: {new Date(v.applicationEnd).toLocaleString()}</div>}
+                                {v.maxVolunteers && <div className="text-xs text-[#aaa]">Max: {v.maxVolunteers} volunteers</div>}
+                              </div>
+                              <div className="flex gap-1 shrink-0">
+                                <button type="button" onClick={() => { setEditingVolunteerOpening(v); setVolunteerOpeningForm({ title: v.title || "", description: v.description || "", requirements: v.requirements || "", applicationStart: v.applicationStart ? new Date(v.applicationStart).toISOString().slice(0,16) : "", applicationEnd: v.applicationEnd ? new Date(v.applicationEnd).toISOString().slice(0,16) : "", maxVolunteers: v.maxVolunteers || 0 }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
+                                <button type="button" onClick={async () => { if (!confirm("Delete this volunteer opening?")) return; try { await eventService.deleteVolunteerOpening(v.openingId || v.id); await loadEventData(selectedId); showToast("Deleted!"); } catch { showToast("Failed to delete."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <form onSubmit={saveVolunteerOpening} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-[#555]">{editingVolunteerOpening ? "Edit Opening" : "Add Opening"}</p>
+                          {editingVolunteerOpening && <button type="button" onClick={() => { setEditingVolunteerOpening(null); setVolunteerOpeningForm({ title: "", description: "", requirements: "", applicationStart: "", applicationEnd: "", maxVolunteers: 0 }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel</button>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div><label className={label}>Title *</label><input required placeholder="e.g. Event Volunteer" value={volunteerOpeningForm.title} onChange={e => setVolunteerOpeningForm(f => ({ ...f, title: e.target.value }))} className={inp} /></div>
+                          <div><label className={label}>Max Volunteers</label><input type="number" min={0} value={volunteerOpeningForm.maxVolunteers || ""} onChange={e => setVolunteerOpeningForm(f => ({ ...f, maxVolunteers: Number(e.target.value) }))} className={inp} /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div><label className={label}>Applications Open</label><input type="datetime-local" value={volunteerOpeningForm.applicationStart} onChange={e => setVolunteerOpeningForm(f => ({ ...f, applicationStart: e.target.value }))} className={inp} /></div>
+                          <div><label className={label}>Applications Close</label><input type="datetime-local" value={volunteerOpeningForm.applicationEnd} onChange={e => setVolunteerOpeningForm(f => ({ ...f, applicationEnd: e.target.value }))} className={inp} /></div>
+                        </div>
+                        <div><label className={label}>Description</label><textarea rows={2} value={volunteerOpeningForm.description} onChange={e => setVolunteerOpeningForm(f => ({ ...f, description: e.target.value }))} className={inp + " resize-none"} /></div>
+                        <div><label className={label}>Requirements</label><textarea rows={2} value={volunteerOpeningForm.requirements} onChange={e => setVolunteerOpeningForm(f => ({ ...f, requirements: e.target.value }))} className={inp + " resize-none"} /></div>
+                        <button type="submit" disabled={saving} className={saveBtn}>{editingVolunteerOpening ? <><Save size={13} />{saving ? "Saving..." : "Save Opening"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Opening"}</>}</button>
                       </form>
                     </div>
                   </div>
@@ -1888,7 +2232,37 @@ export default function EventsPage() {
                           <div><label className={label}>Email</label><input type="email" placeholder="vendor@acme.com" value={exhibitorForm.email} onChange={e => setExhibitorForm(f => ({ ...f, email: e.target.value }))} className={inp} /></div>
                           <div><label className={label}>Website</label><input type="url" placeholder="https://acme.com" value={exhibitorForm.website} onChange={e => setExhibitorForm(f => ({ ...f, website: e.target.value }))} className={inp} /></div>
                         </div>
-                        <div><label className={label}>Logo URL</label><input type="url" placeholder="https://..." value={exhibitorForm.logoUrl} onChange={e => setExhibitorForm(f => ({ ...f, logoUrl: e.target.value }))} className={inp} /></div>
+                        <div>
+                          <label className={label}>Exhibitor Logo</label>
+                          <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
+                            {exhibitorForm.logoUrl ? (
+                              <img src={exhibitorForm.logoUrl} alt="Preview" className="w-14 h-14 rounded-lg object-contain border-2 border-[#f0f0f0] shrink-0 bg-[#fafafa]" />
+                            ) : (
+                              <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
+                                <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-sm font-semibold text-[#1a1a1a]">{exhibitorForm.logoUrl ? "Click to change" : "Upload logo"}</div>
+                              <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                            </div>
+                            <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setSaving(true);
+                                const res = await eventService.uploadImage(f);
+                                setExhibitorForm(f => ({ ...f, logoUrl: res.url }));
+                                showToast("Logo uploaded successfully!");
+                              } catch (err: any) {
+                                showToast("Failed to upload logo: " + (err.message || err));
+                              } finally {
+                                setSaving(false);
+                              }
+                            }} />
+                          </label>
+                          {exhibitorForm.logoUrl && <button type="button" onClick={() => setExhibitorForm(f => ({ ...f, logoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove logo</button>}
+                        </div>
                         {locations.length > 0 && (
                           <div>
                             <label className={label}>Location</label>
@@ -2057,6 +2431,186 @@ export default function EventsPage() {
                         <div><label className={label}>Schedule (leave empty to send now)</label><input type="datetime-local" value={emailForm.scheduledAt} onChange={e => setEmailForm(f => ({ ...f, scheduledAt: e.target.value }))} className={inp} /></div>
                         <button type="submit" disabled={saving} className={saveBtn}><Mail size={13} />{saving ? "Scheduling..." : "Send Campaign"}</button>
                       </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── CUSTOM SECTIONS TAB ── */}
+                {tab === "sections" && (
+                  <div className="max-w-4xl grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-8">
+                    {/* Left: Create/Edit Form */}
+                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 shadow-sm">
+                      <div className="flex items-center justify-between mb-5">
+                        <h3 className="font-bold text-sm text-[#1a1a1a]">
+                          {editingSection ? "Edit Custom Section" : "Add Custom Section"}
+                        </h3>
+                        {editingSection && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSection(null);
+                              setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+                            }}
+                            className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline"
+                          >
+                            Cancel edit
+                          </button>
+                        )}
+                      </div>
+
+                      <form onSubmit={saveSection} className="space-y-4">
+                        <div>
+                          <label className={label}>Section Title *</label>
+                          <input
+                            required
+                            placeholder="e.g. Key Features, Meet the Team, Event Gallery"
+                            value={sectionForm.title}
+                            onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
+                            className={inp}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={label}>Image URL (Optional)</label>
+                          <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2">
+                            {sectionForm.imageUrl ? (
+                              <img src={sectionForm.imageUrl} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-[#f0f0f0] shrink-0 bg-[#fafafa]" />
+                            ) : (
+                              <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
+                                <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-sm font-semibold text-[#1a1a1a]">{sectionForm.imageUrl ? "Click to upload another" : "Upload Section Image"}</div>
+                              <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                            </div>
+                            <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              try {
+                                setSaving(true);
+                                const res = await eventService.uploadImage(f);
+                                setSectionForm(f => ({ ...f, imageUrl: res.url }));
+                                showToast("Image uploaded successfully!");
+                              } catch (err: any) {
+                                showToast("Failed to upload image: " + (err.message || err));
+                              } finally {
+                                setSaving(false);
+                              }
+                            }} />
+                          </label>
+
+                          <input
+                            placeholder="Or paste an image URL directly..."
+                            value={sectionForm.imageUrl}
+                            onChange={e => setSectionForm(f => ({ ...f, imageUrl: e.target.value }))}
+                            className={inp}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={label}>Content Description *</label>
+                          <textarea
+                            required
+                            placeholder="Write the details, instructions, or descriptions for this section..."
+                            value={sectionForm.content}
+                            onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
+                            rows={8}
+                            className={inp + " resize-none"}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={label}>Display Order</label>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={sectionForm.displayOrder}
+                            onChange={e => setSectionForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))}
+                            className={inp}
+                          />
+                          <p className="text-[10px] text-[#aaa] mt-1">Lower numbers appear first on the page.</p>
+                        </div>
+
+                        <button type="submit" disabled={saving} className={saveBtn}>
+                          <Save size={13} />
+                          {saving ? "Saving..." : editingSection ? "Save Changes" : "Create Section"}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Right: Existing Sections List */}
+                    <div className="space-y-4">
+                      <h3 className="font-bold text-sm text-[#1a1a1a]">Active Page Sections</h3>
+                      <p className="text-xs text-[#888] -mt-2">These sections appear on the attendee view page in order.</p>
+
+                      {eventSections.length === 0 ? (
+                        <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-12 text-center">
+                          <Layers size={32} className="mx-auto text-[#ccc] mb-2" />
+                          <p className="font-bold text-xs text-[#1a1a1a]">No custom sections yet</p>
+                          <p className="text-[10px] text-[#aaa] mt-0.5">Add info blocks, maps, or galleries using the form on the left.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {[...eventSections]
+                            .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+                            .map((sec) => (
+                              <div
+                                key={sec.sectionId || sec.id}
+                                className={`bg-white border rounded-2xl p-4 flex gap-4 transition-colors ${
+                                  editingSection?.sectionId === sec.sectionId || editingSection?.id === sec.id
+                                    ? "border-[#FF4747] ring-1 ring-[#FF4747]/20"
+                                    : "border-[#e5e7eb]"
+                                }`}
+                              >
+                                {sec.imageUrl && (
+                                  <img
+                                    src={sec.imageUrl}
+                                    alt={sec.title}
+                                    className="w-14 h-14 rounded-lg object-cover border border-[#e5e7eb] shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-xs text-[#1a1a1a] truncate">{sec.title}</span>
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-600">
+                                      Order: {sec.displayOrder || 0}
+                                    </span>
+                                  </div>
+                                  <p className="text-[11px] text-[#888] mt-1 line-clamp-2 leading-relaxed">
+                                    {sec.content}
+                                  </p>
+                                </div>
+                                <div className="flex flex-col gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingSection(sec);
+                                      setSectionForm({
+                                        title: sec.title || "",
+                                        content: sec.content || "",
+                                        imageUrl: sec.imageUrl || "",
+                                        displayOrder: sec.displayOrder || 0
+                                      });
+                                    }}
+                                    className="flex items-center justify-center p-1.5 text-xs text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
+                                    title="Edit Section"
+                                  >
+                                    <Pencil size={11} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteSection(sec.sectionId || sec.id)}
+                                    className="flex items-center justify-center p-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Delete Section"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

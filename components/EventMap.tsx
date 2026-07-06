@@ -8,6 +8,7 @@ interface EventMapProps {
   latitude: number;
   longitude: number;
   venueName?: string;
+  className?: string;
 }
 
 /**
@@ -17,7 +18,7 @@ interface EventMapProps {
  * @author Thomas Djotio Ndié
  * @since 2026-05-27
  */
-export default function EventMap({ latitude, longitude, venueName }: EventMapProps) {
+export default function EventMap({ latitude, longitude, venueName, className }: EventMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -64,9 +65,9 @@ export default function EventMap({ latitude, longitude, venueName }: EventMapPro
   }, [latitude, longitude, venueName]);
 
   return (
-    <div 
-      className="w-full h-56 rounded-2xl overflow-hidden border border-[#e5e7eb] shadow-inner mt-4 z-10" 
-      ref={mapRef} 
+    <div
+      className={className ?? "w-full h-56 rounded-2xl overflow-hidden border border-[#e5e7eb] shadow-inner mt-4 z-10"}
+      ref={mapRef}
     />
   );
 }

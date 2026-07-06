@@ -8,14 +8,84 @@ import { paymentService } from "@/app/utils/services/paymentService";
 import {
   LogOut, Ticket, Calendar, Settings, Home, CheckCircle2, AlertCircle, X,
   Bookmark, LayoutDashboard, User, ChevronRight, RefreshCw, Trash2, QrCode,
-  MapPin, Clock, Star, ArrowRight, Zap
+  MapPin, Clock, Star, ArrowRight, Zap, MessageSquare, Vote, ChevronDown, ThumbsUp, Send
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+const PLAN_PRICES: Record<string, number> = { FREE: 0, BASIC: 29, PREMIUM: 99 };
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
 
-type Tab = "overview" | "tickets" | "saved" | "settings";
+interface StripeUpgradeFormProps {
+  selectedPlan: string;
+  upgradeForm: { workspaceName: string; type: string };
+  availablePlans: any[];
+  onSuccess: (data: any) => void;
+  onError: (msg: string) => void;
+  loading: boolean;
+  setLoading: (v: boolean) => void;
+}
+
+function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSuccess, onError, loading, setLoading }: StripeUpgradeFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [cardError, setCardError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setCardError("");
+    onError("");
+    setLoading(true);
+    try {
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) throw new Error("Card element not found");
+      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({ type: "card", card: cardElement });
+      if (pmError) throw new Error(pmError.message);
+      const auth = getStoredAuth();
+      if (!auth) throw new Error("Not authenticated");
+      const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
+      const tenantId = data.tenantId ? String(data.tenantId) : "";
+      if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
+        const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
+        if (matchedPlan?.planId) {
+          const subResult = await paymentService.createSubscription({ tenantId, planId: matchedPlan.planId, amount: matchedPlan.price ?? PLAN_PRICES[selectedPlan], currency: "XAF", provider: "stripe", paymentMethodId: paymentMethod!.id });
+          if (subResult?.clientSecret && !subResult.clientSecret.startsWith("mock_")) {
+            const { error: confirmError } = await stripe.confirmCardPayment(subResult.clientSecret);
+            if (confirmError) throw new Error(confirmError.message);
+          }
+        }
+      }
+      onSuccess(data);
+    } catch (err: any) {
+      const msg = err.message || "Payment failed";
+      setCardError(msg);
+      onError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="border border-[#e5e7eb] rounded-xl px-4 py-3 bg-white">
+        <CardElement options={{ style: { base: { fontSize: "14px", color: "#1a1a1a", fontFamily: "inherit", "::placeholder": { color: "#aab7c4" } } } }} />
+      </div>
+      {cardError && <p className="text-xs text-red-500 font-semibold">{cardError}</p>}
+      <button type="submit" disabled={loading || !stripe || !elements} className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
+        {loading ? "Processing..." : "Pay & Create Workspace"}
+      </button>
+    </form>
+  );
+}
+
+type Tab = "overview" | "tickets" | "saved" | "settings" | "engage";
+type EngageSubTab = "polls" | "qa";
 
 export default function AttendeeDashboard() {
   const router = useRouter();
@@ -45,6 +115,15 @@ export default function AttendeeDashboard() {
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   const [syncLoadingId, setSyncLoadingId] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+
+  // ── Engage tab state ─────────────────────────────────────────
+  const [engageSubTab, setEngageSubTab] = useState<EngageSubTab>("polls");
+  const [engageEventId, setEngageEventId] = useState<string>("");
+  const [engagePolls, setEngagePolls] = useState<any[]>([]);
+  const [engageQaQuestions, setEngageQaQuestions] = useState<any[]>([]);
+  const [engageQaInput, setEngageQaInput] = useState("");
+  const [engageLoading, setEngageLoading] = useState(false);
+  const [engageEventMeta, setEngageEventMeta] = useState<any>(null);
 
   // ── handlers (unchanged logic) ──────────────────────────────
 
@@ -201,8 +280,8 @@ export default function AttendeeDashboard() {
         try {
           if (item.eventId) {
             const ev: any = await eventService.getEventById(item.eventId, { skipAuth: true });
-            eventData = { title: ev.title, date: new Date(ev.startDate).toLocaleDateString(), imageUrl: ev.imageUrl };
-            if (ev?.tenantSlug) { try { const tn: any = await authService.getTenantBySlug(ev.tenantSlug); tenantData = { name: tn.name }; } catch {} }
+            eventData = { title: ev.title, date: new Date(ev.startDate).toLocaleDateString(), imageUrl: ev.coverImage || ev.imageUrl || "" };
+            if (ev?.tenantId) { try { const tn: any = await authService.getTenantById(ev.tenantId); tenantData = { name: tn.name }; } catch {} }
           }
         } catch {}
         return { ...item, eventTitle: eventData.title, eventDate: eventData.date, imageUrl: eventData.imageUrl, organizerName: tenantData.name };
@@ -260,7 +339,6 @@ export default function AttendeeDashboard() {
 
   const handleLogout = () => { clearStoredAuth(); router.push("/login"); };
 
-  const PLAN_PRICES: Record<string, number> = { FREE: 0, BASIC: 29, PREMIUM: 99 };
   const PLAN_FEATURES: Record<string, string[]> = {
     FREE:    ["3 events", "100 attendees/event", "General listing only"],
     BASIC:   ["20 events", "1,000 attendees/event", "Up to 5 team members", "Paid events"],
@@ -275,6 +353,14 @@ export default function AttendeeDashboard() {
     setShowUpgradeModal(true);
   };
 
+  const finishUpgrade = (data: any) => {
+    const auth = getStoredAuth();
+    const tenantId = data.tenantId ? String(data.tenantId) : "";
+    setStoredAuth({ token: data.token || auth?.token || "", type: data.type || "Bearer", userId: String(data.userId || auth?.userId || ""), tenantId, email: data.email || auth?.email || "", planTier: selectedPlan || data.planTier });
+    setShowUpgradeModal(false);
+    router.push("/admin");
+  };
+
   const handleUpgradeSubmit = async () => {
     setUpgradeError("");
     if (!upgradeForm.workspaceName.trim()) { setUpgradeError("Workspace name is required"); return; }
@@ -285,14 +371,12 @@ export default function AttendeeDashboard() {
       const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
       const tenantId = data.tenantId ? String(data.tenantId) : "";
       if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
-        const matchedPlan = availablePlans.find(p => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
+        const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
         if (matchedPlan?.planId) {
           await paymentService.createSubscription({ tenantId, planId: matchedPlan.planId, amount: matchedPlan.price ?? PLAN_PRICES[selectedPlan], currency: "XAF", provider: upgradePaymentMethod });
         }
       }
-      setStoredAuth({ token: data.token || auth.token, type: data.type || "Bearer", userId: String(data.userId || auth.userId), tenantId, email: data.email || auth.email || "", planTier: data.planTier || selectedPlan });
-      setShowUpgradeModal(false);
-      router.push("/admin");
+      finishUpgrade(data);
     } catch (err: any) {
       setUpgradeError(err.message || "An error occurred");
     } finally {
@@ -332,12 +416,74 @@ export default function AttendeeDashboard() {
 
   const upcoming = myTickets.filter(t => !t.isPastEvent && t.status !== "REFUNDED" && t.paymentStatus !== "REFUNDED").slice(0, 3);
 
+  const registeredTickets = myTickets.filter(
+    (t: any) => t.status !== "REFUNDED" && t.paymentStatus !== "REFUNDED"
+  );
+
   const NAV: { id: Tab; label: string; icon: any; count?: number }[] = [
     { id: "overview", label: "Overview",     icon: LayoutDashboard },
     { id: "tickets",  label: "My Tickets",   icon: Ticket,   count: myTickets.length },
     { id: "saved",    label: "Saved Events", icon: Bookmark, count: savedEvents.length },
+    ...(registeredTickets.length > 0 ? [{ id: "engage" as Tab, label: "Engage", icon: MessageSquare }] : []),
     { id: "settings", label: "Profile",      icon: User },
   ];
+
+  const handleEngageEventChange = async (eid: string) => {
+    setEngageEventId(eid);
+    if (!eid) return;
+    setEngageLoading(true);
+    try {
+      const [allPolls, allQa, evData] = await Promise.all([
+        eventService.getPolls().catch(() => []),
+        eventService.getQaQuestions().catch(() => []),
+        eventService.getEventById(eid, { skipAuth: true }).catch(() => null),
+      ]);
+      const toArr = (d: any): any[] => Array.isArray(d) ? d : (d?.content ?? []);
+      setEngagePolls(toArr(allPolls).filter((p: any) => p.eventId === eid));
+      setEngageQaQuestions(toArr(allQa).filter((q: any) => q.eventId === eid));
+      setEngageEventMeta(evData);
+    } finally {
+      setEngageLoading(false);
+    }
+  };
+
+  const handleEngagePostQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const auth = getStoredAuth();
+    if (!auth || !engageEventId || !engageQaInput.trim()) return;
+    try {
+      const q = await eventService.createQaQuestion({
+        eventId: engageEventId,
+        questionText: engageQaInput.trim(),
+        userId: auth.userId,
+        upvotes: 0,
+      });
+      setEngageQaQuestions(prev => [q, ...prev]);
+      setEngageQaInput("");
+    } catch (err: any) {
+      alert(err.message || "Failed to post question");
+    }
+  };
+
+  const handleEngageUpvote = async (qaId: string) => {
+    const q = engageQaQuestions.find(item => (item.qaQuestionId || item.id) === qaId);
+    if (!q) return;
+    try {
+      const updated = await eventService.updateQaQuestion(qaId, { ...q, upvotes: (q.upvotes || 0) + 1 });
+      setEngageQaQuestions(prev => prev.map(item => (item.qaQuestionId || item.id) === qaId ? updated : item));
+    } catch {}
+  };
+
+  const handleEngageVotePoll = async (pollId: string, option: string) => {
+    const auth = getStoredAuth();
+    if (!auth) return;
+    try {
+      await eventService.createPollResponse({ pollId, userId: auth.userId, response: option } as any);
+      alert("Vote recorded — thank you!");
+    } catch (err: any) {
+      alert(err.message || "Failed to vote");
+    }
+  };
 
   // ── render ─────────────────────────────────────────────────
 
@@ -534,6 +680,67 @@ export default function AttendeeDashboard() {
                 <ChevronRight size={16} className="text-[#ccc] ml-auto shrink-0" />
               </button>
             </div>
+
+            {/* Engagement */}
+            {myTickets.length > 0 && (() => {
+              const attended = myTickets.filter((t: any) => t.status === "USED" || t.isPastEvent);
+              const paid = myTickets.filter((t: any) => t.paymentStatus === "SUCCESSFUL" || t.status === "COMPLETED" || t.status === "PAID");
+              const uniqueEvents = new Set(myTickets.map((t: any) => t.eventId).filter(Boolean)).size;
+              const recentActivity = [...myTickets]
+                .sort((a: any, b: any) => new Date(b.purchasedAt || b.createdAt || 0).getTime() - new Date(a.purchasedAt || a.createdAt || 0).getTime())
+                .slice(0, 5);
+              return (
+                <div className="mt-8">
+                  <h2 className="font-display font-bold text-lg text-[#1a1a1a] mb-4 flex items-center gap-2">
+                    <Zap size={16} className="text-[#FF4747]" /> Your Engagement
+                  </h2>
+
+                  {/* Engagement stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    {[
+                      { label: "Events Joined",  value: uniqueEvents,       color: "#FF4747",  icon: Calendar },
+                      { label: "Attended",        value: attended.length,    color: "#10b981",  icon: CheckCircle2 },
+                      { label: "Paid Tickets",    value: paid.length,        color: "#f59e0b",  icon: Star },
+                      { label: "Events Saved",    value: savedEvents.length, color: "#6366f1",  icon: Bookmark },
+                    ].map(({ label, value, color, icon: Icon }) => (
+                      <div key={label} className="bg-white border border-[#e5e7eb] rounded-2xl p-4 text-center">
+                        <div className="w-8 h-8 rounded-xl mx-auto mb-2 flex items-center justify-center" style={{ background: `${color}15` }}>
+                          <Icon size={15} style={{ color }} />
+                        </div>
+                        <div className="font-black text-xl text-[#1a1a1a]">{value}</div>
+                        <div className="text-[10px] text-[#888] font-semibold uppercase tracking-wider mt-0.5">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Recent activity */}
+                  <h3 className="font-semibold text-sm text-[#1a1a1a] mb-3">Recent Activity</h3>
+                  <div className="space-y-2">
+                    {recentActivity.map((t: any) => {
+                      const isUsed = t.status === "USED" || t.isPastEvent;
+                      const isPaid = t.paymentStatus === "SUCCESSFUL" || t.status === "COMPLETED" || t.status === "PAID";
+                      const isPending = t.paymentStatus === "PENDING" || t.status === "PENDING";
+                      const statusColor = isUsed ? "#10b981" : isPaid ? "#FF4747" : isPending ? "#f59e0b" : "#888";
+                      const statusLabel = isUsed ? "Attended" : isPaid ? "Registered" : isPending ? "Pending" : "Ticket";
+                      return (
+                        <div key={t.orderId} className="flex items-center gap-3 bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${statusColor}15` }}>
+                            <Ticket size={14} style={{ color: statusColor }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm text-[#1a1a1a] truncate">{t.eventTitle || "Event"}</div>
+                            <div className="text-[10px] text-[#aaa]">{t.eventDate || ""}</div>
+                          </div>
+                          <span className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0" style={{ background: `${statusColor}15`, color: statusColor }}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -604,12 +811,10 @@ export default function AttendeeDashboard() {
                                 <RefreshCw size={10} /> {syncLoadingId === (ticket.orderId || ticket.id) ? "Syncing..." : "Sync Status"}
                               </button>
                             )}
-                            {(isRefunded || isUsed || isPending) && (
-                              <button onClick={() => setDeleteConfirmTicket(ticket)}
-                                className="text-xs font-semibold text-[#888] bg-[#f5f5f5] hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
-                                <Trash2 size={10} /> Delete
-                              </button>
-                            )}
+                            <button onClick={() => setDeleteConfirmTicket(ticket)}
+                              className="text-xs font-semibold text-[#888] bg-[#f5f5f5] hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
+                              <Trash2 size={10} /> Delete
+                            </button>
                           </div>
                         </div>
 
@@ -755,6 +960,240 @@ export default function AttendeeDashboard() {
             </div>
           </div>
         )}
+
+        {/* ── ENGAGE ── */}
+        {activeTab === "engage" && (
+          <div className="max-w-4xl">
+            <div className="mb-8">
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Attendee Hub</p>
+              <h1 className="font-display text-3xl font-black text-[#1a1a1a]">
+                Engage with <span className="text-[#FF4747]">Your Events</span>
+              </h1>
+              <p className="text-[#888] text-sm mt-1">Participate in live polls and ask questions — exclusive for registered attendees.</p>
+            </div>
+
+            {/* Event Picker */}
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 mb-6 shadow-sm">
+              <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-2">Select an Event</label>
+              <div className="relative">
+                <select
+                  value={engageEventId}
+                  onChange={e => handleEngageEventChange(e.target.value)}
+                  className="w-full appearance-none bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-sm font-medium text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors cursor-pointer pr-10"
+                >
+                  <option value="">— Choose one of your registered events —</option>
+                  {registeredTickets.map((t: any, i) => (
+                    <option key={`${t.eventId || t.orderId || i}-${i}`} value={t.eventId}>
+                      {t.eventTitle || "Event"} {t.eventDate ? `· ${t.eventDate}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+              </div>
+            </div>
+
+            {!engageEventId ? (
+              <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
+                <MessageSquare size={40} className="mx-auto text-[#FF4747]/30 mb-4" />
+                <p className="font-bold text-[#1a1a1a] mb-2">Pick an event to engage</p>
+                <p className="text-sm text-[#888] max-w-xs mx-auto">Select one of your registered events above to access Live Polls and Q&amp;A.</p>
+              </div>
+            ) : engageLoading ? (
+              <div className="flex flex-col items-center justify-center py-24 text-[#aaa]">
+                <div className="w-8 h-8 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin mb-4" />
+                <p className="text-sm">Loading engagement data...</p>
+              </div>
+            ) : (() => {
+              // Determine event active status
+              const startRaw = engageEventMeta?.startDate || engageEventMeta?.startDatetime;
+              const endRaw   = engageEventMeta?.endDate   || engageEventMeta?.endDatetime;
+              const now = new Date();
+              const isStarted = startRaw ? new Date(startRaw) <= now : true;
+              const isEnded   = endRaw   ? new Date(endRaw)   < now  : false;
+              const isActive  = isStarted && !isEnded;
+
+              return (
+                <div className="space-y-6">
+                  {/* Event status banner */}
+                  {!isActive && (
+                    <div className={`flex items-center gap-3 px-5 py-3.5 rounded-xl border text-sm font-medium ${
+                      isEnded
+                        ? "bg-[#f5f5f5] border-[#e5e7eb] text-[#888]"
+                        : "bg-amber-50 border-amber-200 text-amber-700"
+                    }`}>
+                      <Clock size={15} className="shrink-0" />
+                      {isEnded
+                        ? "This event has ended — you can still read Q&A but cannot post new questions or vote."
+                        : "This event hasn't started yet — interactive features will be available when it goes live."}
+                    </div>
+                  )}
+                  {isActive && (
+                    <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl border bg-green-50 border-green-200 text-green-700 text-sm font-medium">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+                      Event is live — all interactive features are enabled!
+                    </div>
+                  )}
+
+                  {/* Sub-tabs */}
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-sm overflow-hidden">
+                    <div className="flex border-b border-[#f0f0f0]">
+                      {[
+                        { id: "polls" as EngageSubTab, label: "Live Polls", icon: Vote },
+                        { id: "qa"    as EngageSubTab, label: "Q&A Forum",  icon: MessageSquare },
+                      ].map(({ id, label, icon: Icon }) => (
+                        <button
+                          key={id}
+                          onClick={() => setEngageSubTab(id)}
+                          className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 text-sm font-bold transition-all cursor-pointer border-b-2 ${
+                            engageSubTab === id
+                              ? "text-[#FF4747] border-[#FF4747] bg-[#FF4747]/5"
+                              : "text-[#888] border-transparent hover:text-[#555] hover:bg-[#f9fafb]"
+                          }`}
+                        >
+                          <Icon size={15} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="p-6">
+                      {/* ── POLLS ── */}
+                      {engageSubTab === "polls" && (
+                        <div className="space-y-5">
+                          {engagePolls.length === 0 ? (
+                            <div className="text-center py-12">
+                              <Vote size={36} className="mx-auto text-[#FF4747]/20 mb-3" />
+                              <p className="font-semibold text-[#1a1a1a] mb-1">No live polls yet</p>
+                              <p className="text-xs text-[#aaa]">The organizer hasn't created any polls for this event.</p>
+                            </div>
+                          ) : (
+                            engagePolls.map((poll, idx) => {
+                              const options = Array.isArray(poll.options)
+                                ? poll.options
+                                : typeof poll.options === "string"
+                                  ? poll.options.split(",").map((o: string) => o.trim())
+                                  : [];
+                              return (
+                                <div key={`${poll.pollId || poll.id || idx}-${idx}`} className="p-5 bg-[#faf9f7] border border-[#e5e7eb] rounded-2xl space-y-3">
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-7 h-7 rounded-lg bg-[#FF4747]/10 flex items-center justify-center shrink-0 mt-0.5">
+                                      <Vote size={14} className="text-[#FF4747]" />
+                                    </div>
+                                    <h4 className="font-bold text-sm text-[#1a1a1a] leading-snug">{poll.question}</h4>
+                                  </div>
+                                  <div className="space-y-2 pl-10">
+                                    {options.map((opt: string, i: number) =>
+                                      isActive ? (
+                                        <button
+                                          key={`${opt}-${i}`}
+                                          onClick={() => handleEngageVotePoll(poll.pollId || poll.id, opt)}
+                                          className="w-full text-left px-4 py-2.5 border-2 border-[#e5e7eb] rounded-xl text-xs font-semibold hover:border-[#FF4747] hover:bg-[#FF4747]/5 hover:text-[#FF4747] transition-all bg-white cursor-pointer"
+                                        >
+                                          {opt}
+                                        </button>
+                                      ) : (
+                                        <div key={`${opt}-${i}`} className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl text-xs font-medium bg-white text-[#aaa]">
+                                          {opt}
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                  {!isActive && (
+                                    <p className="pl-10 text-[10px] text-[#aaa] font-medium">
+                                      {isEnded ? "Voting closed — event has ended." : "Voting opens when the event goes live."}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+
+                      {/* ── Q&A ── */}
+                      {engageSubTab === "qa" && (
+                        <div className="space-y-5">
+                          {/* Post question form */}
+                          {isActive && (
+                            <form onSubmit={handleEngagePostQuestion} className="flex gap-3">
+                              <input
+                                value={engageQaInput}
+                                onChange={e => setEngageQaInput(e.target.value)}
+                                placeholder="Ask a question to the organizer or speakers..."
+                                className="flex-1 border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FF4747] bg-white text-[#1a1a1a] transition-colors"
+                                required
+                              />
+                              <button
+                                type="submit"
+                                className="shrink-0 px-4 py-2.5 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-colors cursor-pointer flex items-center gap-2"
+                              >
+                                <Send size={14} /> Post
+                              </button>
+                            </form>
+                          )}
+                          {!isActive && !isEnded && (
+                            <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
+                              <Clock size={14} className="shrink-0" />
+                              <span>Q&amp;A opens when the event starts.</span>
+                            </div>
+                          )}
+                          {isEnded && (
+                            <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
+                              <Clock size={14} className="shrink-0" />
+                              <span>Q&amp;A closed — event has ended. You can still read and upvote questions.</span>
+                            </div>
+                          )}
+
+                          {/* Questions list */}
+                          <div className="space-y-3">
+                            {engageQaQuestions.length === 0 ? (
+                              <div className="text-center py-12">
+                                <MessageSquare size={36} className="mx-auto text-[#FF4747]/20 mb-3" />
+                                <p className="font-semibold text-[#1a1a1a] mb-1">No questions yet</p>
+                                <p className="text-xs text-[#aaa]">{isActive ? "Be the first to ask a question!" : "Questions will appear here once the event starts."}</p>
+                              </div>
+                            ) : (
+                              engageQaQuestions
+                                .sort((a: any, b: any) => (b.upvotes || 0) - (a.upvotes || 0))
+                                .map((q: any, idx: number) => (
+                                  <div key={`${q.qaQuestionId || q.id || idx}-${idx}`} className="p-4 bg-[#faf9f7] border border-[#e5e7eb] rounded-xl flex gap-3">
+                                    <div className="flex flex-col items-center gap-1 shrink-0">
+                                      <button
+                                        onClick={() => handleEngageUpvote(q.qaQuestionId || q.id)}
+                                        className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                                          "border-[#e5e7eb] bg-white hover:border-[#FF4747] hover:text-[#FF4747] text-[#888]"
+                                        }`}
+                                      >
+                                        <ThumbsUp size={12} />
+                                        <span className="text-[10px] font-bold">{q.upvotes || 0}</span>
+                                      </button>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-[#1a1a1a] leading-snug">{q.questionText}</p>
+                                      <p className="text-[10px] text-[#aaa] mt-1.5">
+                                        {q.createdAt ? new Date(q.createdAt).toLocaleString() : "Posted by attendee"}
+                                      </p>
+                                      {q.answer && (
+                                        <div className="mt-2 pl-3 border-l-2 border-[#FF4747]/30">
+                                          <p className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider mb-0.5">Organizer Reply</p>
+                                          <p className="text-xs text-[#555]">{q.answer}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
       </main>
 
       {/* ── UPGRADE MODAL ── */}
@@ -844,20 +1283,34 @@ export default function AttendeeDashboard() {
                     </button>
                   ))}
                 </div>
-                {(upgradePaymentMethod === "mtn_mobile_money" || upgradePaymentMethod === "orange_money") && (
-                  <div className="mb-5">
-                    <label className={label}>{upgradePaymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number</label>
-                    <div className="flex gap-2">
-                      <div className="px-3 py-2.5 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
-                      <input type="tel" placeholder="6XXXXXXXX" value={upgradePhone} onChange={e => setUpgradePhone(e.target.value.replace(/\D/g, ""))} maxLength={9} className={inp} />
+                {upgradePaymentMethod === "stripe" ? (
+                  <Elements stripe={stripePromise}>
+                    <StripeUpgradeForm
+                      selectedPlan={selectedPlan}
+                      upgradeForm={upgradeForm}
+                      availablePlans={availablePlans}
+                      onSuccess={finishUpgrade}
+                      onError={setUpgradeError}
+                      loading={upgradeLoading}
+                      setLoading={setUpgradeLoading}
+                    />
+                  </Elements>
+                ) : (
+                  <>
+                    <div className="mb-5">
+                      <label className={label}>{upgradePaymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number</label>
+                      <div className="flex gap-2">
+                        <div className="px-3 py-2.5 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
+                        <input type="tel" placeholder="6XXXXXXXX" value={upgradePhone} onChange={e => setUpgradePhone(e.target.value.replace(/\D/g, ""))} maxLength={9} className={inp} />
+                      </div>
                     </div>
-                  </div>
+                    <form onSubmit={handleUpgradePayment}>
+                      <button type="submit" disabled={upgradeLoading} className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
+                        {upgradeLoading ? "Processing..." : "Pay & Create Workspace"}
+                      </button>
+                    </form>
+                  </>
                 )}
-                <form onSubmit={handleUpgradePayment}>
-                  <button type="submit" disabled={upgradeLoading} className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
-                    {upgradeLoading ? "Processing..." : "Pay & Create Workspace"}
-                  </button>
-                </form>
               </div>
             )}
           </div>

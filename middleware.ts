@@ -61,7 +61,9 @@ export default function middleware(req: NextRequest) {
     host === "localhost" ||
     host === "127.0.0.1" ||
     host === "yowevent.com" ||
-    host === "www.yowevent.com";
+    host === "www.yowevent.com" ||
+    host.endsWith(".ngrok-free.app") ||
+    host.endsWith(".ngrok.io");
 
   if (isMainPlatform) {
     return NextResponse.next();

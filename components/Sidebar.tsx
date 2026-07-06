@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart } from "lucide-react";
-import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
+import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart, Package } from "lucide-react";
+import { getStoredAuth, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 
 const links = [
@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/events", label: "Events", icon: Calendar },
   { href: "/admin/checkin", label: "Check-in", icon: ScanLine },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/admin/resources", label: "Resources", icon: Package },
   { href: "/admin/agenda", label: "Agenda", icon: MessageCircle },
   { href: "/admin/project", label: "Ticketing", icon: FolderOpen },
   { href: "/admin/payouts", label: "Payouts", icon: DollarSign },
@@ -19,7 +20,7 @@ const links = [
   { href: "/admin/team", label: "Team", icon: UserCheck },
   { href: "/admin/applications", label: "Applications", icon: Users },
   { href: "/admin/seo", label: "Settings", icon: Search },
-  { href: "/admin/report", label: "Report", icon: BarChart2 },
+  { href: "/admin/engagements", label: "Engagements", icon: BarChart2 },
   { href: "/admin/platform", label: "Commission", icon: Percent },
   { href: "/admin/support", label: "Support", icon: MessageCircle },
 ];
@@ -53,8 +54,13 @@ export default function Sidebar() {
 
   const isOrg = tenant?.type === "ORGANIZATION";
   const allowedLinks = links.filter((link) => {
+    if (link.href === "/admin/platform") {
+      const claims = getAuthClaims();
+      const isSuperAdmin = claims?.scope?.split(/\s+/).includes("SUPER_ADMIN");
+      if (!isSuperAdmin) return false;
+    }
     if (!isOrg) {
-      if (link.href === "/admin/website" || link.href === "/admin/agenda" || link.href === "/admin/report") {
+      if (link.href === "/admin/website" || link.href === "/admin/agenda" || link.href === "/admin/engagements") {
         return false;
       }
     }
@@ -74,7 +80,7 @@ export default function Sidebar() {
     <aside className="w-[220px] bg-white border-r border-[#e5e7eb] flex flex-col fixed h-screen z-50 text-[#1a1a1a]">
       <div className="px-6 py-7 border-b border-[#e5e7eb]">
         <Link href="/" className="font-display text-xl font-black text-[#1a1a1a] tracking-tight">
-          Yo<span className="text-[#EB4203]">Event</span>
+          Yow<span className="text-[#EB4203]">Event</span>
         </Link>
       </div>
       <nav className="flex-1 py-5">

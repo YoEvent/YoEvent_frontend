@@ -100,6 +100,20 @@ export interface TenantRequest {
   industryType?: string;
   type?: string;
   status?: string;
+  contactEmail?: string;
+  description?: string;
+  websiteUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  attendeeCountStat?: number;
+  eventCountStat?: number;
+  partnerCountStat?: number;
+  faqsJson?: string;
 }
 
 export interface TenantResponse {
@@ -116,6 +130,20 @@ export interface TenantResponse {
   stripeAccountId?: string;
   stripeOnboardingComplete?: boolean;
   createdAt?: string;
+  contactEmail?: string;
+  description?: string;
+  websiteUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  accentColor?: string;
+  attendeeCountStat?: number;
+  eventCountStat?: number;
+  partnerCountStat?: number;
+  faqsJson?: string;
 }
 
 export interface CommissionSettingsRequest {

@@ -33,7 +33,7 @@ export default function SeoPage() {
     theme: "DARK",
     timezone: "UTC",
     language: "en",
-    currency: "USD",
+    currency: "XAF",
     customDomain: "",
     emailSenderName: "",
     notificationPrefs: "EMAIL",
@@ -79,7 +79,7 @@ export default function SeoPage() {
           theme: mySettings.theme || "DARK",
           timezone: mySettings.timezone || "UTC",
           language: mySettings.language || "en",
-          currency: mySettings.currency || "USD",
+          currency: mySettings.currency || "XAF",
           customDomain: mySettings.customDomain || "",
           emailSenderName: mySettings.emailSenderName || "",
           notificationPrefs: mySettings.notificationPrefs || "EMAIL",
@@ -226,7 +226,7 @@ export default function SeoPage() {
   };
 
   const lockedInputClass = "w-full px-4 py-2.5 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-xs text-[#888] placeholder:text-[#333] outline-none cursor-not-allowed";
-  const inputClass = "w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors";
+  const inputClass = "w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors";
 
   return (
     <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
@@ -255,183 +255,6 @@ export default function SeoPage() {
 
         <main className="p-8 max-w-3xl space-y-8">
 
-          {/* WORKSPACE BRANDING */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
-            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
-              <Shield size={18} className="text-[#FF4747]" /> Workspace Branding
-            </h2>
-            <p className="text-xs text-[#666] leading-relaxed">
-              Upload a logo and configure brand colors for your event pages and tickets.
-            </p>
-
-            {logoMsg.text && (
-              <div className={`p-4 rounded-xl text-sm ${logoMsg.type === "success" ? "bg-green-50 text-green-700 border border-green-100 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}>
-                {logoMsg.text}
-              </div>
-            )}
-
-            {/* Logo */}
-            <div className="flex items-center gap-6">
-              {tenant?.logo ? (
-                <img src={tenant.logo} alt="Workspace Logo" className="w-20 h-20 rounded-xl object-cover border-2 border-[#e5e7eb]" />
-              ) : (
-                <div className="w-20 h-20 rounded-xl bg-[#f9fafb] flex items-center justify-center text-[#555] font-bold text-2xl border-2 border-[#e5e7eb]">
-                  {tenant?.name?.charAt(0) || "T"}
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-semibold text-[#1a1a1a] mb-2 cursor-pointer bg-[#222] hover:bg-[#f5f5f5] px-4 py-2 rounded-lg transition-colors border border-[#e5e7eb] text-center">
-                  Upload Logo
-                  <input type="file" className="hidden" accept="image/*" onChange={handleLogoChange} />
-                </label>
-                <p className="text-xs text-[#555]">Recommended: Square image, transparent background.</p>
-              </div>
-            </div>
-
-            {/* Brand colors */}
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Primary Color</label>
-                <div className="flex items-center gap-3">
-                  <input type="color" value={form.primaryColor}
-                    onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                    className="w-10 h-10 rounded-lg border border-[#e5e7eb] bg-[#ffffff] cursor-pointer p-0.5" />
-                  <input type="text" value={form.primaryColor} maxLength={7}
-                    onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-                    className="flex-1 px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] font-mono outline-none focus:border-[#FF4747] transition-colors" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Secondary Color</label>
-                <div className="flex items-center gap-3">
-                  <input type="color" value={form.secondaryColor}
-                    onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })}
-                    className="w-10 h-10 rounded-lg border border-[#e5e7eb] bg-[#ffffff] cursor-pointer p-0.5" />
-                  <input type="text" value={form.secondaryColor} maxLength={7}
-                    onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })}
-                    className="flex-1 px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] font-mono outline-none focus:border-[#FF4747] transition-colors" />
-                </div>
-              </div>
-            </div>
-
-            {/* Gradient preview */}
-            <div className="flex gap-3 items-center">
-              <div className="h-8 flex-1 rounded-lg border border-[#e5e7eb]"
-                   style={{ background: `linear-gradient(90deg, ${form.primaryColor}, ${form.secondaryColor})` }} />
-              <span className="text-[10px] text-[#555] uppercase tracking-wider">Preview</span>
-            </div>
-
-            {/* Font */}
-            <div>
-              <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Brand Font</label>
-              <select value={form.fontFamily}
-                onChange={(e) => setForm({ ...form, fontFamily: e.target.value })}
-                className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
-                {FONT_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
-            </div>
-
-            {/* Favicon */}
-            <div>
-              <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Favicon URL</label>
-              <div className="flex items-center gap-3">
-                {form.faviconUrl && (
-                  <img src={form.faviconUrl} alt="Favicon" className="w-6 h-6 rounded object-contain bg-[#ffffff] border border-[#e5e7eb] p-0.5" />
-                )}
-                <input type="url" value={form.faviconUrl}
-                  placeholder="https://yourdomain.com/favicon.ico"
-                  onChange={(e) => setForm({ ...form, faviconUrl: e.target.value })}
-                  className={inputClass} />
-              </div>
-            </div>
-          </div>
-
-          {/* PREMIUM BRANDING */}
-          <div className={`bg-white border rounded-2xl p-8 space-y-6 ${isPremium ? "border-[#e5e7eb]" : "border-amber-400/20"}`}>
-            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
-              <Sparkles size={18} className="text-amber-400" /> Advanced Branding
-              {!isPremium && <PlanBadge required="PREMIUM" />}
-            </h2>
-            {!isPremium && (
-              <div className="rounded-xl bg-amber-400/5 border border-amber-400/15 px-4 py-3 text-xs text-amber-400 leading-relaxed">
-                Upgrade to <strong>PREMIUM</strong> to unlock accent color, background image, social links, and custom CSS injection.
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Accent Color</label>
-                <div className="flex items-center gap-3">
-                  <input type="color" value={form.accentColor}
-                    disabled={!isPremium}
-                    onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
-                    className={`w-10 h-10 rounded-lg border border-[#e5e7eb] p-0.5 ${isPremium ? "bg-[#ffffff] cursor-pointer" : "bg-[#f5f5f5] cursor-not-allowed opacity-50"}`} />
-                  <input type="text" value={form.accentColor} maxLength={7}
-                    disabled={!isPremium}
-                    onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
-                    className={isPremium ? "flex-1 px-3 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-white font-mono outline-none focus:border-[#F7E998]/50" : `flex-1 ${lockedInputClass}`} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Background Image URL</label>
-                <input type="url" value={form.backgroundImageUrl}
-                  disabled={!isPremium}
-                  placeholder="https://yourdomain.com/bg.jpg"
-                  onChange={(e) => setForm({ ...form, backgroundImageUrl: e.target.value })}
-                  className={isPremium ? inputClass : lockedInputClass} />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Social Links (JSON)</label>
-              <input type="text" value={form.socialLinks}
-                disabled={!isPremium}
-                placeholder='{"twitter":"@handle","instagram":"@handle"}'
-                onChange={(e) => setForm({ ...form, socialLinks: e.target.value })}
-                className={isPremium ? inputClass : lockedInputClass} />
-              <p className="text-[10px] text-[#444] mt-1">Store as JSON. Used in your public event page footer.</p>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Custom CSS</label>
-              <textarea value={form.customCss}
-                disabled={!isPremium}
-                rows={5}
-                placeholder=".ye-event-card { border-radius: 16px; }"
-                onChange={(e) => setForm({ ...form, customCss: e.target.value })}
-                className={`${isPremium ? "bg-white border-[#e5e7eb] text-[#1a1a1a] focus:border-[#FF4747]" : "bg-[#f5f5f5] border-[#e5e7eb] text-[#aaa] cursor-not-allowed"} w-full px-4 py-3 border rounded-xl text-xs font-mono outline-none transition-colors resize-none`}
-              />
-              <p className="text-[10px] text-[#444] mt-1">Injected into your tenant event pages. Use with care.</p>
-            </div>
-          </div>
-
-          {/* WORKSPACE PROFILE */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
-            <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
-              <Settings size={18} className="text-[#FF4747]" /> Workspace Profile
-            </h2>
-            <p className="text-xs text-[#666] leading-relaxed">Basic details about your organization.</p>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-2">Organization Name</label>
-                <input value={tenantForm.name}
-                  onChange={(e) => setTenantForm({ ...tenantForm, name: e.target.value })}
-                  className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#F7E998] transition-colors" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-2">Slug</label>
-                <input value={tenantForm.slug}
-                  onChange={(e) => setTenantForm({ ...tenantForm, slug: e.target.value })}
-                  className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#F7E998] transition-colors" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-2">Industry</label>
-                <input value={tenantForm.industryType}
-                  onChange={(e) => setTenantForm({ ...tenantForm, industryType: e.target.value })}
-                  className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#F7E998] transition-colors" />
-              </div>
-            </div>
-          </div>
 
           {/* METADATA & DOMAIN */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">

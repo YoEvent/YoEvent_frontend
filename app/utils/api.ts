@@ -103,6 +103,14 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
       clearStoredAuth();
     }
 
+    if (response.status === 403 && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("yoevent:forbidden", {
+          detail: { path: url, hasTenant: !!(auth?.tenantId), message: errorMsg },
+        })
+      );
+    }
+
     throw new ApiError(errorMsg, response.status);
   }
 
@@ -111,7 +119,20 @@ async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T
     return {} as T;
   }
 
-  return response.json() as Promise<T>;
+  const data = await response.json();
+  if (data && typeof data === "object" && Array.isArray(data.content) && "totalPages" in data && "totalElements" in data) {
+    const arr = data.content;
+    Object.defineProperties(arr, {
+      content: { value: arr, enumerable: false, writable: true, configurable: true },
+      totalElements: { value: data.totalElements, enumerable: false, writable: true, configurable: true },
+      totalPages: { value: data.totalPages, enumerable: false, writable: true, configurable: true },
+      page: { value: data.page, enumerable: false, writable: true, configurable: true },
+      size: { value: data.size, enumerable: false, writable: true, configurable: true },
+    });
+    return arr as T;
+  }
+
+  return data as T;
 }
 
 export const api = {

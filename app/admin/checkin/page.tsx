@@ -67,20 +67,45 @@ export default function CheckInPage() {
 
   const handleManualSearch = async () => {
     if (!manualCode.trim()) return;
-    // Try to find by confirmation code or registration ID prefix
-    const match = registrations.find((r: any) =>
-      r.confirmationCode?.toUpperCase() === manualCode.toUpperCase() ||
-      (r.registrationId || r.id)?.startsWith(manualCode) ||
-      r.qrCode?.includes(manualCode)
-    );
+    
+    let match = null;
+    const searchCode = manualCode.trim();
+
+    // Check if it's an order QR code
+    if (searchCode.startsWith("YOEVENT:ORDER:")) {
+      const orderId = searchCode.substring("YOEVENT:ORDER:".length);
+      setProcessing(true);
+      try {
+        const order = await eventService.getOrderById(orderId);
+        if (order && order.userId) {
+          match = registrations.find((r: any) => r.userId === order.userId);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch order for check-in:", err);
+      } finally {
+        setProcessing(false);
+      }
+    }
+
+    // If not found by order yet, search normally
     if (!match) {
-      setResult({ success: false, message: `No registration found matching "${manualCode}". Check the confirmation code and try again.` });
+      match = registrations.find((r: any) =>
+        r.confirmationCode?.toUpperCase() === searchCode.toUpperCase() ||
+        (r.registrationId || r.id)?.startsWith(searchCode) ||
+        r.qrCode?.includes(searchCode)
+      );
+    }
+
+    if (!match) {
+      setResult({ success: false, message: `No registration found matching "${searchCode}". Check the confirmation code and try again.` });
       return;
     }
+
     if (match.checkedIn) {
       setResult({ success: false, message: `Already checked in at ${match.checkedInAt ? new Date(match.checkedInAt).toLocaleTimeString() : "earlier"}.` });
       return;
     }
+
     await doCheckIn(match.registrationId || match.id);
   };
 

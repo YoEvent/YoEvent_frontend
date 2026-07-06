@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getApiBaseUrl, getStoredAuth } from "@/app/utils/api";
+import { getStoredAuth } from "@/app/utils/api";
+import { eventService } from "@/app/utils/services/eventService";
 import { Calendar, MapPin, ArrowRight, Zap, BarChart2, ShieldCheck, Mic2, Globe2, Smartphone } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -12,15 +13,36 @@ export default function LandingPage() {
   const [auth, setAuth] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
+  const [eventCount, setEventCount] = useState<string>("10K+");
+  const [avgRating, setAvgRating] = useState<string>("4.9★");
+  const [avgRatingVal, setAvgRatingVal] = useState<number>(5.0);
+  const [organizerText, setOrganizerText] = useState<string>("10,000+ organizers");
 
   useEffect(() => {
     setAuth(getStoredAuth());
     setMounted(true);
-    fetch(`${getApiBaseUrl()}/api/v1/events`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setFeaturedEvents(data.filter(e => e.status === "PUBLISHED" || e.status === "ACTIVE").slice(0, 3));
+    eventService.getEvents({ skipAuth: true })
+      .then((data: any) => {
+        const list: any[] = Array.isArray(data) ? data : (data?.content ?? []);
+        setFeaturedEvents(list.filter(e => e.status === "PUBLISHED" || e.status === "ACTIVE").slice(0, 3));
+        if (list.length > 0) {
+          setEventCount(String(list.length));
+          const uniqueTenants = new Set(list.map(e => e.tenantId).filter(Boolean));
+          if (uniqueTenants.size > 0) {
+            setOrganizerText(`${uniqueTenants.size.toLocaleString()} organizer${uniqueTenants.size !== 1 ? "s" : ""}`);
+          }
+        }
+      })
+      .catch(() => {});
+
+    eventService.getFeedbacks()
+      .then((data: any) => {
+        const list: any[] = Array.isArray(data) ? data : (data?.content ?? []);
+        const rated = list.filter((f: any) => f.rating != null && f.rating > 0);
+        if (rated.length > 0) {
+          const avg = rated.reduce((s: number, f: any) => s + f.rating, 0) / rated.length;
+          setAvgRating(`${avg.toFixed(1)}★`);
+          setAvgRatingVal(avg);
         }
       })
       .catch(() => {});
@@ -49,7 +71,7 @@ export default function LandingPage() {
           <div>
             <div className="inline-flex items-center gap-2 bg-[#FF4747]/15 border border-[#FF4747]/30 rounded-full px-4 py-1.5 text-xs font-semibold text-[#FF4747] mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" />
-              5.0 Rated · Trusted by 10,000+ organizers
+              {avgRatingVal.toFixed(1)} Rated · Trusted by {organizerText}
             </div>
             <h1 className="font-display text-6xl md:text-7xl font-black leading-[1.02] tracking-[-2px] text-white mb-6">
               Events,<br />
@@ -72,7 +94,7 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="flex gap-10 mt-12 pt-10 border-t border-white/10">
-              {[["10K+", "Events hosted"], ["98%", "Uptime SLA"], ["4.9★", "Avg. rating"]].map(([val, label]) => (
+              {[[eventCount, "Events hosted"], ["99.9%", "Uptime SLA"], [avgRating, "Avg. rating"]].map(([val, label]) => (
                 <div key={label}>
                   <div className="font-display text-2xl font-bold text-white">{val}</div>
                   <div className="text-xs text-[#666] mt-0.5">{label}</div>
@@ -129,7 +151,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-end justify-between flex-wrap gap-4 mb-12">
             <div>
-              <span className="text-xs font-bold text-[#FF4747] tracking-[3px] uppercase mb-2 block">Explore</span>
+              <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4 uppercase shadow-md shadow-[#FF4747]/20">Explore</span>
               <h2 className="font-display text-4xl font-black tracking-tight">Featured Events</h2>
             </div>
             <Link href="/events" className="text-sm font-semibold text-[#FF4747] hover:underline flex items-center gap-1.5">
@@ -166,7 +188,7 @@ export default function LandingPage() {
       <section className="px-8 md:px-16 py-24 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="mb-16 max-w-xl">
-            <span className="text-xs font-bold text-[#FF4747] tracking-[3px] uppercase mb-2 block">Why YowEvent</span>
+            <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">Why YowEvent</span>
             <h2 className="font-display text-4xl font-black tracking-tight mb-4 leading-snug">Everything you need,<br />nothing you don&apos;t</h2>
             <p className="text-[#666] text-sm leading-relaxed">A unified platform covering the entire event lifecycle — from creation to ticket sales and analytics — with smart protection built in.</p>
           </div>
@@ -195,7 +217,7 @@ export default function LandingPage() {
       {/* ── HOW IT WORKS ── */}
       <section className="px-8 md:px-16 py-24 bg-[#fafafa]">
         <div className="max-w-5xl mx-auto text-center">
-          <span className="text-xs font-bold text-[#FF4747] tracking-[3px] uppercase mb-2 block">How It Works</span>
+          <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">How It Works</span>
           <h2 className="font-display text-4xl font-black tracking-tight mb-4">Up and running in minutes</h2>
           <p className="text-[#666] text-sm max-w-md mx-auto mb-16 leading-relaxed">No sales calls. No setup fees. Sign up and start building your event right away.</p>
 
@@ -315,7 +337,7 @@ function FaqSection() {
     <section className="px-8 md:px-16 py-24 bg-white">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14">
-          <span className="text-xs font-bold text-[#FF4747] tracking-[3px] uppercase mb-2 block">FAQ</span>
+          <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">FAQ</span>
           <h2 className="font-display text-4xl font-black tracking-tight">Common questions</h2>
         </div>
         <div className="space-y-3">
