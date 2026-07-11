@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { Plus, ChevronDown, User, X, Users, Mic, Save, Pencil, Trash2, MapPin, Star } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
@@ -12,6 +13,7 @@ const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wi
 const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer disabled:opacity-50";
 
 export default function TeamPage() {
+  const router = useRouter();
   const auth = getStoredAuth();
   const [tab, setTab] = useState<SubTab>("team");
   const [events, setEvents] = useState<any[]>([]);
@@ -35,7 +37,7 @@ export default function TeamPage() {
   const [teamForm, setTeamForm] = useState({ name: "", position: "", bio: "", location: "", photoUrl: "" });
 
   const [editingSpeaker, setEditingSpeaker] = useState<any>(null);
-  const [speakerForm, setSpeakerForm] = useState({ name: "", bio: "", company: "", title: "", sessionId: "", photoUrl: "" });
+  const [speakerForm, setSpeakerForm] = useState({ name: "", bio: "", company: "", title: "", sessionId: "", locationId: "", photoUrl: "" });
 
   const teamFormRef = useRef<HTMLFormElement>(null);
   const speakerFormRef = useRef<HTMLFormElement>(null);
@@ -150,6 +152,7 @@ export default function TeamPage() {
       company: speakerForm.company,
       title: speakerForm.title,
       photoUrl: speakerForm.photoUrl || undefined,
+      locationId: speakerForm.locationId || undefined,
     };
 
     try {
@@ -161,7 +164,7 @@ export default function TeamPage() {
         await eventService.createSessionSpeaker(payload);
         showToast("Speaker added!");
       }
-      setSpeakerForm({ name: "", bio: "", company: "", title: "", sessionId: "", photoUrl: "" });
+      setSpeakerForm({ name: "", bio: "", company: "", title: "", sessionId: "", locationId: "", photoUrl: "" });
       await loadData(selectedEventId);
     } catch {
       showToast("Failed to save speaker.");
@@ -187,9 +190,22 @@ export default function TeamPage() {
   const getSessionLocationName = (sessId: string) => {
     const s = sessions.find(x => (x.sessionId || x.id) === sessId);
     if (!s || !s.locationId) return "";
-    const loc = locations.find(l => l.locationId === s.locationId);
+    const loc = locations.find(l => (l.locationId || l.id) === s.locationId);
     if (!loc) return "";
-    return loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName;
+    return loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person");
+  };
+
+  const getSpeakerLocationName = (sp: any) => {
+    if (sp.locationId) {
+      const loc = locations.find(l => (l.locationId || l.id) === sp.locationId);
+      if (loc) {
+        return loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person");
+      }
+    }
+    if (sp.sessionId) {
+      return getSessionLocationName(sp.sessionId);
+    }
+    return "";
   };
 
   // Helper to parse team member details (position, location)
@@ -209,9 +225,16 @@ export default function TeamPage() {
 
   const filteredSpeakers = speakers.filter((sp) => {
     if (selectedLocationName === "ALL") return true;
-    if (!sp.sessionId) return false;
-    const locName = getSessionLocationName(sp.sessionId);
+    const locName = getSpeakerLocationName(sp);
     return locName.toLowerCase().includes(selectedLocationName.toLowerCase());
+  });
+
+  const sortedSpeakers = [...filteredSpeakers].sort((a, b) => {
+    const locA = getSpeakerLocationName(a);
+    const locB = getSpeakerLocationName(b);
+    if (!locA && locB) return 1;
+    if (locA && !locB) return -1;
+    return locA.localeCompare(locB);
   });
 
   return (
@@ -430,9 +453,9 @@ export default function TeamPage() {
                   </div>
                 ) : (
                   <div className="grid md:grid-cols-2 gap-5">
-                    {filteredSpeakers.map((sp) => {
+                    {sortedSpeakers.map((sp) => {
                       const id = sp.speakerId || sp.id;
-                      const locName = sp.sessionId ? getSessionLocationName(sp.sessionId) : "";
+                      const locName = getSpeakerLocationName(sp);
                       return (
                         <div key={id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 relative group hover:border-[#FF4747]/30 hover:shadow-md transition-all">
                           <div className="absolute top-3 right-3 flex gap-1">
@@ -444,6 +467,7 @@ export default function TeamPage() {
                                 company: sp.company || "",
                                 title: sp.title || "",
                                 sessionId: sp.sessionId || "",
+                                locationId: sp.locationId || "",
                                 photoUrl: sp.photoUrl || sp.imageUrl || "",
                               });
                               speakerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -466,6 +490,11 @@ export default function TeamPage() {
                                 {sp.title} {sp.company ? ` at ${sp.company}` : ""}
                               </div>
                             )}
+                            {sp.sessionId && (
+                              <div className="text-[10px] text-[#888] font-medium mt-1">
+                                Session: {sessions.find(x => (x.sessionId || x.id) === sp.sessionId)?.title || "Unknown Session"}
+                              </div>
+                            )}
                             {locName && (
                               <div className="text-[10px] text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-0.5 font-medium mt-1.5 flex items-center gap-0.5">
                                 <MapPin size={10} /> {locName}
@@ -485,7 +514,7 @@ export default function TeamPage() {
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="font-display font-bold text-[#1a1a1a]">{editingSpeaker ? "Edit Speaker" : "Add Speaker"}</h3>
                   {editingSpeaker && (
-                    <button type="button" onClick={() => { setEditingSpeaker(null); setSpeakerForm({ name: "", bio: "", company: "", title: "", sessionId: "", photoUrl: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                    <button type="button" onClick={() => { setEditingSpeaker(null); setSpeakerForm({ name: "", bio: "", company: "", title: "", sessionId: "", locationId: "", photoUrl: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                   )}
                 </div>
                 <form ref={speakerFormRef} onSubmit={saveSpeaker} className="space-y-4">
@@ -495,13 +524,33 @@ export default function TeamPage() {
                     <div><label className={label}>Company / Organization</label><input placeholder="e.g. Google" value={speakerForm.company} onChange={e => setSpeakerForm(f => ({ ...f, company: e.target.value }))} className={inp} /></div>
                   </div>
                   <div>
-                    <label className={label}>Assigned Session (Resolves Location)</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={label + " mb-0"}>Assigned Session (Optional)</label>
+                      <button
+                        type="button"
+                        onClick={() => router.push("/admin/agenda")}
+                        className="text-[10px] text-[#FF4747] font-semibold hover:underline cursor-pointer flex items-center gap-0.5"
+                      >
+                        <Plus size={10} /> Create Session
+                      </button>
+                    </div>
                     <select value={speakerForm.sessionId} onChange={e => setSpeakerForm(f => ({ ...f, sessionId: e.target.value }))} className={inp}>
                       <option value="">— Select Session —</option>
                       {sessions.map(s => {
                         const locName = getSessionLocationName(s.sessionId || s.id);
                         return <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title} {locName ? `(${locName})` : ""}</option>;
                       })}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={label}>Direct Location Link (Override)</label>
+                    <select value={speakerForm.locationId} onChange={e => setSpeakerForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
+                      <option value="">— Select Location (Optional) —</option>
+                      {locations.map(loc => (
+                        <option key={loc.locationId || loc.id} value={loc.locationId || loc.id}>
+                          {loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person")}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div><label className={label}>Biography</label><textarea placeholder="Brief speaker bio..." value={speakerForm.bio} onChange={e => setSpeakerForm(f => ({ ...f, bio: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>

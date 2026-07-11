@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { savePendingEvent } from "@/app/utils/offlineDb";
+import { useOfflineSync } from "@/app/utils/useOfflineSync";
 
 const EventMap = dynamic(() => import("@/components/EventMap"), { ssr: false, loading: () => <div className="w-full h-40 bg-[#f5f5f5] rounded-xl animate-pulse" /> });
 
@@ -28,6 +30,14 @@ const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
 const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer disabled:opacity-50";
 const addBtn = "flex items-center gap-2 px-4 py-2 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer";
+
+const toLocalISOString = (dateInput?: string | Date) => {
+  if (!dateInput) return "";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return "";
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+};
 
 export default function EventsPage() {
   const router = useRouter();
@@ -52,7 +62,7 @@ export default function EventsPage() {
 
   // ── Schedule ──
   const [schedule, setSchedule] = useState<any>(null);
-  const [schedForm, setSchedForm] = useState({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, locationId: "" });
+  const [schedForm, setSchedForm] = useState({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
 
   // ── Location ──
   const [locations, setLocations] = useState<any[]>([]);
@@ -60,7 +70,7 @@ export default function EventsPage() {
 
   // ── Tickets ──
   const [tickets, setTickets] = useState<any[]>([]);
-  const [ticketForm, setTicketForm] = useState({ name: "", description: "", price: 0, quantity: 100, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
+  const [ticketForm, setTicketForm] = useState({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
 
   // ── Team ──
   const [team, setTeam] = useState<any[]>([]);
@@ -95,7 +105,7 @@ export default function EventsPage() {
 
   // ── Speakers ──
   const [speakers, setSpeakers] = useState<any[]>([]);
-  const [speakerForm, setSpeakerForm] = useState({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "" });
+  const [speakerForm, setSpeakerForm] = useState({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" });
   const [editingSpeaker, setEditingSpeaker] = useState<any>(null);
   const speakerFormRef = useRef<HTMLFormElement>(null);
   const sponsorFormRef = useRef<HTMLFormElement>(null);
@@ -128,7 +138,7 @@ export default function EventsPage() {
   // ── Custom Sections ──
   const [eventSections, setEventSections] = useState<any[]>([]);
   const [editingSection, setEditingSection] = useState<any>(null);
-  const [sectionForm, setSectionForm] = useState({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+  const [sectionForm, setSectionForm] = useState({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
 
   // ── Edit mode (null = create, set = editing that record) ──
   const [editingLocation, setEditingLocation] = useState<any>(null);
@@ -147,7 +157,7 @@ export default function EventsPage() {
   const qaFormRef      = useRef<HTMLFormElement>(null);
   const emailFormRef   = useRef<HTMLFormElement>(null);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
 
   const loadEvents = async () => {
     try {
@@ -163,6 +173,11 @@ export default function EventsPage() {
       }
     } catch {}
   };
+
+  useOfflineSync((count) => {
+    showToast(`${count} offline event${count > 1 ? "s" : ""} synced!`);
+    loadEvents();
+  });
 
   const selectEvent = async (id: string) => {
     setSelectedId(id);
@@ -203,7 +218,7 @@ export default function EventsPage() {
 
       // Populate event details directly from the fetched event (avoids stale state)
       if (ev) {
-        setDetailsForm({ title: ev.title || "", description: ev.description || "", status: ev.status || "DRAFT", categoryId: ev.categoryId || "", maxCapacity: ev.maxCapacity || 100, currency: ev.currency || "XAF", format: ev.format || "IN_PERSON", visibility: ev.visibility || "PUBLIC", isPaid: ev.isPaid ?? false });
+        setDetailsForm({ title: ev.title || "", description: ev.description || "", status: ev.status || "DRAFT", categoryId: ev.categoryId || "", maxCapacity: ev.maxCapacity ?? 0, currency: ev.currency || "XAF", format: ev.format || "IN_PERSON", visibility: ev.visibility || "PUBLIC", isPaid: ev.isPaid ?? false });
         setBanner(ev.coverImage || "");
         // Keep events list in sync if caller passed a fresh list
         if (evList) setEvents(evList);
@@ -228,11 +243,11 @@ export default function EventsPage() {
       setAnnouncements((anncs || []).filter(byEvent));
       setFeedbacks((fdbks || []).filter(byEvent));
       setVolunteerOpenings((volOpenings || []).filter(byEvent));
-      setEventSections(sectionsList || []);
+      setEventSections((sectionsList || []).filter(byEvent));
 
       const sched = (scheds || []).find((s: any) => s.eventId === id || s.event?.eventId === id);
       setSchedule(sched || null);
-      if (sched) setSchedForm({ startDatetime: sched.startDatetime?.slice(0, 16) || "", endDatetime: sched.endDatetime?.slice(0, 16) || "", timezone: sched.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, locationId: sched.locationId || "" });
+      if (sched) setSchedForm({ startDatetime: sched.startDatetime?.slice(0, 16) || "", endDatetime: sched.endDatetime?.slice(0, 16) || "", timezone: sched.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone });
     } catch (e) { console.error(e); }
   };
 
@@ -240,6 +255,9 @@ export default function EventsPage() {
   useEffect(() => { if (tab === "registrations" && selectedId) loadRegistrations(); }, [tab, selectedId]);
 
   const selectedEvent = events.find(e => e.eventId === selectedId);
+
+  const maxCapacity = detailsForm.maxCapacity || 0;
+  const allocatedTicketQty = tickets.reduce((sum: number, t: any) => sum + (t.quantityAvailable ?? 0), 0);
 
   // ── Custom Sections Actions ──
   const saveSection = async (e: React.FormEvent) => {
@@ -263,7 +281,7 @@ export default function EventsPage() {
         });
         showToast("Section created successfully!");
       }
-      setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+      setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
       const secs = await eventService.getEventSections(selectedId).catch(() => []);
       setEventSections(secs || []);
     } catch (err: any) {
@@ -282,7 +300,7 @@ export default function EventsPage() {
       setEventSections(secs || []);
       if (editingSection && (editingSection.sectionId === sectionId || editingSection.id === sectionId)) {
         setEditingSection(null);
-        setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0 });
+        setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
       }
     } catch (err: any) {
       showToast(err.message || "Failed to delete section");
@@ -293,16 +311,31 @@ export default function EventsPage() {
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+    const start = new Date(newStart);
+    const end   = new Date(newEnd);
+    if (start < new Date()) { showToast("Start date cannot be in the past."); return; }
+    if (end <= start)        { showToast("End date must be after the start date."); return; }
+    if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast("Event must be at least 2 hours long."); return; }
     setSaving(true);
+    const eventData = { tenantId: auth?.tenantId, organizerId: auth?.userId, title: newTitle, description: newDesc, status: "DRAFT", currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, maxCapacity: 100 };
+    const scheduleData = { startDatetime: new Date(newStart).toISOString(), endDatetime: new Date(newEnd).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
     try {
-      const ev = await eventService.createEvent({ tenantId: auth?.tenantId, organizerId: auth?.userId, title: newTitle, description: newDesc, status: "DRAFT", currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, maxCapacity: 100 });
+      const ev = await eventService.createEvent(eventData);
       const id = ev.eventId || (ev as any).id;
-      await eventService.createEventSchedule({ eventId: id, startDatetime: new Date(newStart).toISOString(), endDatetime: new Date(newEnd).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      await eventService.createEventSchedule({ eventId: id, ...scheduleData });
       setNewTitle(""); setNewDesc("");
       await loadEvents();
       await selectEvent(id);
       showToast("Event created! Fill in the sections below.");
-    } catch (err: any) { showToast("Error: " + err.message); }
+    } catch (err: any) {
+      if (!navigator.onLine || err?.message?.toLowerCase().includes("network") || err?.message?.toLowerCase().includes("fetch")) {
+        await savePendingEvent(eventData, scheduleData);
+        setNewTitle(""); setNewDesc("");
+        showToast("Saved offline — will sync when you reconnect.");
+      } else {
+        showToast("Error: " + err.message);
+      }
+    }
     finally { setSaving(false); }
   };
 
@@ -340,12 +373,17 @@ export default function EventsPage() {
   // ── Save schedule ──
   const saveSchedule = async () => {
     if (!selectedId) return;
+    const start = new Date(schedForm.startDatetime);
+    const end   = new Date(schedForm.endDatetime);
+    if (start < new Date()) { showToast("Start date cannot be in the past."); return; }
+    if (end <= start)        { showToast("End date must be after the start date."); return; }
+    if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast("Event must be at least 2 hours long."); return; }
     setSaving(true);
     try {
       if (schedule?.scheduleId || schedule?.id) {
-        await eventService.updateEventSchedule(schedule.scheduleId || schedule.id, { eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone, locationId: schedForm.locationId || undefined });
+        await eventService.updateEventSchedule(schedule.scheduleId || schedule.id, { eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
       } else {
-        const s = await eventService.createEventSchedule({ eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone, locationId: schedForm.locationId || undefined });
+        const s = await eventService.createEventSchedule({ eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
         setSchedule(s);
       }
       showToast("Schedule saved!");
@@ -359,6 +397,14 @@ export default function EventsPage() {
   // ── Save location (create or update) ──
   const saveLocation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (detailsForm.format === "IN_PERSON" && locForm.isVirtual) {
+      showToast("Cannot add a virtual location to an In Person event. Change the format to Hybrid first.");
+      return;
+    }
+    if (detailsForm.format === "VIRTUAL" && !locForm.isVirtual) {
+      showToast("Cannot add a physical venue to a Virtual event. Change the format to Hybrid first.");
+      return;
+    }
     setSaving(true);
     const payload = { eventId: selectedId, tenantId: auth?.tenantId, type: locForm.isVirtual ? "VIRTUAL" : "VENUE", venueName: locForm.venueName, address: locForm.address, city: locForm.city, country: locForm.country, latitude: locForm.latitude, longitude: locForm.longitude, virtualPlatform: locForm.virtualPlatform, virtualLink: locForm.virtualLink };
     try {
@@ -382,6 +428,66 @@ export default function EventsPage() {
   // ── Save ticket (create or update) ──
   const saveTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    const qty = Number(ticketForm.quantity);
+    const mpo = Number(ticketForm.maxPerOrder);
+    const now = new Date();
+    const eventStart = schedule?.startDatetime ? new Date(schedule.startDatetime) : null;
+    const eventEnd   = schedule?.endDatetime   ? new Date(schedule.endDatetime)   : null;
+
+    // ── Quantity vs capacity ──
+    if (maxCapacity > 0) {
+      const usedByOthers = allocatedTicketQty - (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0);
+      const allowed = maxCapacity - usedByOthers;
+      if (qty > allowed) {
+        showToast(`Quantity exceeds remaining capacity. Max you can add: ${allowed} (event max: ${maxCapacity}).`);
+        return;
+      }
+    }
+
+    // ── Max Per Order ──
+    if (mpo < 1) { showToast("Max per order must be at least 1."); return; }
+    if (maxCapacity > 0 && mpo > maxCapacity) {
+      showToast(`Max per order (${mpo}) cannot exceed the event's max capacity (${maxCapacity}).`);
+      return;
+    }
+    if (mpo > qty) {
+      showToast(`Max per order (${mpo}) cannot exceed the ticket quantity (${qty}).`);
+      return;
+    }
+
+    // ── Sale dates ──
+    const origSaleStart = editingTicket?.saleStart ? toLocalISOString(editingTicket.saleStart) : "";
+    const origSaleEnd = editingTicket?.saleEnd ? toLocalISOString(editingTicket.saleEnd) : "";
+    const isSaleStartChanged = !editingTicket || ticketForm.saleStart !== origSaleStart;
+    const isSaleEndChanged = !editingTicket || ticketForm.saleEnd !== origSaleEnd;
+
+    if (ticketForm.saleStart) {
+      const saleStart = new Date(ticketForm.saleStart);
+      if (isSaleStartChanged && saleStart < now) { showToast("Sale start date cannot be in the past."); return; }
+      if (eventEnd && saleStart >= eventEnd) {
+        showToast(`Sale start must be before the event ends (${fmtDt(schedule.endDatetime)}).`);
+        return;
+      }
+      if (ticketForm.saleEnd) {
+        const saleEnd = new Date(ticketForm.saleEnd);
+        if (saleEnd <= saleStart) { showToast("Sale end must be after sale start."); return; }
+        if (saleEnd.getTime() - saleStart.getTime() < 2 * 3600 * 1000) {
+          showToast("Sale window must be at least 2 hours long."); return;
+        }
+        if (eventEnd && saleEnd > eventEnd) {
+          showToast(`Sale end cannot be after the event ends (${fmtDt(schedule.endDatetime)}).`);
+          return;
+        }
+      }
+    } else if (ticketForm.saleEnd) {
+      const saleEnd = new Date(ticketForm.saleEnd);
+      if (isSaleEndChanged && saleEnd < now) { showToast("Sale end date cannot be in the past."); return; }
+      if (eventEnd && saleEnd > eventEnd) {
+        showToast(`Sale end cannot be after the event ends (${fmtDt(schedule.endDatetime)}).`);
+        return;
+      }
+    }
+
     setSaving(true);
     const payload = {
       eventId: selectedId,
@@ -389,11 +495,11 @@ export default function EventsPage() {
       description: ticketForm.description,
       price: ticketForm.isFree ? 0 : Number(ticketForm.price),
       currency: "XAF",
-      quantityAvailable: Number(ticketForm.quantity),
+      quantityAvailable: qty,
       quantitySold: editingTicket?.quantitySold ?? 0,
       saleStart: ticketForm.saleStart ? new Date(ticketForm.saleStart).toISOString() : undefined,
       saleEnd: ticketForm.saleEnd ? new Date(ticketForm.saleEnd).toISOString() : undefined,
-      maxPerOrder: 10,
+      maxPerOrder: mpo,
       locationId: ticketForm.locationId || undefined,
     };
     try {
@@ -405,7 +511,7 @@ export default function EventsPage() {
         await eventService.createTicketType(payload);
         showToast("Ticket type added!");
       }
-      setTicketForm({ name: "", description: "", price: 0, quantity: 100, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
+      setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
       await loadEventData(selectedId);
     } catch (err: any) {
       showToast(err.message || (editingTicket ? "Failed to update ticket." : "Failed to add ticket."));
@@ -446,6 +552,10 @@ export default function EventsPage() {
   // ── Save session (create or update) ──
   const saveSession = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (maxCapacity > 0 && Number(sessionForm.capacity) > maxCapacity) {
+      showToast(`Session capacity cannot exceed the event's max capacity of ${maxCapacity}.`);
+      return;
+    }
     setSaving(true);
     const payload = {
       eventId: selectedId,
@@ -481,6 +591,10 @@ export default function EventsPage() {
   const saveTrack = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackForm.name.trim()) return;
+    if (maxCapacity > 0 && Number(trackForm.capacity) > maxCapacity) {
+      showToast(`Track capacity cannot exceed the event's max capacity of ${maxCapacity}.`);
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -638,7 +752,17 @@ export default function EventsPage() {
   const saveSpeaker = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const payload = { eventId: selectedId, tenantId: auth?.tenantId, sessionId: speakerForm.sessionId || undefined, name: speakerForm.name, bio: speakerForm.bio, photoUrl: speakerForm.photoUrl || undefined, company: speakerForm.company, title: speakerForm.title };
+    const payload = {
+      eventId: selectedId,
+      tenantId: auth?.tenantId,
+      sessionId: speakerForm.sessionId || undefined,
+      locationId: speakerForm.locationId || undefined,
+      name: speakerForm.name,
+      bio: speakerForm.bio,
+      photoUrl: speakerForm.photoUrl || undefined,
+      company: speakerForm.company,
+      title: speakerForm.title
+    };
     try {
       if (editingSpeaker) {
         await eventService.updateSessionSpeaker(editingSpeaker.speakerId || editingSpeaker.id, payload);
@@ -648,7 +772,7 @@ export default function EventsPage() {
         await eventService.createSessionSpeaker(payload);
         showToast("Speaker added!");
       }
-      setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "" });
+      setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" });
       await loadEventData(selectedId);
     } catch { showToast(editingSpeaker ? "Failed to update speaker." : "Failed to add speaker."); }
     finally { setSaving(false); }
@@ -804,6 +928,15 @@ export default function EventsPage() {
 
   const fmtDt = (dt?: string) => dt ? new Date(dt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "—";
 
+  const getSpeakerLocationName = (s: any) => {
+    if (!s.sessionId) return "";
+    const sessObj = sessions.find((ss: any) => (ss.sessionId || ss.id) === s.sessionId);
+    if (!sessObj || !sessObj.locationId) return "";
+    const loc = locations.find((l: any) => (l.locationId || l.id) === sessObj.locationId);
+    if (!loc) return "";
+    return loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person");
+  };
+
   return (
     <div className="flex bg-[#f9fafb] h-screen overflow-hidden text-[#1a1a1a]">
       <Sidebar />
@@ -862,11 +995,29 @@ export default function EventsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={label}>Start Date & Time *</label>
-                      <input type="datetime-local" value={newStart} onChange={e => setNewStart(e.target.value)} className={inp} required />
+                      <input
+                        type="datetime-local"
+                        value={newStart}
+                        min={toLocalISOString(new Date())}
+                        onChange={e => {
+                          setNewStart(e.target.value);
+                          const minEnd = toLocalISOString(new Date(new Date(e.target.value).getTime() + 2 * 3600 * 1000));
+                          if (!newEnd || new Date(newEnd) < new Date(minEnd)) setNewEnd(minEnd);
+                        }}
+                        className={inp}
+                        required
+                      />
                     </div>
                     <div>
                       <label className={label}>End Date & Time *</label>
-                      <input type="datetime-local" value={newEnd} onChange={e => setNewEnd(e.target.value)} className={inp} required />
+                      <input
+                        type="datetime-local"
+                        value={newEnd}
+                        min={newStart ? toLocalISOString(new Date(new Date(newStart).getTime() + 2 * 3600 * 1000)) : toLocalISOString(new Date())}
+                        onChange={e => setNewEnd(e.target.value)}
+                        className={inp}
+                        required
+                      />
                     </div>
                   </div>
                   <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center py-3"}>
@@ -1243,7 +1394,12 @@ export default function EventsPage() {
                       <div className="grid grid-cols-3 gap-4 pt-2">
                         <div>
                           <label className={label}>Format</label>
-                          <select value={detailsForm.format} onChange={e => setDetailsForm(f => ({ ...f, format: e.target.value }))} className={inp}>
+                          <select value={detailsForm.format} onChange={e => {
+                            const fmt = e.target.value;
+                            setDetailsForm(f => ({ ...f, format: fmt }));
+                            if (fmt === "IN_PERSON") setLocForm(f => ({ ...f, isVirtual: false }));
+                            else if (fmt === "VIRTUAL") setLocForm(f => ({ ...f, isVirtual: true }));
+                          }} className={inp}>
                             <option value="IN_PERSON">In Person</option>
                             <option value="VIRTUAL">Virtual</option>
                             <option value="HYBRID">Hybrid</option>
@@ -1266,6 +1422,20 @@ export default function EventsPage() {
                           </select>
                         </div>
                       </div>
+                      {detailsForm.visibility !== "PUBLIC" && (
+                        <div className={`text-xs rounded-xl px-4 py-3 border flex items-start gap-2 ${detailsForm.visibility === "PRIVATE" ? "text-amber-700 bg-amber-50 border-amber-200" : "text-blue-700 bg-blue-50 border-blue-200"}`}>
+                          <span className="mt-0.5 text-base leading-none">{detailsForm.visibility === "PRIVATE" ? "🔒" : "✉️"}</span>
+                          <div>
+                            <strong>{detailsForm.visibility === "PRIVATE" ? "Private event" : "Invite-only event"}</strong>
+                            <p className="mt-0.5 font-normal">
+                              {detailsForm.visibility === "PRIVATE"
+                                ? "This event won't appear in public listings. Anyone you share the direct link with can view and register."
+                                : "Hidden from all public listings. Only attendees you personally invite can register — others see a locked page even with the link. You can still publish; invitations control access, not publish status. Send invites from the Engagements → Invitations section."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center gap-3 pt-1">
                         <button type="button" onClick={() => setDetailsForm(f => ({ ...f, isPaid: !f.isPaid }))}
                           className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${detailsForm.isPaid ? "bg-[#FF4747]" : "bg-[#e5e7eb]"}`}>
@@ -1290,31 +1460,39 @@ export default function EventsPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={label}>Start Date & Time</label>
-                          <input type="datetime-local" value={schedForm.startDatetime} onChange={e => setSchedForm(f => ({ ...f, startDatetime: e.target.value }))} className={inp} />
+                          <input
+                            type="datetime-local"
+                            value={schedForm.startDatetime}
+                            min={toLocalISOString(new Date())}
+                            onChange={e => {
+                              const minEnd = toLocalISOString(new Date(new Date(e.target.value).getTime() + 2 * 3600 * 1000));
+                              setSchedForm(f => ({
+                                ...f,
+                                startDatetime: e.target.value,
+                                endDatetime: !f.endDatetime || new Date(f.endDatetime) < new Date(minEnd) ? minEnd : f.endDatetime,
+                              }));
+                            }}
+                            className={inp}
+                          />
                         </div>
                         <div>
                           <label className={label}>End Date & Time</label>
-                          <input type="datetime-local" value={schedForm.endDatetime} onChange={e => setSchedForm(f => ({ ...f, endDatetime: e.target.value }))} className={inp} />
+                          <input
+                            type="datetime-local"
+                            value={schedForm.endDatetime}
+                            min={schedForm.startDatetime ? toLocalISOString(new Date(new Date(schedForm.startDatetime).getTime() + 2 * 3600 * 1000)) : toLocalISOString(new Date())}
+                            onChange={e => setSchedForm(f => ({ ...f, endDatetime: e.target.value }))}
+                            className={inp}
+                          />
                         </div>
                       </div>
                       <div>
                         <label className={label}>Timezone</label>
                         <input value={schedForm.timezone} onChange={e => setSchedForm(f => ({ ...f, timezone: e.target.value }))} className={inp} placeholder="Africa/Douala" />
                       </div>
-                      {locations.length > 0 && (
-                        <div>
-                          <label className={label}>Location</label>
-                          <select value={schedForm.locationId} onChange={e => setSchedForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                            <option value="">— All locations —</option>
-                            {locations.map(loc => (
-                              <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
                       {schedule && (
                         <div className="text-xs text-[#888] bg-[#fafafa] rounded-xl p-3 border border-[#f0f0f0]">
-                          Currently saved: <span className="font-semibold text-[#1a1a1a]">{schedule.startDatetime?.slice(0, 16)}</span> → <span className="font-semibold text-[#1a1a1a]">{schedule.endDatetime?.slice(0, 16)}</span>
+                          Currently saved: <span className="font-semibold text-[#1a1a1a]">{toLocalISOString(schedule.startDatetime)}</span> → <span className="font-semibold text-[#1a1a1a]">{toLocalISOString(schedule.endDatetime)}</span>
                         </div>
                       )}
                       <div className="flex justify-end pt-2 border-t border-[#f0f0f0]">
@@ -1371,12 +1549,29 @@ export default function EventsPage() {
                       </div>
                       <form ref={locFormRef} onSubmit={saveLocation} className="space-y-4">
                         <div className="flex items-center gap-3 p-3 bg-[#fafafa] rounded-xl border border-[#f0f0f0]">
-                          <button type="button" onClick={() => setLocForm(f => ({ ...f, isVirtual: false }))} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${!locForm.isVirtual ? "bg-[#FF4747] text-white" : "text-[#888] hover:text-[#1a1a1a]"}`}>
+                          <button
+                            type="button"
+                            onClick={() => setLocForm(f => ({ ...f, isVirtual: false }))}
+                            disabled={detailsForm.format === "VIRTUAL"}
+                            title={detailsForm.format === "VIRTUAL" ? "Switch event format to In Person or Hybrid to add a physical venue" : undefined}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors ${detailsForm.format === "VIRTUAL" ? "opacity-40 cursor-not-allowed text-[#888]" : !locForm.isVirtual ? "bg-[#FF4747] text-white cursor-pointer" : "text-[#888] hover:text-[#1a1a1a] cursor-pointer"}`}
+                          >
                             <MapPin size={13} /> In Person
                           </button>
-                          <button type="button" onClick={() => setLocForm(f => ({ ...f, isVirtual: true }))} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${locForm.isVirtual ? "bg-blue-500 text-white" : "text-[#888] hover:text-[#1a1a1a]"}`}>
+                          <button
+                            type="button"
+                            onClick={() => setLocForm(f => ({ ...f, isVirtual: true }))}
+                            disabled={detailsForm.format === "IN_PERSON"}
+                            title={detailsForm.format === "IN_PERSON" ? "Switch event format to Virtual or Hybrid to add a virtual location" : undefined}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors ${detailsForm.format === "IN_PERSON" ? "opacity-40 cursor-not-allowed text-[#888]" : locForm.isVirtual ? "bg-blue-500 text-white cursor-pointer" : "text-[#888] hover:text-[#1a1a1a] cursor-pointer"}`}
+                          >
                             <Wifi size={13} /> Virtual
                           </button>
+                          {detailsForm.format !== "HYBRID" && (
+                            <span className="text-[10px] text-[#aaa] ml-1">
+                              {detailsForm.format === "IN_PERSON" ? "Virtual option locked — change format to Hybrid to allow both" : "In-person option locked — change format to Hybrid to allow both"}
+                            </span>
+                          )}
                         </div>
 
                         {!locForm.isVirtual ? (
@@ -1414,6 +1609,34 @@ export default function EventsPage() {
                 {/* ── TICKETS TAB ── */}
                 {tab === "tickets" && (
                   <div className="max-w-4xl space-y-6">
+                    {maxCapacity > 0 && (
+                      <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex items-center gap-5">
+                        <div className="flex-1">
+                          <div className="flex justify-between text-xs mb-2">
+                            <span className="font-semibold text-[#1a1a1a]">Capacity Allocation</span>
+                            <span className={`font-bold ${allocatedTicketQty > maxCapacity ? "text-red-500" : allocatedTicketQty === maxCapacity ? "text-green-600" : "text-[#555]"}`}>
+                              {allocatedTicketQty} / {maxCapacity} slots
+                            </span>
+                          </div>
+                          <div className="w-full bg-[#f0f0f0] rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all ${allocatedTicketQty > maxCapacity ? "bg-red-500" : allocatedTicketQty === maxCapacity ? "bg-green-500" : "bg-[#FF4747]"}`}
+                              style={{ width: `${Math.min(100, maxCapacity > 0 ? (allocatedTicketQty / maxCapacity) * 100 : 0)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-xs shrink-0">
+                          {allocatedTicketQty > maxCapacity ? (
+                            <span className="text-red-500 font-semibold">Over capacity!</span>
+                          ) : allocatedTicketQty === maxCapacity ? (
+                            <span className="text-green-600 font-semibold">Fully allocated</span>
+                          ) : (
+                            <span className="text-[#888]"><strong className="text-[#1a1a1a]">{maxCapacity - allocatedTicketQty}</strong> remaining</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {tickets.length > 0 && (
                       <div className="grid md:grid-cols-2 gap-4">
                         {tickets.map(t => (
@@ -1429,12 +1652,12 @@ export default function EventsPage() {
                                 </span>
                                 <button type="button" onClick={() => {
                                   setEditingTicket(t);
-                                  setTicketForm({ name: t.name || "", description: t.description || "", price: t.price || 0, quantity: t.quantityAvailable || 100, isFree: t.price === 0, saleStart: t.saleStart ? new Date(t.saleStart).toISOString().slice(0, 16) : "", saleEnd: t.saleEnd ? new Date(t.saleEnd).toISOString().slice(0, 16) : "", locationId: t.locationId || "" });
+                                  setTicketForm({ name: t.name || "", description: t.description || "", price: t.price || 0, quantity: t.quantityAvailable || 100, maxPerOrder: t.maxPerOrder || 10, isFree: t.price === 0, saleStart: t.saleStart ? toLocalISOString(t.saleStart) : "", saleEnd: t.saleEnd ? toLocalISOString(t.saleEnd) : "", locationId: t.locationId || "" });
                                   ticketFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                                 }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer">
                                   <Pencil size={10} /> Edit
                                 </button>
-                                <button type="button" onClick={async () => { if (!confirm("Delete this ticket type?")) return; try { await eventService.deleteTicketType(t.ticketId || t.id); if (editingTicket?.ticketId === t.ticketId) { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, isFree: true, saleStart: "", saleEnd: "", locationId: "" }); } await loadEventData(selectedId); showToast("Ticket deleted!"); } catch { showToast("Failed to delete ticket."); } }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                                <button type="button" onClick={async () => { if (!confirm("Delete this ticket type?")) return; try { await eventService.deleteTicketType(t.ticketId || t.id); if (editingTicket?.ticketId === t.ticketId) { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" }); } await loadEventData(selectedId); showToast("Ticket deleted!"); } catch { showToast("Failed to delete ticket."); } }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
                                   <Trash2 size={10} />
                                 </button>
                               </div>
@@ -1453,14 +1676,46 @@ export default function EventsPage() {
                       <div className="flex items-center justify-between mb-5">
                         <h3 className="font-bold text-sm text-[#1a1a1a]">{editingTicket ? "Edit Ticket Type" : "Create Ticket Type"}</h3>
                         {editingTicket && (
-                          <button type="button" onClick={() => { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, isFree: true, saleStart: "", saleEnd: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                          <button type="button" onClick={() => { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                         )}
                       </div>
                       <form ref={ticketFormRef} onSubmit={saveTicket} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div><label className={label}>Name *</label><input required placeholder="e.g. General Admission" value={ticketForm.name} onChange={e => setTicketForm(f => ({ ...f, name: e.target.value }))} className={inp} /></div>
-                          <div><label className={label}>Quantity</label><input type="number" min={1} value={ticketForm.quantity} onChange={e => setTicketForm(f => ({ ...f, quantity: Number(e.target.value) }))} className={inp} /></div>
+                          <div>
+                            <label className={label}>Quantity{maxCapacity > 0 && <span className="ml-1 text-[#aaa] normal-case font-normal tracking-normal">— event max: {maxCapacity}</span>}</label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={maxCapacity > 0 ? maxCapacity - allocatedTicketQty + (editingTicket?.quantityAvailable ?? 0) : undefined}
+                              value={ticketForm.quantity}
+                              onChange={e => {
+                                const q = Number(e.target.value);
+                                setTicketForm(f => ({ ...f, quantity: q, maxPerOrder: Math.min(f.maxPerOrder, q) }));
+                              }}
+                              className={inp}
+                            />
+                            {maxCapacity > 0 && (
+                              <p className="text-[10px] mt-1 text-[#888]">
+                                {maxCapacity - allocatedTicketQty + (editingTicket?.quantityAvailable ?? 0)} slot{maxCapacity - allocatedTicketQty + (editingTicket?.quantityAvailable ?? 0) !== 1 ? "s" : ""} available
+                              </p>
+                            )}
+                          </div>
                         </div>
+
+                        <div>
+                          <label className={label}>Max Per Order{maxCapacity > 0 && <span className="ml-1 text-[#aaa] normal-case font-normal tracking-normal">— max {Math.min(ticketForm.quantity, maxCapacity)}</span>}</label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={Math.min(ticketForm.quantity, maxCapacity > 0 ? maxCapacity : ticketForm.quantity)}
+                            value={ticketForm.maxPerOrder}
+                            onChange={e => setTicketForm(f => ({ ...f, maxPerOrder: Number(e.target.value) }))}
+                            className={inp}
+                          />
+                          <p className="text-[10px] mt-1 text-[#888]">Maximum tickets one person can buy in a single order.</p>
+                        </div>
+
                         <div><label className={label}>Description</label><input placeholder="What's included with this ticket?" value={ticketForm.description} onChange={e => setTicketForm(f => ({ ...f, description: e.target.value }))} className={inp} /></div>
 
                         <div className="flex items-center gap-3 p-3 bg-[#fafafa] rounded-xl border border-[#f0f0f0]">
@@ -1472,9 +1727,42 @@ export default function EventsPage() {
                           <div><label className={label}>Price (FCFA)</label><input type="number" min={0} placeholder="5000" value={ticketForm.price || ""} onChange={e => setTicketForm(f => ({ ...f, price: Number(e.target.value) }))} className={inp} /></div>
                         )}
 
+                        {!schedule && (
+                          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                            ⚠️ No schedule set — go to the <strong>Schedule</strong> tab first. Sale dates will be constrained to the event window once a schedule exists.
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
-                          <div><label className={label}>Sale Starts</label><input type="datetime-local" value={ticketForm.saleStart} onChange={e => setTicketForm(f => ({ ...f, saleStart: e.target.value }))} className={inp} /></div>
-                          <div><label className={label}>Sale Ends</label><input type="datetime-local" value={ticketForm.saleEnd} onChange={e => setTicketForm(f => ({ ...f, saleEnd: e.target.value }))} className={inp} /></div>
+                          <div>
+                            <label className={label}>Sale Starts</label>
+                            <input
+                              type="datetime-local"
+                              value={ticketForm.saleStart}
+                              min={toLocalISOString(new Date())}
+                              max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
+                              onChange={e => {
+                                const v = e.target.value;
+                                setTicketForm(f => {
+                                  const minEnd = v ? toLocalISOString(new Date(new Date(v).getTime() + 2 * 3600 * 1000)) : f.saleEnd;
+                                  return { ...f, saleStart: v, saleEnd: f.saleEnd && v && new Date(f.saleEnd) < new Date(minEnd) ? minEnd : f.saleEnd };
+                                });
+                              }}
+                              className={inp}
+                            />
+                            {schedule?.startDatetime && <p className="text-[10px] mt-1 text-[#888]">Event starts {fmtDt(schedule.startDatetime)}</p>}
+                          </div>
+                          <div>
+                            <label className={label}>Sale Ends</label>
+                            <input
+                              type="datetime-local"
+                              value={ticketForm.saleEnd}
+                              min={ticketForm.saleStart ? toLocalISOString(new Date(new Date(ticketForm.saleStart).getTime() + 2 * 3600 * 1000)) : toLocalISOString(new Date())}
+                              max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
+                              onChange={e => setTicketForm(f => ({ ...f, saleEnd: e.target.value }))}
+                              className={inp}
+                            />
+                            {schedule?.endDatetime && <p className="text-[10px] mt-1 text-[#888]">Event ends {fmtDt(schedule.endDatetime)}</p>}
+                          </div>
                         </div>
                         {locations.length > 0 && (
                           <div>
@@ -1636,7 +1924,10 @@ export default function EventsPage() {
                             <div><label className={label}>End Time</label><input type="datetime-local" value={sessionForm.endTime} onChange={e => setSessionForm(f => ({ ...f, endTime: e.target.value }))} className={inp} /></div>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
-                            <div><label className={label}>Capacity</label><input type="number" min={1} value={sessionForm.capacity} onChange={e => setSessionForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} /></div>
+                            <div>
+                              <label className={label}>Capacity{maxCapacity > 0 && <span className="ml-1 text-[#aaa] normal-case font-normal tracking-normal">— max {maxCapacity}</span>}</label>
+                              <input type="number" min={1} max={maxCapacity || undefined} value={sessionForm.capacity} onChange={e => setSessionForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
+                            </div>
                             <div>
                               <label className={label}>Track</label>
                               <select value={sessionForm.trackId} onChange={e => setSessionForm(f => ({ ...f, trackId: e.target.value }))} className={inp}>
@@ -1734,8 +2025,8 @@ export default function EventsPage() {
                           </div>
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className={label}>Capacity</label>
-                              <input type="number" min={1} value={trackForm.capacity} onChange={e => setTrackForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
+                              <label className={label}>Capacity{maxCapacity > 0 && <span className="ml-1 text-[#aaa] normal-case font-normal tracking-normal">— max {maxCapacity}</span>}</label>
+                              <input type="number" min={1} max={maxCapacity || undefined} value={trackForm.capacity} onChange={e => setTrackForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
                             </div>
                             {locations.length > 0 && (
                               <div>
@@ -1909,29 +2200,44 @@ export default function EventsPage() {
                 {/* ── SPEAKERS TAB ── */}
                 {tab === "speakers" && (
                   <div className="max-w-4xl space-y-6">
-                    {speakers.length > 0 && (
-                      <div className="grid md:grid-cols-2 gap-4">
-                        {speakers.map((s: any) => (
-                          <div key={s.speakerId || s.id} className={`bg-white border rounded-2xl p-5 flex items-start gap-4 transition-colors ${editingSpeaker?.speakerId === s.speakerId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
-                            {s.photoUrl ? <img src={s.photoUrl} alt={s.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#f0f0f0] shrink-0" /> : <div className="w-12 h-12 rounded-full bg-[#F7E998] flex items-center justify-center font-black text-lg text-[#1a1a1a] shrink-0">{(s.name || "?").charAt(0)}</div>}
-                            <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm text-[#1a1a1a]">{s.name}</div>
-                              {s.title && <div className="text-xs text-[#FF4747] font-semibold mt-0.5">{s.title}</div>}
-                              {s.company && <div className="text-xs text-[#888]">{s.company}</div>}
-                              {s.sessionId && <div className="text-[10px] text-blue-500 mt-1">Session: {sessions.find((ss: any) => (ss.sessionId || ss.id) === s.sessionId)?.title || s.sessionId}</div>}
+                    {(() => {
+                      const sortedSpeakers = [...speakers].sort((a, b) => {
+                        const locA = getSpeakerLocationName(a);
+                        const locB = getSpeakerLocationName(b);
+                        if (!locA && locB) return 1;
+                        if (locA && !locB) return -1;
+                        return locA.localeCompare(locB);
+                      });
+                      return sortedSpeakers.length > 0 ? (
+                        <div className="grid md:grid-cols-2 gap-4">
+                          {sortedSpeakers.map((s: any) => (
+                            <div key={s.speakerId || s.id} className={`bg-white border rounded-2xl p-5 flex items-start gap-4 transition-colors ${editingSpeaker?.speakerId === s.speakerId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                              {s.photoUrl ? <img src={s.photoUrl} alt={s.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#f0f0f0] shrink-0" /> : <div className="w-12 h-12 rounded-full bg-[#F7E998] flex items-center justify-center font-black text-lg text-[#1a1a1a] shrink-0">{(s.name || "?").charAt(0)}</div>}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{s.name}</div>
+                                {s.title && <div className="text-xs text-[#FF4747] font-semibold mt-0.5">{s.title}</div>}
+                                {s.company && <div className="text-xs text-[#888]">{s.company}</div>}
+                                {s.sessionId && (
+                                  <div className="text-[10px] text-blue-500 mt-1">
+                                    Session: {sessions.find((ss: any) => (ss.sessionId || ss.id) === s.sessionId)?.title || s.sessionId}
+                                    {getSpeakerLocationName(s) && ` (${getSpeakerLocationName(s)})`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-1 shrink-0 flex-col">
+                                <button type="button" onClick={() => { setEditingSpeaker(s); setSpeakerForm({ name: s.name || "", bio: s.bio || "", photoUrl: s.photoUrl || "", company: s.company || "", title: s.title || "", sessionId: s.sessionId || "", locationId: s.locationId || "" }); speakerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
+                                <button type="button" onClick={async () => { if (!confirm("Remove speaker?")) return; try { await eventService.deleteSessionSpeaker(s.speakerId || s.id); await loadEventData(selectedId); showToast("Speaker removed!"); } catch { showToast("Failed to remove speaker."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
+                              </div>
                             </div>
-                            <div className="flex gap-1 shrink-0 flex-col">
-                              <button type="button" onClick={() => { setEditingSpeaker(s); setSpeakerForm({ name: s.name || "", bio: s.bio || "", photoUrl: s.photoUrl || "", company: s.company || "", title: s.title || "", sessionId: s.sessionId || "" }); speakerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
-                              <button type="button" onClick={async () => { if (!confirm("Remove speaker?")) return; try { await eventService.deleteSessionSpeaker(s.speakerId || s.id); await loadEventData(selectedId); showToast("Speaker removed!"); } catch { showToast("Failed to remove speaker."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
+
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
                       <div className="flex items-center justify-between mb-5">
                         <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSpeaker ? "Edit Speaker" : "Add Speaker"}</h3>
-                        {editingSpeaker && <button type="button" onClick={() => { setEditingSpeaker(null); setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>}
+                        {editingSpeaker && <button type="button" onClick={() => { setEditingSpeaker(null); setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>}
                       </div>
                       <form ref={speakerFormRef} onSubmit={saveSpeaker} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -1941,10 +2247,32 @@ export default function EventsPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div><label className={label}>Company / Organization</label><input placeholder="Acme Corp" value={speakerForm.company} onChange={e => setSpeakerForm(f => ({ ...f, company: e.target.value }))} className={inp} /></div>
                           <div>
-                            <label className={label}>Assign to Session</label>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className={label + " mb-0"}>Assign to Session</label>
+                              <button
+                                type="button"
+                                onClick={() => setTab("sessions")}
+                                className="text-[10px] text-[#FF4747] font-semibold hover:underline cursor-pointer flex items-center gap-0.5"
+                              >
+                                <Plus size={10} /> Create Session
+                              </button>
+                            </div>
                             <select value={speakerForm.sessionId} onChange={e => setSpeakerForm(f => ({ ...f, sessionId: e.target.value }))} className={inp}>
                               <option value="">— No session —</option>
                               {sessions.map((s: any) => <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className={label}>Direct Location Link (Override)</label>
+                            <select value={speakerForm.locationId} onChange={e => setSpeakerForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
+                              <option value="">— Select Location (Optional) —</option>
+                              {locations.map((loc: any) => (
+                                <option key={loc.locationId || loc.id} value={loc.locationId || loc.id}>
+                                  {loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person")}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         </div>
@@ -2436,184 +2764,189 @@ export default function EventsPage() {
                 )}
 
                 {/* ── CUSTOM SECTIONS TAB ── */}
-                {tab === "sections" && (
-                  <div className="max-w-4xl grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-8">
+                {tab === "sections" && (() => {
+                  const SECTION_TYPES: { type: string; icon: string; label: string; hint: string }[] = [
+                    { type: "HERO",          icon: "🦸",  label: "Hero",         hint: "Full-width banner at the top of the page" },
+                    { type: "TEXT",          icon: "📝",  label: "Text",         hint: "Title + description with optional image" },
+                    { type: "SPEAKERS",      icon: "🎙️", label: "Speakers",     hint: "Auto-pulls your event's speaker list" },
+                    { type: "SCHEDULE",      icon: "📅",  label: "Schedule",     hint: "Auto-pulls sessions and agenda" },
+                    { type: "SPONSORS",      icon: "🤝",  label: "Sponsors",     hint: "Auto-pulls your event's sponsors" },
+                    { type: "FAQ",           icon: "❓",  label: "FAQ",          hint: "Q&A style block — write Q: / A: pairs" },
+                    { type: "IMAGE_GALLERY", icon: "🖼️", label: "Gallery",      hint: "Emphasises an image with caption" },
+                    { type: "POLL",          icon: "📊",  label: "Poll",         hint: "Auto-pulls active polls for this event" },
+                    { type: "REGISTRATION",  icon: "🎟️", label: "Register CTA", hint: "Call-to-action block driving registrations" },
+                    { type: "CUSTOM",        icon: "✨",  label: "Custom",       hint: "Freeform block — anything goes" },
+                  ];
+                  const needsImage = ["HERO", "TEXT", "IMAGE_GALLERY", "CUSTOM"].includes(sectionForm.sectionType);
+                  const isAutoType = ["SPEAKERS", "SCHEDULE", "SPONSORS", "POLL"].includes(sectionForm.sectionType);
+                  return (
+                  <div className="max-w-5xl grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-8">
                     {/* Left: Create/Edit Form */}
-                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 shadow-sm">
-                      <div className="flex items-center justify-between mb-5">
+                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 shadow-sm space-y-5">
+                      <div className="flex items-center justify-between">
                         <h3 className="font-bold text-sm text-[#1a1a1a]">
-                          {editingSection ? "Edit Custom Section" : "Add Custom Section"}
+                          {editingSection ? "Edit Section" : "Add Page Section"}
                         </h3>
                         {editingSection && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSection(null);
-                              setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0 });
-                            }}
-                            className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline"
-                          >
-                            Cancel edit
-                          </button>
+                          <button type="button" onClick={() => { setEditingSection(null); setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel</button>
                         )}
+                      </div>
+
+                      {/* Section type picker */}
+                      <div>
+                        <label className={label}>Section Type</label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {SECTION_TYPES.map(st => (
+                            <button
+                              key={st.type}
+                              type="button"
+                              title={st.hint}
+                              onClick={() => setSectionForm(f => ({ ...f, sectionType: st.type }))}
+                              className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border text-center transition-all cursor-pointer ${sectionForm.sectionType === st.type ? "border-[#FF4747] bg-[#fff5f5] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}
+                            >
+                              <span className="text-lg leading-none">{st.icon}</span>
+                              <span className={`text-[9px] font-semibold leading-tight ${sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"}`}>{st.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {(() => { const t = SECTION_TYPES.find(s => s.type === sectionForm.sectionType); return t ? <p className="text-[10px] text-[#888] mt-1.5">{t.hint}</p> : null; })()}
                       </div>
 
                       <form onSubmit={saveSection} className="space-y-4">
                         <div>
                           <label className={label}>Section Title *</label>
-                          <input
-                            required
-                            placeholder="e.g. Key Features, Meet the Team, Event Gallery"
-                            value={sectionForm.title}
-                            onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))}
-                            className={inp}
-                          />
+                          <input required placeholder="e.g. About This Event, Meet the Speakers, FAQs" value={sectionForm.title} onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))} className={inp} />
                         </div>
 
                         <div>
-                          <label className={label}>Image URL (Optional)</label>
-                          <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2">
-                            {sectionForm.imageUrl ? (
-                              <img src={sectionForm.imageUrl} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-[#f0f0f0] shrink-0 bg-[#fafafa]" />
-                            ) : (
-                              <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
-                                <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
-                              </div>
-                            )}
-                            <div>
-                              <div className="text-sm font-semibold text-[#1a1a1a]">{sectionForm.imageUrl ? "Click to upload another" : "Upload Section Image"}</div>
-                              <div className="text-xs text-[#aaa]">PNG or JPG</div>
-                            </div>
-                            <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                              const f = e.target.files?.[0];
-                              if (!f) return;
-                              try {
-                                setSaving(true);
-                                const res = await eventService.uploadImage(f);
-                                setSectionForm(f => ({ ...f, imageUrl: res.url }));
-                                showToast("Image uploaded successfully!");
-                              } catch (err: any) {
-                                showToast("Failed to upload image: " + (err.message || err));
-                              } finally {
-                                setSaving(false);
-                              }
-                            }} />
-                          </label>
-
-                          <input
-                            placeholder="Or paste an image URL directly..."
-                            value={sectionForm.imageUrl}
-                            onChange={e => setSectionForm(f => ({ ...f, imageUrl: e.target.value }))}
-                            className={inp}
-                          />
-                        </div>
-
-                        <div>
-                          <label className={label}>Content Description *</label>
+                          <label className={label}>Description{isAutoType ? " (intro text shown above the auto-pulled content)" : " *"}</label>
                           <textarea
-                            required
-                            placeholder="Write the details, instructions, or descriptions for this section..."
+                            required={!isAutoType}
+                            placeholder={
+                              sectionForm.sectionType === "FAQ"
+                                ? "Write Q&A pairs:\n\nQ: What is this event?\nA: It's an amazing experience.\n\nQ: How do I register?\nA: Click the Register button above."
+                                : isAutoType
+                                ? "Optional intro text displayed above the list…"
+                                : "Write the details for this section…"
+                            }
                             value={sectionForm.content}
                             onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
-                            rows={8}
+                            rows={sectionForm.sectionType === "FAQ" ? 10 : 5}
                             className={inp + " resize-none"}
                           />
+                          {sectionForm.sectionType === "FAQ" && (
+                            <p className="text-[10px] text-[#888] mt-1">Format each entry as <strong>Q:</strong> on one line, <strong>A:</strong> on the next, separated by a blank line.</p>
+                          )}
                         </div>
 
-                        <div>
-                          <label className={label}>Display Order</label>
-                          <input
-                            type="number"
-                            placeholder="0"
-                            value={sectionForm.displayOrder}
-                            onChange={e => setSectionForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))}
-                            className={inp}
-                          />
-                          <p className="text-[10px] text-[#aaa] mt-1">Lower numbers appear first on the page.</p>
+                        {needsImage && (
+                          <div>
+                            <label className={label}>Image (Optional)</label>
+                            <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2">
+                              {sectionForm.imageUrl ? (
+                                <img src={sectionForm.imageUrl} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-[#f0f0f0] shrink-0" />
+                              ) : (
+                                <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
+                                  <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                                </div>
+                              )}
+                              <div>
+                                <div className="text-sm font-semibold text-[#1a1a1a]">{sectionForm.imageUrl ? "Click to replace" : "Upload image"}</div>
+                                <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                              </div>
+                              <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                try {
+                                  setSaving(true);
+                                  const res = await eventService.uploadImage(f);
+                                  setSectionForm(f => ({ ...f, imageUrl: res.url }));
+                                  showToast("Image uploaded!");
+                                } catch (err: any) {
+                                  showToast("Upload failed: " + (err.message || err));
+                                } finally { setSaving(false); }
+                              }} />
+                            </label>
+                            <input placeholder="Or paste an image URL…" value={sectionForm.imageUrl} onChange={e => setSectionForm(f => ({ ...f, imageUrl: e.target.value }))} className={inp} />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className={label}>Display Order</label>
+                            <input type="number" placeholder="0" value={sectionForm.displayOrder} onChange={e => setSectionForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))} className={inp} />
+                            <p className="text-[10px] text-[#aaa] mt-1">Lower = appears first.</p>
+                          </div>
+                          <div>
+                            <label className={label}>Status</label>
+                            <div className="flex items-center gap-3 mt-2">
+                              <button type="button" onClick={() => setSectionForm(f => ({ ...f, status: f.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }))}
+                                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${sectionForm.status === "ACTIVE" ? "bg-green-500" : "bg-[#e5e7eb]"}`}>
+                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${sectionForm.status === "ACTIVE" ? "translate-x-5" : "translate-x-0"}`} />
+                              </button>
+                              <span className="text-xs font-semibold text-[#555]">{sectionForm.status === "ACTIVE" ? "Visible" : "Hidden"}</span>
+                            </div>
+                          </div>
                         </div>
 
                         <button type="submit" disabled={saving} className={saveBtn}>
-                          <Save size={13} />
-                          {saving ? "Saving..." : editingSection ? "Save Changes" : "Create Section"}
+                          <Save size={13} />{saving ? "Saving..." : editingSection ? "Save Changes" : "Add Section"}
                         </button>
                       </form>
                     </div>
 
                     {/* Right: Existing Sections List */}
                     <div className="space-y-4">
-                      <h3 className="font-bold text-sm text-[#1a1a1a]">Active Page Sections</h3>
-                      <p className="text-xs text-[#888] -mt-2">These sections appear on the attendee view page in order.</p>
+                      <div>
+                        <h3 className="font-bold text-sm text-[#1a1a1a]">Page Sections</h3>
+                        <p className="text-xs text-[#888] mt-0.5">Drag or reorder by changing the order number. Attendees see these on the event page.</p>
+                      </div>
 
                       {eventSections.length === 0 ? (
-                        <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-12 text-center">
-                          <Layers size={32} className="mx-auto text-[#ccc] mb-2" />
-                          <p className="font-bold text-xs text-[#1a1a1a]">No custom sections yet</p>
-                          <p className="text-[10px] text-[#aaa] mt-0.5">Add info blocks, maps, or galleries using the form on the left.</p>
+                        <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-10 text-center">
+                          <Layers size={28} className="mx-auto text-[#ccc] mb-2" />
+                          <p className="font-bold text-xs text-[#1a1a1a]">No sections yet</p>
+                          <p className="text-[10px] text-[#aaa] mt-0.5">Build your event page by adding sections on the left.</p>
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {[...eventSections]
                             .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-                            .map((sec) => (
-                              <div
-                                key={sec.sectionId || sec.id}
-                                className={`bg-white border rounded-2xl p-4 flex gap-4 transition-colors ${
-                                  editingSection?.sectionId === sec.sectionId || editingSection?.id === sec.id
-                                    ? "border-[#FF4747] ring-1 ring-[#FF4747]/20"
-                                    : "border-[#e5e7eb]"
-                                }`}
-                              >
-                                {sec.imageUrl && (
-                                  <img
-                                    src={sec.imageUrl}
-                                    alt={sec.title}
-                                    className="w-14 h-14 rounded-lg object-cover border border-[#e5e7eb] shrink-0"
-                                  />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-xs text-[#1a1a1a] truncate">{sec.title}</span>
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-600">
-                                      Order: {sec.displayOrder || 0}
-                                    </span>
+                            .map((sec) => {
+                              const typeInfo = SECTION_TYPES.find(t => t.type === (sec.sectionType || "CUSTOM")) || SECTION_TYPES[SECTION_TYPES.length - 1];
+                              const isEditing = editingSection?.sectionId === sec.sectionId || editingSection?.id === sec.id;
+                              return (
+                                <div key={sec.sectionId || sec.id} className={`bg-white border rounded-2xl p-4 flex items-start gap-3 transition-colors ${isEditing ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : sec.status === "INACTIVE" ? "border-[#e5e7eb] opacity-50" : "border-[#e5e7eb]"}`}>
+                                  <div className="w-9 h-9 rounded-xl bg-[#fafafa] border border-[#f0f0f0] flex items-center justify-center text-lg shrink-0">{typeInfo.icon}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-bold text-xs text-[#1a1a1a] truncate">{sec.title}</span>
+                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#f0f0f0] text-[#888]">#{sec.displayOrder ?? 0}</span>
+                                      {sec.status === "INACTIVE" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Hidden</span>}
+                                    </div>
+                                    <p className="text-[10px] text-[#FF4747] font-semibold mt-0.5">{typeInfo.label}</p>
+                                    {sec.content && <p className="text-[10px] text-[#aaa] mt-0.5 line-clamp-1">{sec.content}</p>}
                                   </div>
-                                  <p className="text-[11px] text-[#888] mt-1 line-clamp-2 leading-relaxed">
-                                    {sec.content}
-                                  </p>
-                                </div>
-                                <div className="flex flex-col gap-1 shrink-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
+                                  <div className="flex flex-col gap-1 shrink-0">
+                                    <button type="button" onClick={() => {
                                       setEditingSection(sec);
-                                      setSectionForm({
-                                        title: sec.title || "",
-                                        content: sec.content || "",
-                                        imageUrl: sec.imageUrl || "",
-                                        displayOrder: sec.displayOrder || 0
-                                      });
-                                    }}
-                                    className="flex items-center justify-center p-1.5 text-xs text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
-                                    title="Edit Section"
-                                  >
-                                    <Pencil size={11} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => deleteSection(sec.sectionId || sec.id)}
-                                    className="flex items-center justify-center p-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-                                    title="Delete Section"
-                                  >
-                                    <Trash2 size={11} />
-                                  </button>
+                                      setSectionForm({ title: sec.title || "", content: sec.content || "", imageUrl: sec.imageUrl || "", displayOrder: sec.displayOrder || 0, sectionType: sec.sectionType || "CUSTOM", status: sec.status || "ACTIVE" });
+                                    }} className="flex items-center justify-center p-1.5 text-xs text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer" title="Edit">
+                                      <Pencil size={11} />
+                                    </button>
+                                    <button type="button" onClick={() => deleteSection(sec.sectionId || sec.id)} className="flex items-center justify-center p-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                                      <Trash2 size={11} />
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                         </div>
                       )}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
               </div>
             </>

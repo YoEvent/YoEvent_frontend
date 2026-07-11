@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { authService } from "@/app/utils/services/authService";
-import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket, Star, ArrowRight } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket, Star, ArrowRight, ArrowLeft, Tag, Eye, Info } from "lucide-react";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
 
@@ -53,8 +53,12 @@ function EventDetailsPageContent() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [speakers, setSpeakers] = useState<any[]>([]);
   const [sponsors, setSponsors] = useState<any[]>([]);
+  const [volunteerApplications, setVolunteerApplications] = useState<any[]>([]);
   const [exhibitors, setExhibitors] = useState<any[]>([]);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
+  const [tenant, setTenant] = useState<any>(null);
+  const [category, setCategory] = useState<any>(null);
+  const [registrationCount, setRegistrationCount] = useState<number | null>(null);
 
   // Feedback section states
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -91,7 +95,7 @@ function EventDetailsPageContent() {
   const [showVolunteerForm, setShowVolunteerForm] = useState(false);
   const [sponsorForm, setSponsorForm] = useState({ companyName: "", contactName: "", email: "", phone: "", message: "", packageId: "", logoUrl: "" });
   const [volunteerForm, setVolunteerForm] = useState({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" });
-  const [applicationMsg, setApplicationMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [applicationMsg, setApplicationMsg] = useState<{ type: "success" | "error"; text: string; source?: "sponsor" | "volunteer" } | null>(null);
   const [appLoading, setAppLoading] = useState(false);
 
   useEffect(() => {
@@ -113,6 +117,25 @@ function EventDetailsPageContent() {
         }
         setEvent(currentEvent);
 
+        // Fetch organizer profile
+        if (currentEvent.tenantId) {
+          authService.getTenantById(currentEvent.tenantId, { skipAuth: true })
+            .then(setTenant)
+            .catch(() => null);
+        }
+
+        // Fetch category
+        if (currentEvent.categoryId) {
+          eventService.getEventCategoryById(currentEvent.categoryId)
+            .then(setCategory)
+            .catch(() => null);
+        }
+
+        // Fetch registration count (does not affect page load state)
+        eventService.getRegistrationsByEvent(eventId)
+          .then((regs: any) => setRegistrationCount(toArr(regs).filter((r: any) => r.status !== "CANCELLED").length))
+          .catch(() => null);
+
         // Fetch parallel data
         const [
           locsList,
@@ -128,20 +151,22 @@ function EventDetailsPageContent() {
           announcsList,
           volunteerOpeningsList,
           staffList,
+          networkingsList,
         ] = await Promise.all([
-          eventService.getEventLocations().catch(() => []),
-          eventService.getSessions().catch(() => []),
-          eventService.getSessionSpeakers().catch(() => []),
-          eventService.getSponsors().catch(() => []),
-          eventService.getExhibitors().catch(() => []),
-          eventService.getTicketTypes().catch(() => []),
-          eventService.getEventSchedules().catch(() => []),
-          eventService.getSponsorshipPackages().catch(() => []),
-          eventService.getEventSections(eventId).catch(() => []),
-          eventService.getFeedbacks().catch(() => []),
-          eventService.getAnnouncements().catch(() => []),
-          eventService.getVolunteerOpenings().catch(() => []),
-          eventService.getStaffByEvent(eventId).catch(() => []),
+          eventService.getEventLocations({ skipAuth: true }).catch(() => []),
+          eventService.getSessions({ skipAuth: true }).catch(() => []),
+          eventService.getSessionSpeakers({ skipAuth: true }).catch(() => []),
+          eventService.getSponsors({ skipAuth: true }).catch(() => []),
+          eventService.getExhibitors({ skipAuth: true }).catch(() => []),
+          eventService.getTicketTypes(eventId, { skipAuth: true }).catch(() => []),
+          eventService.getEventSchedules({ skipAuth: true }).catch(() => []),
+          eventService.getSponsorshipPackages({ skipAuth: true }).catch(() => []),
+          eventService.getEventSections(eventId, { skipAuth: true }).catch(() => []),
+          eventService.getFeedbacks({ skipAuth: true }).catch(() => []),
+          eventService.getAnnouncements({ skipAuth: true }).catch(() => []),
+          eventService.getVolunteerOpenings({ skipAuth: true }).catch(() => []),
+          eventService.getStaffByEvent(eventId, { skipAuth: true }).catch(() => []),
+          eventService.getNetworkings().catch(() => []),
         ]);
 
         const schedule = toArr(schedulesList).find((s: any) => s.eventId === eventId);
@@ -182,11 +207,12 @@ function EventDetailsPageContent() {
         setExhibitors(toArr(exhibList).filter((e: any) => e.eventId === eventId));
         setTicketTypes(toArr(ticketsList).filter((t: any) => t.eventId === eventId));
         setSponsorshipPackages(toArr(packagesList).filter((p: any) => p.eventId === eventId));
-        setSections(toArr(sectionsList));
+        setSections(toArr(sectionsList).filter((s: any) => s.eventId === eventId));
         setFeedbacks(toArr(feedbacksList).filter((f: any) => f.eventId === eventId));
         setAnnouncements(toArr(announcsList).filter((a: any) => a.eventId === eventId));
         setVolunteerOpenings(toArr(volunteerOpeningsList).filter((v: any) => v.eventId === eventId));
         setStaffMembers(toArr(staffList).filter((s: any) => String(s.eventId) === String(eventId)));
+        setVolunteerApplications(toArr(networkingsList).filter((n: any) => n.eventId === eventId && n.role === "VOLUNTEER"));
 
       } catch (err) {
         console.error("Failed to load event data:", err);
@@ -478,6 +504,13 @@ function EventDetailsPageContent() {
     }
   };
 
+  const normalizePhone = (p: string) => (p || "").replace(/\D/g, "");
+  const sameEmail = (a: string, b: string) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+  const samePhone = (a: string, b: string) => {
+    const na = normalizePhone(a), nb = normalizePhone(b);
+    return !!na && !!nb && na === nb;
+  };
+
   const handleSponsorApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSponsorApplicationOpen) {
@@ -485,10 +518,19 @@ function EventDetailsPageContent() {
       return;
     }
     if (!sponsorForm.companyName || !sponsorForm.email) return;
+
+    const alreadyApplied = sponsors.some(
+      (s: any) => sameEmail(s.email, sponsorForm.email) || samePhone(s.phone, sponsorForm.phone)
+    );
+    if (alreadyApplied) {
+      setApplicationMsg({ type: "error", text: "An application with this email or phone number has already been submitted for this event.", source: "sponsor" });
+      return;
+    }
+
     setAppLoading(true);
     setApplicationMsg(null);
     try {
-      await eventService.createSponsor({
+      const created = await eventService.createSponsor({
         eventId,
         tenantId: event.tenantId,
         companyName: sponsorForm.companyName,
@@ -500,11 +542,12 @@ function EventDetailsPageContent() {
         logoUrl: sponsorForm.logoUrl || undefined,
         status: "PENDING",
       });
-      setApplicationMsg({ type: "success", text: "Your sponsorship application has been submitted! The organizer will contact you shortly." });
+      setSponsors((prev) => [...prev, created]);
+      setApplicationMsg({ type: "success", text: "Your sponsorship application has been submitted! The organizer will contact you shortly.", source: "sponsor" });
       setShowSponsorForm(false);
       setSponsorForm({ companyName: "", contactName: "", email: "", phone: "", message: "", packageId: "", logoUrl: "" });
     } catch (err: any) {
-      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again." });
+      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again.", source: "sponsor" });
     } finally {
       setAppLoading(false);
     }
@@ -517,10 +560,19 @@ function EventDetailsPageContent() {
       return;
     }
     if (!volunteerForm.name || !volunteerForm.email) return;
+
+    const alreadyApplied = volunteerApplications.some(
+      (v: any) => sameEmail(v.email, volunteerForm.email) || samePhone(v.phone, volunteerForm.phone)
+    );
+    if (alreadyApplied) {
+      setApplicationMsg({ type: "error", text: "An application with this email or phone number has already been submitted for this event.", source: "volunteer" });
+      return;
+    }
+
     setAppLoading(true);
     setApplicationMsg(null);
     try {
-      await eventService.createNetworking({
+      const created = await eventService.createNetworking({
         eventId,
         tenantId: event.tenantId,
         name: volunteerForm.name,
@@ -532,11 +584,12 @@ function EventDetailsPageContent() {
         photoUrl: volunteerForm.photoUrl || undefined,
         status: "PENDING",
       });
-      setApplicationMsg({ type: "success", text: "Your volunteer application has been submitted! We'll be in touch soon." });
+      setVolunteerApplications((prev) => [...prev, created]);
+      setApplicationMsg({ type: "success", text: "Your volunteer application has been submitted! We'll be in touch soon.", source: "volunteer" });
       setShowVolunteerForm(false);
       setVolunteerForm({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" });
     } catch (err: any) {
-      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again." });
+      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again.", source: "volunteer" });
     } finally {
       setAppLoading(false);
     }
@@ -595,9 +648,29 @@ function EventDetailsPageContent() {
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#efe084] to-transparent"></div>
         )}
         <div className="relative max-w-7xl mx-auto px-16 py-24 md:py-32">
+          <div className="mb-8">
+            <button
+              onClick={() => (window.history.length > 1 ? router.back() : router.push("/events"))}
+              className="inline-flex items-center gap-2 text-white/70 hover:text-white text-sm font-semibold cursor-pointer transition-colors"
+            >
+              <ArrowLeft size={16} /> Back
+            </button>
+          </div>
           <span className="inline-block px-3 py-1 bg-[#EB4203] text-white text-xs font-bold rounded-full uppercase tracking-widest mb-6">
             {event.status}
           </span>
+          {tenant && (
+            <div className="flex items-center gap-2 mb-6">
+              {tenant.logo ? (
+                <img src={tenant.logo} alt={tenant.name} className="w-6 h-6 rounded-full object-cover border border-white/20" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-[10px] font-bold">
+                  {tenant.name.charAt(0)}
+                </div>
+              )}
+              <span className="text-white/80 text-sm font-semibold">Hosted by {tenant.name}</span>
+            </div>
+          )}
           <div className="flex items-start justify-between gap-4 mb-6">
             <h1 className="font-display text-5xl md:text-7xl font-black text-white leading-tight max-w-4xl">
               {event.title}
@@ -611,6 +684,11 @@ function EventDetailsPageContent() {
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-4 mb-4">
+            {category?.name && (
+              <span className="flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-bold rounded-full uppercase tracking-wider">
+                <Tag size={12} /> {category.name}
+              </span>
+            )}
             {event.format && (
               <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full border border-white/30 uppercase tracking-wider">
                 {event.format === "IN_PERSON" ? "In Person" : event.format === "VIRTUAL" ? "Virtual" : "Hybrid"}
@@ -761,18 +839,160 @@ function EventDetailsPageContent() {
             );
           })()}
 
-          {/* CUSTOM EVENT SECTIONS */}
-          {sections && sections.length > 0 && (
-            <div className="space-y-12">
-              {sections.map((section) => (
-                <section key={section.sectionId || section.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
-                  <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-4">{section.title}</h3>
-                  {section.imageUrl && (
-                    <img src={section.imageUrl} alt={section.title} className="w-full h-64 object-cover rounded-xl mb-4 border border-[#e5e7eb]" />
-                  )}
-                  <p className="text-[#555] leading-relaxed whitespace-pre-line">{section.content}</p>
-                </section>
-              ))}
+          {/* DYNAMIC EVENT SECTIONS */}
+          {sections && sections.filter((s: any) => s.status !== "INACTIVE").length > 0 && (
+            <div className="space-y-10">
+              {[...sections]
+                .filter((s: any) => s.status !== "INACTIVE")
+                .sort((a: any, b: any) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+                .map((sec: any) => {
+                  const type = sec.sectionType || "CUSTOM";
+
+                  // HERO
+                  if (type === "HERO") return (
+                    <section key={sec.sectionId || sec.id} className="relative rounded-3xl overflow-hidden shadow-md border border-[#e5e7eb]">
+                      {sec.imageUrl && <img src={sec.imageUrl} alt={sec.title} className="w-full h-72 object-cover" />}
+                      <div className={`${sec.imageUrl ? "absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-8" : "bg-[#1a1a1a] p-10"}`}>
+                        <h2 className="font-display text-3xl font-black text-white mb-2">{sec.title}</h2>
+                        {sec.content && <p className="text-white/80 leading-relaxed max-w-2xl">{sec.content}</p>}
+                      </div>
+                    </section>
+                  );
+
+                  // IMAGE_GALLERY
+                  if (type === "IMAGE_GALLERY") return (
+                    <section key={sec.sectionId || sec.id} className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden shadow-sm">
+                      {sec.imageUrl && <img src={sec.imageUrl} alt={sec.title} className="w-full h-80 object-cover" />}
+                      <div className="p-6">
+                        <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">{sec.title}</h3>
+                        {sec.content && <p className="text-[#555] leading-relaxed whitespace-pre-line">{sec.content}</p>}
+                      </div>
+                    </section>
+                  );
+
+                  // SPEAKERS — auto-pull from event speakers
+                  if (type === "SPEAKERS") return (
+                    <section key={sec.sectionId || sec.id}>
+                      <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-1">{sec.title}</h2>
+                      {sec.content && <p className="text-[#555] mb-6">{sec.content}</p>}
+                      {speakers.length === 0 ? (
+                        <p className="text-[#aaa] italic text-sm">No speakers listed yet.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                          {speakers.map((sp: any) => (
+                            <div key={sp.speakerId || sp.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 text-center shadow-sm">
+                              {sp.photoUrl ? <img src={sp.photoUrl} alt={sp.name} className="w-16 h-16 rounded-full object-cover mx-auto mb-3 border-2 border-[#f0f0f0]" /> : <div className="w-16 h-16 rounded-full bg-[#FF4747]/10 flex items-center justify-center mx-auto mb-3 text-2xl font-black text-[#FF4747]">{(sp.name || "?")[0]}</div>}
+                              <div className="font-bold text-sm text-[#1a1a1a]">{sp.name}</div>
+                              {sp.title && <div className="text-xs text-[#FF4747] font-semibold mt-0.5">{sp.title}</div>}
+                              {sp.company && <div className="text-xs text-[#888] mt-0.5">{sp.company}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+
+                  // SCHEDULE — auto-pull sessions
+                  if (type === "SCHEDULE") return (
+                    <section key={sec.sectionId || sec.id}>
+                      <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-1">{sec.title}</h2>
+                      {sec.content && <p className="text-[#555] mb-6">{sec.content}</p>}
+                      {sessions.length === 0 ? <p className="text-[#aaa] italic text-sm">No sessions scheduled yet.</p> : (
+                        <div className="space-y-3">
+                          {sessions.map((s: any) => (
+                            <div key={s.sessionId || s.id} className="bg-white border border-[#e5e7eb] rounded-xl p-4 flex items-start gap-4 shadow-sm">
+                              <div className="w-1 self-stretch rounded-full bg-[#EB4203] shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{s.title}</div>
+                                {s.description && <p className="text-xs text-[#888] mt-0.5 line-clamp-2">{s.description}</p>}
+                                {(s.startTime || s.endTime) && <p className="text-xs text-[#aaa] mt-1">{s.startTime ? new Date(s.startTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""}{s.endTime ? ` – ${new Date(s.endTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""}</p>}
+                              </div>
+                              {s.type && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FF4747]/10 text-[#FF4747] shrink-0">{s.type}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+
+                  // SPONSORS
+                  if (type === "SPONSORS") return (
+                    <section key={sec.sectionId || sec.id}>
+                      <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-1">{sec.title}</h2>
+                      {sec.content && <p className="text-[#555] mb-6">{sec.content}</p>}
+                      {sponsors.length === 0 ? <p className="text-[#aaa] italic text-sm">No sponsors listed yet.</p> : (
+                        <div className="flex flex-wrap gap-4 items-center">
+                          {sponsors.map((sp: any) => (
+                            <div key={sp.sponsorId || sp.id} className="bg-white border border-[#e5e7eb] rounded-xl px-5 py-3 flex items-center gap-3 shadow-sm">
+                              {sp.logoUrl && <img src={sp.logoUrl} alt={sp.name} className="h-8 object-contain" />}
+                              <span className="font-semibold text-sm text-[#1a1a1a]">{sp.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  );
+
+                  // POLL
+                  if (type === "POLL") return (
+                    <section key={sec.sectionId || sec.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
+                      <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-1">{sec.title}</h2>
+                      {sec.content && <p className="text-[#555] mb-6">{sec.content}</p>}
+                      <p className="text-[#aaa] italic text-sm">Polls will appear here once the event goes live.</p>
+                    </section>
+                  );
+
+                  // REGISTRATION CTA
+                  if (type === "REGISTRATION") return (
+                    <section key={sec.sectionId || sec.id} className="bg-[#1a1a1a] rounded-3xl p-10 text-center shadow-md">
+                      <h2 className="font-display text-3xl font-black text-white mb-3">{sec.title}</h2>
+                      {sec.content && <p className="text-white/70 mb-6 max-w-lg mx-auto">{sec.content}</p>}
+                      <button onClick={() => setShowCheckout(true)} className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#EB4203] text-white font-bold rounded-xl hover:bg-[#c73a00] transition-colors cursor-pointer text-sm">
+                        Register Now →
+                      </button>
+                    </section>
+                  );
+
+                  // FAQ — parse Q: / A: pairs
+                  if (type === "FAQ") {
+                    const pairs: { q: string; a: string }[] = [];
+                    if (sec.content) {
+                      const blocks = sec.content.split(/\n\s*\n/);
+                      for (const block of blocks) {
+                        const lines = block.trim().split("\n");
+                        const qLine = lines.find((l: string) => /^Q:/i.test(l.trim()));
+                        const aLine = lines.find((l: string) => /^A:/i.test(l.trim()));
+                        if (qLine) pairs.push({ q: qLine.replace(/^Q:\s*/i, ""), a: aLine ? aLine.replace(/^A:\s*/i, "") : "" });
+                      }
+                    }
+                    return (
+                      <section key={sec.sectionId || sec.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
+                        <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-6">{sec.title}</h2>
+                        {pairs.length > 0 ? (
+                          <div className="divide-y divide-[#f0f0f0]">
+                            {pairs.map((p, i) => (
+                              <div key={i} className="py-4">
+                                <p className="font-bold text-sm text-[#1a1a1a] mb-1">Q: {p.q}</p>
+                                {p.a && <p className="text-sm text-[#555] leading-relaxed pl-4 border-l-2 border-[#FF4747]/30">{p.a}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[#555] leading-relaxed whitespace-pre-line">{sec.content}</p>
+                        )}
+                      </section>
+                    );
+                  }
+
+                  // TEXT / CUSTOM (default)
+                  return (
+                    <section key={sec.sectionId || sec.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
+                      <h3 className="font-display text-2xl font-black text-[#1a1a1a] mb-4">{sec.title}</h3>
+                      {sec.imageUrl && <img src={sec.imageUrl} alt={sec.title} className="w-full h-64 object-cover rounded-xl mb-4 border border-[#e5e7eb]" />}
+                      <p className="text-[#555] leading-relaxed whitespace-pre-line">{sec.content}</p>
+                    </section>
+                  );
+                })}
             </div>
           )}
 
@@ -1005,6 +1225,13 @@ function EventDetailsPageContent() {
             )}
           </section>
 
+          {applicationMsg?.source === "sponsor" && (
+            <div className={`flex items-start gap-3 p-4 rounded-xl border text-sm ${applicationMsg.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+              <span className="flex-1">{applicationMsg.text}</span>
+              <button onClick={() => setApplicationMsg(null)} className="shrink-0 cursor-pointer"><X size={16} /></button>
+            </div>
+          )}
+
           {/* TEAM */}
           {staffMembers.length > 0 && (() => {
             const activeLoc = locations.find(l => l.locationId === selectedLocationId);
@@ -1181,7 +1408,7 @@ function EventDetailsPageContent() {
             )}
           </section>
 
-          {applicationMsg && (
+          {applicationMsg?.source === "volunteer" && (
             <div className={`flex items-start gap-3 p-4 rounded-xl border text-sm ${applicationMsg.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
               <span className="flex-1">{applicationMsg.text}</span>
               <button onClick={() => setApplicationMsg(null)} className="shrink-0 cursor-pointer"><X size={16} /></button>
@@ -1406,6 +1633,12 @@ function EventDetailsPageContent() {
                   Registration Closed
                 </div>
               </>
+            ) : event?.visibility === "INVITE_ONLY" ? (
+              <div className="text-center py-3">
+                <div className="text-3xl mb-2">✉️</div>
+                <p className="font-semibold text-[#1a1a1a] text-sm mb-1">Invite-Only Event</p>
+                <p className="text-xs text-[#888]">Check your email for an invitation from the organizer.</p>
+              </div>
             ) : (
               <>
                 <p className="text-[#666] text-sm mb-4">Secure your spot before tickets sell out.</p>
@@ -1455,6 +1688,53 @@ function EventDetailsPageContent() {
               </div>
             </div>
           )}
+
+          {/* EVENT DETAILS CARD */}
+          <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
+            <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
+              <Info size={18} className="text-[#EB4203]" /> Event Details
+            </h3>
+            <div className="space-y-3 text-sm">
+              {category?.name && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[#888]">
+                    <Tag size={14} /> Category
+                  </span>
+                  <span className="font-semibold text-[#1a1a1a]">{category.name}</span>
+                </div>
+              )}
+              {event.visibility && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[#888]">
+                    <Eye size={14} /> Visibility
+                  </span>
+                  <span className="font-semibold text-[#1a1a1a] capitalize">
+                    {event.visibility.replace("_", " ").toLowerCase()}
+                  </span>
+                </div>
+              )}
+              {(registrationCount != null || event.maxCapacity != null) && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[#888]">
+                    <Users size={14} /> Registered
+                  </span>
+                  <span className="font-semibold text-[#1a1a1a]">
+                    {registrationCount ?? 0}{event.maxCapacity != null ? ` / ${event.maxCapacity.toLocaleString()}` : ""}
+                  </span>
+                </div>
+              )}
+              {event.createdAt && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-[#888]">
+                    <Calendar size={14} /> Published
+                  </span>
+                  <span className="font-semibold text-[#1a1a1a]">
+                    {new Date(event.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* LOCATIONS */}
           {locations.length > 0 && (() => {

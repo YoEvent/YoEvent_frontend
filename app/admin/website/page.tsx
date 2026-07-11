@@ -76,9 +76,9 @@ export default function WebsitePage() {
           primaryColor: tenantData.primaryColor || "#FF4747",
           secondaryColor: tenantData.secondaryColor || "#1a1a1a",
           accentColor: tenantData.accentColor || "#F7E998",
-          attendeeCountStat: tenantData.attendeeCountStat !== undefined && tenantData.attendeeCountStat !== 0 ? tenantData.attendeeCountStat : liveAttendeeCount,
-          eventCountStat: tenantData.eventCountStat !== undefined && tenantData.eventCountStat !== 0 ? tenantData.eventCountStat : liveEventCount,
-          partnerCountStat: tenantData.partnerCountStat !== undefined && tenantData.partnerCountStat !== 0 ? tenantData.partnerCountStat : livePartnerCount,
+          attendeeCountStat: tenantData.attendeeCountStat || liveAttendeeCount,
+          eventCountStat: tenantData.eventCountStat || liveEventCount,
+          partnerCountStat: tenantData.partnerCountStat || livePartnerCount,
           faqsJson: tenantData.faqsJson || "[]",
         });
 

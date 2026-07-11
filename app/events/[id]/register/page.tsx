@@ -150,6 +150,21 @@ export default function RegisterPage() {
     </div>
   );
 
+  if (event.visibility === "INVITE_ONLY") return (
+    <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center text-center p-8">
+      <div className="max-w-md">
+        <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-4 text-3xl">✉️</div>
+        <h2 className="font-bold text-xl text-[#1a1a1a] mb-2">Invite-Only Event</h2>
+        <p className="text-sm text-[#555] mb-6 leading-relaxed">
+          Registration for <strong>{event.title}</strong> is by invitation only. If you were invited, check your email for a personal invitation link from the organizer.
+        </p>
+        <Link href={`/events/${id}`} className="inline-flex items-center gap-2 text-sm text-[#FF4747] hover:underline">
+          <ChevronLeft size={15} /> Back to event
+        </Link>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-[#f9fafb] text-[#1a1a1a]">
       {/* Header */}

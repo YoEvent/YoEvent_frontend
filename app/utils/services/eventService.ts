@@ -10,7 +10,7 @@ export const eventService = {
   deleteTrack: (id: string) => api.delete<void>(`api/v1/tracks/${id}`),
 
   // Sponsorship Packages
-  getSponsorshipPackages: () => api.get<T.SponsorshipPackageResponse[]>("api/v1/sponsorshippackages"),
+  getSponsorshipPackages: (opts?: any) => api.get<T.SponsorshipPackageResponse[]>("api/v1/sponsorshippackages", opts),
   createSponsorshipPackage: (data: T.SponsorshipPackageRequest) => api.post<T.SponsorshipPackageResponse>("api/v1/sponsorshippackages", data),
   getSponsorshipPackageById: (id: string) => api.get<T.SponsorshipPackageResponse>(`api/v1/sponsorshippackages/${id}`),
   updateSponsorshipPackage: (id: string, data: T.SponsorshipPackageRequest) => api.put<T.SponsorshipPackageResponse>(`api/v1/sponsorshippackages/${id}`, data),
@@ -50,6 +50,7 @@ export const eventService = {
   getQaQuestionById: (id: string) => api.get<T.QaQuestionResponse>(`api/v1/qaquestions/${id}`),
   updateQaQuestion: (id: string, data: T.QaQuestionRequest) => api.put<T.QaQuestionResponse>(`api/v1/qaquestions/${id}`, data),
   deleteQaQuestion: (id: string) => api.delete<void>(`api/v1/qaquestions/${id}`),
+  getQaQuestionsByLocation: (locationId: string) => api.get<T.QaQuestionResponse[]>(`api/v1/qaquestions/location/${locationId}`),
 
   // Polls
   getPolls: () => api.get<T.PollResponse[]>("api/v1/polls"),
@@ -57,18 +58,21 @@ export const eventService = {
   getPollById: (id: string) => api.get<T.PollResponse>(`api/v1/polls/${id}`),
   updatePoll: (id: string, data: T.PollRequest) => api.put<T.PollResponse>(`api/v1/polls/${id}`, data),
   deletePoll: (id: string) => api.delete<void>(`api/v1/polls/${id}`),
+  getPollsByLocation: (locationId: string) => api.get<T.PollResponse[]>(`api/v1/polls/location/${locationId}`),
 
   // Poll Responses
-  getPollResponses: () => api.get<T.PollResponse[]>("api/v1/poll-responses"),
-  createPollResponse: (data: T.PollResponse) => api.post<T.PollResponse>("api/v1/poll-responses", data),
-  getPollResponseById: (id: string) => api.get<T.PollResponse>(`api/v1/poll-responses/${id}`),
-  updatePollResponse: (id: string, data: T.PollResponse) => api.put<T.PollResponse>(`api/v1/poll-responses/${id}`, data),
+  getPollResponses: () => api.get<any[]>("api/v1/poll-responses"),
+  createPollResponse: (data: { pollId?: string; userId?: string; selectedOption?: string; respondedAt?: string; locationId?: string }) => api.post<any>("api/v1/poll-responses", data),
+  getPollResponseById: (id: string) => api.get<any>(`api/v1/poll-responses/${id}`),
+  updatePollResponse: (id: string, data: any) => api.put<any>(`api/v1/poll-responses/${id}`, data),
   deletePollResponse: (id: string) => api.delete<void>(`api/v1/poll-responses/${id}`),
+  getPollResponsesByLocation: (locationId: string) => api.get<any[]>(`api/v1/poll-responses/location/${locationId}`),
 
   // Volunteer Openings
-  getVolunteerOpenings: () => api.get<T.VolunteerOpeningResponse[]>("api/v1/volunteer-openings"),
+  getVolunteerOpeningsByLocation: (locationId: string) => api.get<T.VolunteerOpeningResponse[]>(`api/v1/volunteer-openings/location/${locationId}`),
+  getVolunteerOpenings: (opts?: any) => api.get<T.VolunteerOpeningResponse[]>("api/v1/volunteer-openings", opts),
   getStaffMembers: (opts?: any) => api.get<any[]>("api/v1/staff", opts),
-  getStaffByEvent: (eventId: string) => api.get<any[]>(`api/v1/staff/event/${eventId}`),
+  getStaffByEvent: (eventId: string, opts?: any) => api.get<any[]>(`api/v1/staff/event/${eventId}`, opts),
   createVolunteerOpening: (data: T.VolunteerOpeningRequest) => api.post<T.VolunteerOpeningResponse>("api/v1/volunteer-openings", data),
   getVolunteerOpeningById: (id: string) => api.get<T.VolunteerOpeningResponse>(`api/v1/volunteer-openings/${id}`),
   updateVolunteerOpening: (id: string, data: T.VolunteerOpeningRequest) => api.put<T.VolunteerOpeningResponse>(`api/v1/volunteer-openings/${id}`, data),
@@ -80,13 +84,15 @@ export const eventService = {
   getNetworkingById: (id: string) => api.get<T.NetworkingResponse>(`api/v1/networkings/${id}`),
   updateNetworking: (id: string, data: T.NetworkingRequest) => api.put<T.NetworkingResponse>(`api/v1/networkings/${id}`, data),
   deleteNetworking: (id: string) => api.delete<void>(`api/v1/networkings/${id}`),
+  getNetworkingsByLocation: (locationId: string) => api.get<T.NetworkingResponse[]>(`api/v1/networkings/location/${locationId}`),
 
   // Feedbacks
-  getFeedbacks: () => api.get<T.FeedbackResponse[]>("api/v1/feedbacks"),
+  getFeedbacks: (opts?: any) => api.get<T.FeedbackResponse[]>("api/v1/feedbacks", opts),
   createFeedback: (data: T.FeedbackRequest) => api.post<T.FeedbackResponse>("api/v1/feedbacks", data),
   getFeedbackById: (id: string) => api.get<T.FeedbackResponse>(`api/v1/feedbacks/${id}`),
   updateFeedback: (id: string, data: T.FeedbackRequest) => api.put<T.FeedbackResponse>(`api/v1/feedbacks/${id}`, data),
   deleteFeedback: (id: string) => api.delete<void>(`api/v1/feedbacks/${id}`),
+  getFeedbacksByLocation: (locationId: string) => api.get<T.FeedbackResponse[]>(`api/v1/feedbacks/location/${locationId}`),
 
   // Exhibitors
   getExhibitors: (opts?: any) => api.get<T.ExhibitorResponse[]>("api/v1/exhibitors", opts),
@@ -110,7 +116,7 @@ export const eventService = {
   deleteEventSetting: (id: string) => api.delete<void>(`api/v1/eventsettingss/${id}`),
 
   // Event Schedules
-  getEventSchedules: () => api.get<T.EventScheduleResponse[]>("api/v1/eventschedules"),
+  getEventSchedules: (opts?: any) => api.get<T.EventScheduleResponse[]>("api/v1/eventschedules", opts),
   createEventSchedule: (data: T.EventScheduleRequest) => api.post<T.EventScheduleResponse>("api/v1/eventschedules", data),
   getEventScheduleById: (id: string) => api.get<T.EventScheduleResponse>(`api/v1/eventschedules/${id}`),
   updateEventSchedule: (id: string, data: T.EventScheduleRequest) => api.put<T.EventScheduleResponse>(`api/v1/eventschedules/${id}`, data),
@@ -171,13 +177,15 @@ export const eventService = {
   getEventAnalyticsById: (id: string) => api.get<T.EventAnalyticsResponse>(`api/v1/eventanalyticss/${id}`),
   updateEventAnalytics: (id: string, data: T.EventAnalyticsRequest) => api.put<T.EventAnalyticsResponse>(`api/v1/eventanalyticss/${id}`, data),
   deleteEventAnalytics: (id: string) => api.delete<void>(`api/v1/eventanalyticss/${id}`),
+  getEventAnalyticsByLocation: (locationId: string) => api.get<T.EventAnalyticsResponse[]>(`api/v1/eventanalyticss/location/${locationId}`),
 
   // Announcements
-  getAnnouncements: () => api.get<T.AnnouncementResponse[]>("api/v1/announcements"),
+  getAnnouncements: (opts?: any) => api.get<T.AnnouncementResponse[]>("api/v1/announcements", opts),
   createAnnouncement: (data: T.AnnouncementRequest) => api.post<T.AnnouncementResponse>("api/v1/announcements", data),
   getAnnouncementById: (id: string) => api.get<T.AnnouncementResponse>(`api/v1/announcements/${id}`),
   updateAnnouncement: (id: string, data: T.AnnouncementRequest) => api.put<T.AnnouncementResponse>(`api/v1/announcements/${id}`, data),
   deleteAnnouncement: (id: string) => api.delete<void>(`api/v1/announcements/${id}`),
+  getAnnouncementsByLocation: (locationId: string) => api.get<T.AnnouncementResponse[]>(`api/v1/announcements/location/${locationId}`),
 
   // Ticket Types
   getTicketTypes: (eventIdOrOpts?: string | { skipAuth?: boolean }, opts?: any) => {
@@ -240,7 +248,7 @@ export const eventService = {
   unsaveEventByUserAndEvent: (userId: string, eventId: string) => api.delete<void>(`api/v1/saved-events/user/${userId}/event/${eventId}`),
 
   // Event Sections
-  getEventSections: (eventId?: string) => api.get<any[]>(eventId ? `api/v1/event-sections?eventId=${eventId}` : "api/v1/event-sections"),
+  getEventSections: (eventId?: string, opts?: any) => api.get<any[]>(eventId ? `api/v1/event-sections/event/${eventId}` : "api/v1/event-sections", opts),
   createEventSection: (data: any) => api.post<any>("api/v1/event-sections", data),
   updateEventSection: (id: string, data: any) => api.put<any>(`api/v1/event-sections/${id}`, data),
   deleteEventSection: (id: string) => api.delete<void>(`api/v1/event-sections/${id}`),

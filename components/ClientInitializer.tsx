@@ -71,8 +71,8 @@ export default function ClientInitializer() {
       }
     };
 
-    window.addEventListener("yoevent:forbidden", handleForbidden);
-    return () => window.removeEventListener("yoevent:forbidden", handleForbidden);
+    window.addEventListener("yowevent:forbidden", handleForbidden);
+    return () => window.removeEventListener("yowevent:forbidden", handleForbidden);
   }, []);
 
   const handleForbiddenDismiss = () => setForbiddenMsg(null);

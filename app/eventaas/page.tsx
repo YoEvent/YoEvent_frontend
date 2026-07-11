@@ -1,6 +1,9 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Zap, Shield, Globe, Code2, Layers, BarChart3, Webhook, Key, CheckCircle2, ChevronRight } from "lucide-react";
+import { ArrowRight, Zap, Shield, Globe, Code2, Layers, BarChart3, Webhook, Key, CheckCircle2, ChevronRight, Mail } from "lucide-react";
+import { api, getStoredAuth } from "@/app/utils/api";
+import { DEFAULT_PRICING_PLANS, getDisplayPlans, formatCfaPrice, type PricingPlan } from "@/app/utils/pricingPlans";
 
 const SERVICES = [
   {
@@ -49,34 +52,49 @@ const FEATURES = [
   { icon: Webhook, title: "Webhook Ready", desc: "Notification service emits hooks for ticket purchases, refunds, and campaign completions." },
 ];
 
-const PLANS = [
-  {
-    name: "Starter API",
-    price: "Free",
-    sub: "during beta",
-    features: ["10,000 API calls/month", "2 tenant workspaces", "Auth + Event services", "Community support"],
-    cta: "Get API Key",
-    highlight: false,
-  },
-  {
-    name: "Growth API",
-    price: "25,000",
-    sub: "FCFA / month",
-    features: ["500,000 API calls/month", "Unlimited tenants", "All 5 microservices", "Payment service (2% fee)", "Email support"],
-    cta: "Start Building",
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    sub: "contact us",
-    features: ["Unlimited API calls", "Dedicated infra", "SLA guarantee", "Custom payment rates", "Dedicated support"],
-    cta: "Contact Sales",
-    highlight: false,
-  },
-];
+// EventaaS is billed through the same 4 workspace plans sold on /pricing — these are
+// API-usage-flavored descriptions of those exact tiers, not a separate invented product.
+const API_PLAN_COPY: Record<string, { calls: string; workspaces: string; extra: string[] }> = {
+  Starter: { calls: "10,000 API calls/month", workspaces: "1 tenant workspace", extra: ["Auth + Event services", "Community support"] },
+  Pro: { calls: "100,000 API calls/month", workspaces: "3 tenant workspaces", extra: ["All 5 microservices", "Email support"] },
+  Eventer: { calls: "500,000 API calls/month", workspaces: "10 tenant workspaces", extra: ["Payment service included", "Priority support"] },
+  Enterprise: { calls: "Unlimited API calls", workspaces: "25 tenant workspaces", extra: ["Dedicated infra", "SLA + dedicated support"] },
+};
+
+const SUPPORT_EMAIL = "api@yowevent.com";
 
 export default function EventaaSPage() {
+  const [auth, setAuth] = useState<{ tenantId: string; email: string } | null>(null);
+  const [plans, setPlans] = useState<PricingPlan[]>(DEFAULT_PRICING_PLANS);
+
+  useEffect(() => {
+    const stored = getStoredAuth();
+    if (stored) setAuth({ tenantId: stored.tenantId, email: stored.email });
+  }, []);
+
+  useEffect(() => {
+    api.get<PricingPlan[]>("/api/v1/subscriptionplans", { skipAuth: true })
+      .then((data) => setPlans(getDisplayPlans(data)))
+      .catch(() => setPlans(DEFAULT_PRICING_PLANS));
+  }, []);
+
+  const hasWorkspace = !!auth?.tenantId;
+  // Not logged in → sign up. Logged in without a tenant yet → become an organizer first.
+  // Logged in with a tenant → go straight to the API keys dashboard.
+  const primaryCtaHref = !auth ? "/register" : hasWorkspace ? "/admin/developers" : "/user/dashboard?upgrade=1";
+  const signInHref = hasWorkspace ? "/admin/developers" : "/login";
+
+  const planHref = (plan: PricingPlan) => {
+    if (plan.price === 0) return primaryCtaHref;
+    // Paid tiers are billed through the real subscription checkout.
+    return !auth ? "/register" : hasWorkspace ? "/pricing" : "/user/dashboard?upgrade=1";
+  };
+
+  const planCta = (plan: PricingPlan) => {
+    if (plan.price === 0) return hasWorkspace ? "Manage API Keys" : "Get API Key";
+    return hasWorkspace ? "Upgrade & Get Access" : "Start Building";
+  };
+
   return (
     <div className="min-h-screen bg-white text-[#1a1a1a]">
 
@@ -98,9 +116,11 @@ export default function EventaaSPage() {
           <Link href="/developers" className="hover:text-[#FF4747] transition-colors">API Docs</Link>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors">Sign In</Link>
-          <Link href="/register" className="text-sm font-semibold bg-[#FF4747] text-white px-4 py-2 rounded-full hover:bg-[#e03e3e] transition-colors">
-            Get API Key
+          {!hasWorkspace && (
+            <Link href={signInHref} className="text-sm text-[#666] hover:text-[#1a1a1a] transition-colors">Sign In</Link>
+          )}
+          <Link href={primaryCtaHref} className="text-sm font-semibold bg-[#FF4747] text-white px-4 py-2 rounded-full hover:bg-[#e03e3e] transition-colors">
+            {hasWorkspace ? "Manage API Keys" : "Get API Key"}
           </Link>
         </div>
       </nav>
@@ -118,8 +138,8 @@ export default function EventaaSPage() {
           EventaaS gives your team production-ready microservices for auth, ticketing, payments, and live event features — so you ship in weeks, not months.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link href="/register" className="inline-flex items-center gap-2 bg-[#FF4747] text-white font-bold px-8 py-4 rounded-2xl hover:bg-[#e03e3e] transition-all text-sm">
-            Start for free <ArrowRight size={16} />
+          <Link href={primaryCtaHref} className="inline-flex items-center gap-2 bg-[#FF4747] text-white font-bold px-8 py-4 rounded-2xl hover:bg-[#e03e3e] transition-all text-sm">
+            {hasWorkspace ? "Go to your API keys" : "Start for free"} <ArrowRight size={16} />
           </Link>
           <Link href="/developers" className="inline-flex items-center gap-2 bg-[#f5f5f5] border border-[#e5e7eb] text-[#1a1a1a] font-semibold px-8 py-4 rounded-2xl hover:bg-[#efefef] transition-all text-sm">
             <Code2 size={16} /> View API Docs
@@ -238,30 +258,40 @@ export default function EventaaSPage() {
         <div className="text-center mb-14">
           <div className="text-xs text-[#aaa] uppercase tracking-widest font-semibold mb-3">API Pricing</div>
           <h2 className="font-display text-4xl font-black text-[#1a1a1a]">Pay for what you use</h2>
-          <p className="text-[#888] text-sm mt-3">Separate from YowEvent organizer plans. EventaaS is priced per API usage.</p>
+          <p className="text-[#888] text-sm mt-3">API access is billed through your YowEvent workspace plan — upgrade once, unlock quota everywhere.</p>
         </div>
-        <div className="grid md:grid-cols-3 gap-5">
-          {PLANS.map((p) => (
-            <div key={p.name} className={`rounded-2xl p-7 border flex flex-col ${p.highlight ? "bg-[#FF4747] border-[#FF4747]" : "bg-white border-[#e5e7eb]"}`}>
-              <div className={`text-xs font-bold uppercase tracking-widest mb-4 ${p.highlight ? "text-white/70" : "text-[#aaa]"}`}>{p.name}</div>
-              <div className="mb-6">
-                <span className={`font-display text-4xl font-black ${p.highlight ? "text-white" : "text-[#1a1a1a]"}`}>{p.price}</span>
-                <span className={`text-xs ml-2 ${p.highlight ? "text-white/70" : "text-[#888]"}`}>{p.sub}</span>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {plans.map((p) => {
+            const copy = API_PLAN_COPY[p.name] || API_PLAN_COPY.Starter;
+            const highlight = !!p.popular;
+            return (
+              <div key={p.name} className={`rounded-2xl p-7 border flex flex-col ${highlight ? "bg-[#FF4747] border-[#FF4747]" : "bg-white border-[#e5e7eb]"}`}>
+                <div className={`text-xs font-bold uppercase tracking-widest mb-4 ${highlight ? "text-white/70" : "text-[#aaa]"}`}>{p.name} API</div>
+                <div className="mb-6">
+                  <span className={`font-display text-3xl font-black break-words ${highlight ? "text-white" : "text-[#1a1a1a]"}`}>{formatCfaPrice(p.price)}</span>
+                  {p.price > 0 && <span className={`text-xs ml-1.5 ${highlight ? "text-white/70" : "text-[#888]"}`}>/mo</span>}
+                </div>
+                <ul className="space-y-2.5 mb-8 flex-1">
+                  {[copy.calls, copy.workspaces, ...copy.extra].map((f) => (
+                    <li key={f} className="flex items-center gap-2.5 text-xs">
+                      <CheckCircle2 size={13} className={highlight ? "text-white/80" : "text-[#FF4747]"} />
+                      <span className={highlight ? "text-white/80" : "text-[#555]"}>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link href={planHref(p)} className={`text-center py-3 rounded-xl font-bold text-sm transition-all ${highlight ? "bg-white text-[#FF4747] hover:bg-[#f5f5f5]" : "bg-[#1a1a1a] text-white hover:bg-[#333]"}`}>
+                  {planCta(p)}
+                </Link>
               </div>
-              <ul className="space-y-2.5 mb-8 flex-1">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-xs">
-                    <CheckCircle2 size={13} className={p.highlight ? "text-white/80" : "text-[#FF4747]"} />
-                    <span className={p.highlight ? "text-white/80" : "text-[#555]"}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link href="/register" className={`text-center py-3 rounded-xl font-bold text-sm transition-all ${p.highlight ? "bg-white text-[#FF4747] hover:bg-[#f5f5f5]" : "bg-[#1a1a1a] text-white hover:bg-[#333]"}`}>
-                {p.cta}
-              </Link>
-            </div>
-          ))}
+            );
+          })}
         </div>
+        <p className="text-center text-xs text-[#888] mt-10">
+          Need higher volume or a dedicated deal beyond Enterprise?{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}?subject=EventaaS%20Custom%20Plan`} className="text-[#FF4747] font-semibold hover:underline inline-flex items-center gap-1">
+            <Mail size={12} /> Contact us
+          </a>
+        </p>
       </section>
 
       {/* YOWEVENT CALLOUT */}

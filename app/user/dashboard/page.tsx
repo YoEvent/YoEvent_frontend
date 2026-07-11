@@ -16,7 +16,10 @@ import { Elements, CardElement, useStripe, useElements } from "@stripe/react-str
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-const PLAN_PRICES: Record<string, number> = { FREE: 0, BASIC: 29, PREMIUM: 99 };
+// Real, curated FCFA prices — the seeded subscription_plan rows in the DB hold
+// placeholder values (29, 99) that were never converted to real currency amounts.
+// These match the "Pro"/"Enterprise" tiers shown on /pricing (app/utils/pricingPlans.ts).
+const PLAN_PRICES: Record<string, number> = { FREE: 0, BASIC: 15000, PREMIUM: 85000 };
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
@@ -54,7 +57,7 @@ function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSucces
       if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
         const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
         if (matchedPlan?.planId) {
-          const subResult = await paymentService.createSubscription({ tenantId, planId: matchedPlan.planId, amount: matchedPlan.price ?? PLAN_PRICES[selectedPlan], currency: "XAF", provider: "stripe", paymentMethodId: paymentMethod!.id });
+          const subResult = await paymentService.createSubscription({ tenantId, planId: matchedPlan.planId, amount: PLAN_PRICES[selectedPlan], currency: "XAF", provider: "stripe", paymentMethodId: paymentMethod!.id });
           if (subResult?.clientSecret && !subResult.clientSecret.startsWith("mock_")) {
             const { error: confirmError } = await stripe.confirmCardPayment(subResult.clientSecret);
             if (confirmError) throw new Error(confirmError.message);
@@ -98,6 +101,7 @@ export default function AttendeeDashboard() {
   const [upgradePhone, setUpgradePhone] = useState("");
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
+  const [upgradeMomoWaiting, setUpgradeMomoWaiting] = useState(false);
   const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -250,8 +254,12 @@ export default function AttendeeDashboard() {
             const startDate = ev.startDate || ev.startDatetime;
             const endDate = ev.endDate || ev.endDatetime;
             eventData = { title: ev.title, date: startDate ? new Date(startDate).toLocaleDateString() : "Unknown Date", isPast: endDate ? new Date(endDate) < new Date() : false };
-            if (ev.tenantSlug) {
-              try { const tn: any = await authService.getTenantBySlug(ev.tenantSlug); tenantData = { name: tn.name }; } catch {}
+            // Try fields the event service may embed directly
+            const inlineOrgName = ev.organizerName || ev.tenantName || ev.workspaceName;
+            if (inlineOrgName) {
+              tenantData = { name: inlineOrgName };
+            } else if (ev.tenantId) {
+              try { const tn: any = await authService.getTenantById(ev.tenantId, { skipAuth: true }); tenantData = { name: tn.name || tn.workspaceName || "Unknown Organizer" }; } catch {}
             }
           }
         } catch {}
@@ -361,6 +369,8 @@ export default function AttendeeDashboard() {
     router.push("/admin");
   };
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const handleUpgradeSubmit = async () => {
     setUpgradeError("");
     if (!upgradeForm.workspaceName.trim()) { setUpgradeError("Workspace name is required"); return; }
@@ -373,7 +383,33 @@ export default function AttendeeDashboard() {
       if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
         const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
         if (matchedPlan?.planId) {
-          await paymentService.createSubscription({ tenantId, planId: matchedPlan.planId, amount: matchedPlan.price ?? PLAN_PRICES[selectedPlan], currency: "XAF", provider: upgradePaymentMethod });
+          const isMomo = upgradePaymentMethod !== "stripe";
+          const subscription = await paymentService.createSubscription({
+            tenantId, planId: matchedPlan.planId, amount: PLAN_PRICES[selectedPlan],
+            currency: "XAF", provider: upgradePaymentMethod,
+            phoneNumber: isMomo ? upgradePhone : undefined,
+          });
+
+          if (isMomo) {
+            setUpgradeLoading(false);
+            setUpgradeMomoWaiting(true);
+            let confirmed = false;
+            for (let attempt = 0; attempt < 20; attempt++) {
+              await sleep(3000);
+              const status = await paymentService.checkSubscriptionMobileMoneyStatus(subscription.id).catch(() => null);
+              if (status?.status === "ACTIVE") { confirmed = true; break; }
+              if (status?.status === "FAILED") {
+                setUpgradeMomoWaiting(false);
+                setUpgradeError("Mobile Money payment failed or was declined. Please try again.");
+                return;
+              }
+            }
+            setUpgradeMomoWaiting(false);
+            if (!confirmed) {
+              setUpgradeError("Still waiting for Mobile Money confirmation. Your plan will activate automatically once the payment completes — check back shortly.");
+              return;
+            }
+          }
         }
       }
       finishUpgrade(data);
@@ -1295,6 +1331,12 @@ export default function AttendeeDashboard() {
                       setLoading={setUpgradeLoading}
                     />
                   </Elements>
+                ) : upgradeMomoWaiting ? (
+                  <div className="text-center py-6 space-y-3">
+                    <div className="w-8 h-8 mx-auto border-2 border-[#FF4747] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[#1a1a1a] font-semibold text-sm">Check your phone and confirm the USSD prompt</p>
+                    <p className="text-xs text-[#888]">Waiting for +237{upgradePhone} to confirm payment via Mobile Money…</p>
+                  </div>
                 ) : (
                   <>
                     <div className="mb-5">

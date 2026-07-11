@@ -10,6 +10,14 @@ const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
 const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer disabled:opacity-50";
 
+const toLocalISOString = (dateInput?: string | Date) => {
+  if (!dateInput) return "";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return "";
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+};
+
 export default function ProjectPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
@@ -18,6 +26,7 @@ export default function ProjectPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [refunds, setRefunds] = useState<any[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<any>(null);
 
   // Forms
   const [editingTicket, setEditingTicket] = useState<any>(null);
@@ -26,8 +35,8 @@ export default function ProjectPage() {
     description: "",
     price: 0,
     quantityAvailable: 100,
-    saleStart: new Date().toISOString().slice(0, 16),
-    saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+    saleStart: toLocalISOString(new Date()),
+    saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
     maxPerOrder: 5,
   });
 
@@ -66,17 +75,21 @@ export default function ProjectPage() {
   const fetchEventDetails = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const [ticketsList, couponsList, ordersList, refundsList] = await Promise.all([
+      const [ticketsList, couponsList, ordersList, refundsList, schedsList] = await Promise.all([
         eventService.getTicketTypes(),
         eventService.getCoupons(),
         eventService.getOrders(),
         paymentService.getRefunds().catch(() => []),
+        eventService.getEventSchedules().catch(() => []),
       ]);
 
       setTicketTypes((ticketsList || []).filter((t) => t.eventId === eventId));
       setCoupons((couponsList || []).filter((c) => c.eventId === eventId));
       setOrders((ordersList || []).filter((o) => o.eventId === eventId));
       setRefunds(refundsList || []);
+      
+      const sched = (schedsList || []).find((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
+      setSchedule(sched || null);
     } catch (err) {
       console.error("Failed to load details:", err);
     }
@@ -96,8 +109,8 @@ export default function ProjectPage() {
         description: "",
         price: 0,
         quantityAvailable: 100,
-        saleStart: new Date().toISOString().slice(0, 16),
-        saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        saleStart: toLocalISOString(new Date()),
+        saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
         maxPerOrder: 5,
       });
       setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
@@ -107,20 +120,82 @@ export default function ProjectPage() {
   const handleSaveTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEventId || !ticketForm.name) return;
+
+    const qty = Number(ticketForm.quantityAvailable);
+    const mpo = Number(ticketForm.maxPerOrder);
+    const now = new Date();
+    const eventEnd = schedule?.endDatetime ? new Date(schedule.endDatetime) : null;
+    const selectedEvent = events.find(e => e.eventId === selectedEventId);
+    const maxCapacity = selectedEvent?.maxCapacity || 0;
+
+    // ── Quantity vs capacity ──
+    const allocatedTicketQty = ticketTypes.reduce((sum: number, t: any) => sum + (t.quantityAvailable ?? 0), 0);
+    if (maxCapacity > 0) {
+      const usedByOthers = allocatedTicketQty - (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0);
+      const allowed = maxCapacity - usedByOthers;
+      if (qty > allowed) {
+        showToast(`Quantity exceeds remaining capacity. Max you can add: ${allowed} (event max: ${maxCapacity}).`);
+        return;
+      }
+    }
+
+    // ── Max Per Order ──
+    if (mpo < 1) { showToast("Max per order must be at least 1."); return; }
+    if (maxCapacity > 0 && mpo > maxCapacity) {
+      showToast(`Max per order (${mpo}) cannot exceed the event's max capacity (${maxCapacity}).`);
+      return;
+    }
+    if (mpo > qty) {
+      showToast(`Max per order (${mpo}) cannot exceed the ticket quantity (${qty}).`);
+      return;
+    }
+
+    // ── Sale dates ──
+    const origSaleStart = editingTicket?.saleStart ? toLocalISOString(editingTicket.saleStart) : "";
+    const origSaleEnd = editingTicket?.saleEnd ? toLocalISOString(editingTicket.saleEnd) : "";
+    const isSaleStartChanged = !editingTicket || ticketForm.saleStart !== origSaleStart;
+    const isSaleEndChanged = !editingTicket || ticketForm.saleEnd !== origSaleEnd;
+
+    if (ticketForm.saleStart) {
+      const saleStart = new Date(ticketForm.saleStart);
+      if (isSaleStartChanged && saleStart < now) { showToast("Sale start date cannot be in the past."); return; }
+      if (eventEnd && saleStart >= eventEnd) {
+        showToast(`Sale start must be before the event ends.`);
+        return;
+      }
+      if (ticketForm.saleEnd) {
+        const saleEnd = new Date(ticketForm.saleEnd);
+        if (saleEnd <= saleStart) { showToast("Sale end must be after sale start."); return; }
+        if (saleEnd.getTime() - saleStart.getTime() < 2 * 3600 * 1000) {
+          showToast("Sale window must be at least 2 hours long."); return;
+        }
+        if (eventEnd && saleEnd > eventEnd) {
+          showToast(`Sale end cannot be after the event ends.`);
+          return;
+        }
+      }
+    } else if (ticketForm.saleEnd) {
+      const saleEnd = new Date(ticketForm.saleEnd);
+      if (isSaleEndChanged && saleEnd < now) { showToast("Sale end date cannot be in the past."); return; }
+      if (eventEnd && saleEnd > eventEnd) {
+        showToast(`Sale end cannot be after the event ends.`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      const selectedEvent = events.find(e => e.eventId === selectedEventId);
       const payload = {
         eventId: selectedEventId,
         name: ticketForm.name,
         description: ticketForm.description,
         price: Number(ticketForm.price),
         currency: selectedEvent?.currency || "XAF",
-        quantityAvailable: Number(ticketForm.quantityAvailable),
+        quantityAvailable: qty,
         quantitySold: editingTicket ? editingTicket.quantitySold : 0,
-        saleStart: new Date(ticketForm.saleStart).toISOString(),
-        saleEnd: new Date(ticketForm.saleEnd).toISOString(),
-        maxPerOrder: Number(ticketForm.maxPerOrder),
+        saleStart: ticketForm.saleStart ? new Date(ticketForm.saleStart).toISOString() : undefined,
+        saleEnd: ticketForm.saleEnd ? new Date(ticketForm.saleEnd).toISOString() : undefined,
+        maxPerOrder: mpo,
       };
 
       if (editingTicket) {
@@ -137,8 +212,8 @@ export default function ProjectPage() {
         description: "", 
         price: 0, 
         quantityAvailable: 100,
-        saleStart: new Date().toISOString().slice(0, 16),
-        saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        saleStart: toLocalISOString(new Date()),
+        saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
         maxPerOrder: 5
       });
       await fetchEventDetails(selectedEventId);
@@ -161,8 +236,8 @@ export default function ProjectPage() {
           description: "",
           price: 0,
           quantityAvailable: 100,
-          saleStart: new Date().toISOString().slice(0, 16),
-          saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+          saleStart: toLocalISOString(new Date()),
+          saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
           maxPerOrder: 5,
         });
       }
@@ -227,6 +302,8 @@ export default function ProjectPage() {
   };
 
   const activeEvent = events.find((e) => e.eventId === selectedEventId || e.id === selectedEventId);
+  const maxCapacity = activeEvent?.maxCapacity || 0;
+  const allocatedTicketQty = ticketTypes.reduce((sum: number, t: any) => sum + (t.quantityAvailable ?? 0), 0);
 
   return (
     <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
@@ -307,11 +384,18 @@ export default function ProjectPage() {
                     <input
                       type="number"
                       placeholder="e.g. 100"
+                      min={1}
+                      max={maxCapacity > 0 ? maxCapacity - allocatedTicketQty + (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0) : undefined}
                       value={ticketForm.quantityAvailable || ""}
                       onChange={(e) => setTicketForm({ ...ticketForm, quantityAvailable: Number(e.target.value) })}
                       className={inp}
                       required
                     />
+                    {maxCapacity > 0 && (
+                      <p className="text-[10px] mt-1 text-[#888]">
+                        {maxCapacity - allocatedTicketQty + (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0)} slots available (event max: {maxCapacity})
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -320,7 +404,15 @@ export default function ProjectPage() {
                     <input
                       type="datetime-local"
                       value={ticketForm.saleStart}
-                      onChange={(e) => setTicketForm({ ...ticketForm, saleStart: e.target.value })}
+                      min={toLocalISOString(new Date())}
+                      max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setTicketForm(f => {
+                          const minEnd = v ? toLocalISOString(new Date(new Date(v).getTime() + 2 * 3600 * 1000)) : f.saleEnd;
+                          return { ...f, saleStart: v, saleEnd: f.saleEnd && v && new Date(f.saleEnd) < new Date(minEnd) ? minEnd : f.saleEnd };
+                        });
+                      }}
                       className={inp}
                       required
                     />
@@ -330,6 +422,8 @@ export default function ProjectPage() {
                     <input
                       type="datetime-local"
                       value={ticketForm.saleEnd}
+                      min={ticketForm.saleStart ? toLocalISOString(new Date(new Date(ticketForm.saleStart).getTime() + 2 * 3600 * 1000)) : toLocalISOString(new Date())}
+                      max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
                       onChange={(e) => setTicketForm({ ...ticketForm, saleEnd: e.target.value })}
                       className={inp}
                       required
@@ -342,11 +436,14 @@ export default function ProjectPage() {
                     <input
                       type="number"
                       placeholder="e.g. 5"
+                      min={1}
+                      max={Math.min(ticketForm.quantityAvailable, maxCapacity > 0 ? maxCapacity : ticketForm.quantityAvailable)}
                       value={ticketForm.maxPerOrder || ""}
                       onChange={(e) => setTicketForm({ ...ticketForm, maxPerOrder: Number(e.target.value) })}
                       className={inp}
                       required
                     />
+                    <p className="text-[10px] mt-1 text-[#888]">Maximum tickets one person can buy in a single order.</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -367,8 +464,8 @@ export default function ProjectPage() {
                           description: "",
                           price: 0,
                           quantityAvailable: 100,
-                          saleStart: new Date().toISOString().slice(0, 16),
-                          saleEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+                          saleStart: toLocalISOString(new Date()),
+                          saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
                           maxPerOrder: 5,
                         });
                       }}
@@ -403,8 +500,8 @@ export default function ProjectPage() {
                               description: t.description || "",
                               price: t.price || 0,
                               quantityAvailable: t.quantityAvailable || 100,
-                              saleStart: t.saleStart ? new Date(t.saleStart).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-                              saleEnd: t.saleEnd ? new Date(t.saleEnd).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+                              saleStart: t.saleStart ? toLocalISOString(t.saleStart) : toLocalISOString(new Date()),
+                              saleEnd: t.saleEnd ? toLocalISOString(t.saleEnd) : toLocalISOString(new Date()),
                               maxPerOrder: t.maxPerOrder || 5,
                             });
                             ticketFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

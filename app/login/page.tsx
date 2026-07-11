@@ -25,10 +25,21 @@ function LoginForm() {
     if (Object.keys(errs).length) return;
     setLoading(true);
     try {
-      const data = await api.post<AuthData>("/api/v1/auth/login", {
+      const raw = await api.post<any>("/api/v1/auth/login", {
         email: form.email,
         password: form.password,
       });
+      const token = raw?.token ?? raw?.accessToken;
+      const userId = raw?.userId ?? raw?.id;
+      if (!token) throw new Error("No token in login response");
+      const data: AuthData = {
+        token,
+        type: "Bearer",
+        userId: userId ?? "",
+        tenantId: raw?.tenantId ?? "",
+        email: form.email,
+        planTier: raw?.planTier ?? "FREE",
+      };
       setStoredAuth(data);
       const claims = getAuthClaims();
       if (claims?.scope && claims.scope.includes("SUPER_ADMIN")) {

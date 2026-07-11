@@ -29,7 +29,7 @@ export const authService = {
   // Tenants
   getTenants: () => api.get<T.TenantResponse[]>("api/v1/tenants"),
   createTenant: (data: T.TenantRequest) => api.post<T.TenantResponse>("api/v1/tenants", data),
-  getTenantById: (id: string) => api.get<T.TenantResponse>(`api/v1/tenants/${id}`),
+  getTenantById: (id: string, opts?: any) => api.get<T.TenantResponse>(`api/v1/tenants/${id}`, opts),
   updateTenant: (id: string, data: T.TenantRequest) => api.put<T.TenantResponse>(`api/v1/tenants/${id}`, data),
   deleteTenant: (id: string) => api.delete<void>(`api/v1/tenants/${id}`),
   upgradeTenantToOrganization: (id: string) => api.patch<T.TenantResponse>(`api/v1/tenants/${id}/upgrade-to-organization`),

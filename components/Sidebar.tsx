@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart, Package } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, MessageCircle, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart, Package, Code2 } from "lucide-react";
 import { getStoredAuth, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 
@@ -23,6 +23,7 @@ const links = [
   { href: "/admin/engagements", label: "Engagements", icon: BarChart2 },
   { href: "/admin/platform", label: "Commission", icon: Percent },
   { href: "/admin/support", label: "Support", icon: MessageCircle },
+  { href: "/admin/developers", label: "Developers", icon: Code2 },
 ];
 
 export default function Sidebar() {
@@ -52,17 +53,11 @@ export default function Sidebar() {
     }
   }, []);
 
-  const isOrg = tenant?.type === "ORGANIZATION";
   const allowedLinks = links.filter((link) => {
     if (link.href === "/admin/platform") {
       const claims = getAuthClaims();
       const isSuperAdmin = claims?.scope?.split(/\s+/).includes("SUPER_ADMIN");
       if (!isSuperAdmin) return false;
-    }
-    if (!isOrg) {
-      if (link.href === "/admin/website" || link.href === "/admin/agenda" || link.href === "/admin/engagements") {
-        return false;
-      }
     }
     return true;
   });

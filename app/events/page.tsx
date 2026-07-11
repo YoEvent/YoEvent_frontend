@@ -48,7 +48,7 @@ export default function PublicEventsPage() {
 
         const eventList: any[] = Array.isArray(eventsData) ? eventsData : ((eventsData as any)?.content ?? []);
         const publicEvents = eventList
-          .filter((e: any) => e.status !== "DRAFT" && e.status !== "CANCELLED")
+          .filter((e: any) => e.status !== "DRAFT" && e.status !== "CANCELLED" && e.visibility === "PUBLIC")
           .map((e: any) => ({ ...e, customDomain: domainByTenantId[e.tenantId] || null }));
 
         setEvents(publicEvents);

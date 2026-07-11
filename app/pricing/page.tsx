@@ -161,6 +161,7 @@ export default function PricingPage() {
   const [paymentMethod, setPaymentMethod] = useState<"momo" | "stripe">("momo");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [momoWaiting, setMomoWaiting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -203,6 +204,7 @@ export default function PricingPage() {
 
     setAuth(currentAuth);
     setSelectedPlan(plan);
+    setMomoWaiting(false);
     setShowModal(true);
   };
 
@@ -216,6 +218,8 @@ export default function PricingPage() {
     router.push("/admin");
   };
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const handleMomoSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     const currentAuth = getStoredAuth();
@@ -228,19 +232,49 @@ export default function PricingPage() {
       alert("This plan is not linked to the billing system yet. Please contact support.");
       return;
     }
+    if (phoneNumber.replace(/\D/g, "").length < 9) {
+      alert("Please enter a valid phone number.");
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await paymentService.createSubscription({
+      const subscription = await paymentService.createSubscription({
         tenantId: currentAuth.tenantId,
         planId: selectedPlan.planId,
         amount: selectedPlan.price,
         currency: "XAF",
         provider: "momo",
+        phoneNumber,
       });
-      completeSubscription();
+
+      // Momo payments confirm asynchronously — poll until Campay reports success/failure.
+      setSubmitting(false);
+      setMomoWaiting(true);
+      const subscriptionId = subscription.id;
+      let confirmed = false;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await sleep(3000);
+        const status = await paymentService.checkSubscriptionMobileMoneyStatus(subscriptionId).catch(() => null);
+        if (status?.status === "ACTIVE") {
+          confirmed = true;
+          setMomoWaiting(false);
+          completeSubscription();
+          break;
+        }
+        if (status?.status === "FAILED") {
+          setMomoWaiting(false);
+          alert("Mobile Money payment failed or was declined. Please try again.");
+          return;
+        }
+      }
+      if (!confirmed) {
+        setMomoWaiting(false);
+        alert("We're still waiting for confirmation from your Mobile Money provider. Your plan will activate automatically once the payment completes — check back shortly.");
+      }
     } catch (err: any) {
       console.error(err);
+      setMomoWaiting(false);
       alert(err.message || "Failed to create subscription. Make sure your workspace settings are configured.");
     } finally {
       setSubmitting(false);
@@ -342,7 +376,7 @@ export default function PricingPage() {
                 <h3 className="font-display text-2xl font-black text-[#1a1a1a]">Subscribe to {selectedPlan.name}</h3>
                 <p className="text-xs text-[#666] mt-1">Upgrade your tenant workspace plan instantly.</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-zinc-600 text-xl font-bold bg-transparent border-none cursor-pointer">✕</button>
+              <button onClick={() => { setShowModal(false); setMomoWaiting(false); }} className="text-zinc-400 hover:text-zinc-600 text-xl font-bold bg-transparent border-none cursor-pointer">✕</button>
             </div>
 
             <div className="p-4 bg-[#ffffff] border border-[#e5e7eb] rounded-xl flex justify-between items-center text-xs">
@@ -366,26 +400,34 @@ export default function PricingPage() {
               </div>
 
               {paymentMethod === "momo" ? (
-                <form onSubmit={handleMomoSubscribe} className="space-y-4">
-                  <div>
-                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Phone Number (MTN/Orange)</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="6xxxxxxxxx"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-                      className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747]"
-                    />
+                momoWaiting ? (
+                  <div className="text-center py-4 space-y-3">
+                    <div className="w-8 h-8 mx-auto border-2 border-[#FF4747] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-[#555] font-semibold">Check your phone and confirm the USSD prompt</p>
+                    <p className="text-[10px] text-[#888]">Waiting for {phoneNumber} to confirm payment via Mobile Money…</p>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full py-3.5 bg-[#1a1a1a] hover:bg-[#333] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                  >
-                    {submitting ? "Processing payment..." : "Confirm & Subscribe"}
-                  </button>
-                </form>
+                ) : (
+                  <form onSubmit={handleMomoSubscribe} className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Phone Number (MTN/Orange)</label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="6xxxxxxxxx"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
+                        className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747]"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full py-3.5 bg-[#1a1a1a] hover:bg-[#333] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                    >
+                      {submitting ? "Sending USSD prompt..." : "Confirm & Subscribe"}
+                    </button>
+                  </form>
+                )
               ) : auth?.tenantId ? (
                 <Elements stripe={stripePromise}>
                   <StripeSubscriptionForm

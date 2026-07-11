@@ -2,8 +2,119 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, CheckCircle, CreditCard, Lock, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, Lock, ShieldCheck, Smartphone } from "lucide-react";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { api, setStoredAuth } from "@/app/utils/api";
+import { paymentService } from "@/app/utils/services/paymentService";
+import { getDisplayPlans, formatCfaPrice } from "@/app/utils/pricingPlans";
+
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
+const stripePromise = loadStripe(stripePublishableKey);
+const isMockStripe =
+  !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === "mock_key";
+
+const cardElementOptions = {
+  style: {
+    base: {
+      fontSize: "14px",
+      color: "#1a1a1a",
+      "::placeholder": { color: "#888" },
+    },
+    invalid: { color: "#dc2626" },
+  },
+};
+
+function StripeCardSubscribeForm({
+  mappedPlan,
+  tenantId,
+  email,
+  onSuccess,
+  onError,
+}: {
+  mappedPlan: any;
+  tenantId: string;
+  email: string;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mappedPlan?.planId) {
+      onError("This plan is not linked to the billing system yet. Please contact support.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let paymentMethodId: string | undefined;
+
+      if (!isMockStripe) {
+        if (!stripe || !elements) throw new Error("Stripe is still loading. Please try again.");
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) throw new Error("Please enter your card details.");
+
+        const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
+          type: "card",
+          card: cardElement,
+          billing_details: { email },
+        });
+        if (pmError) throw new Error(pmError.message);
+        paymentMethodId = paymentMethod.id;
+      }
+
+      const result = await paymentService.createSubscription({
+        tenantId,
+        planId: mappedPlan.planId,
+        amount: mappedPlan.price,
+        currency: "XAF",
+        provider: "stripe",
+        paymentMethodId,
+      });
+
+      if (result.clientSecret && stripe) {
+        const { error: confirmError } = await stripe.confirmCardPayment(result.clientSecret);
+        if (confirmError) throw new Error(confirmError.message);
+      }
+
+      onSuccess();
+    } catch (err: any) {
+      onError(err.message || "Failed to create subscription. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {!isMockStripe ? (
+        <div>
+          <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Card Details</label>
+          <div className="px-4 py-3 bg-[#fcfbf9] border-[1.5px] border-[#e5e7eb] rounded-xl">
+            <CardElement options={cardElementOptions} />
+          </div>
+          <p className="text-[10px] text-[#888] mt-1.5">Test card: 4242 4242 4242 4242 · any future expiry · any CVC</p>
+        </div>
+      ) : (
+        <p className="text-[10px] text-[#888] bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
+          Stripe mock mode — no real card required. Set <code className="text-[#EB4203]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={submitting || (!isMockStripe && !stripe)}
+        className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+      >
+        {submitting ? "Processing payment..." : `Pay ${formatCfaPrice(mappedPlan?.price ?? 0)} & Subscribe`}
+      </button>
+    </form>
+  );
+}
 
 function RegisterFormContent() {
   const router = useRouter();
@@ -23,42 +134,48 @@ function RegisterFormContent() {
   // Payment states
   const [plans, setPlans] = useState<any[]>([]);
   const [showPayment, setShowPayment] = useState(false);
-  const [cardForm, setCardForm] = useState({ number: "", expiry: "", cvc: "", name: "" });
+  const [registeredAuth, setRegisteredAuth] = useState<{ tenantId: string; email: string } | null>(null);
+  const [paymentTab, setPaymentTab] = useState<"stripe" | "momo">("stripe");
+  const [momoPhone, setMomoPhone] = useState("");
+  const [momoWaiting, setMomoWaiting] = useState(false);
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   useEffect(() => {
+    // Curated FCFA prices (same source /pricing uses) — the raw subscriptionplans
+    // rows in the DB hold placeholder values (29, 99) that were never converted
+    // to real currency amounts, so we don't display or charge those directly.
     api.get<any[]>("/api/v1/subscriptionplans", { skipAuth: true })
       .then((data) => {
-        setPlans(data || []);
+        setPlans(getDisplayPlans(data));
       })
       .catch((err) => {
         console.error("Failed to load subscription plans:", err);
       });
   }, []);
 
-  const isPaidPlan = planName.toLowerCase().includes("pro") || 
-                     planName.toLowerCase().includes("enterprise") || 
-                     planName.toLowerCase().includes("basic") || 
-                     planName.toLowerCase().includes("premium");
+  const isPaidPlan = planName.toLowerCase().includes("pro") ||
+                     planName.toLowerCase().includes("enterprise") ||
+                     planName.toLowerCase().includes("basic") ||
+                     planName.toLowerCase().includes("premium") ||
+                     planName.toLowerCase().includes("mega");
 
   const getPrice = () => {
-    if (planName.toLowerCase().includes("enterprise") || planName.toLowerCase().includes("premium")) {
-      return 99;
-    }
-    if (planName.toLowerCase().includes("pro") || planName.toLowerCase().includes("basic")) {
-      return 29;
-    }
+    const lower = planName.toLowerCase();
+    if (lower.includes("mega") || lower.includes("enterprise") || lower.includes("premium")) return 85000;
+    if (lower.includes("pro") || lower.includes("basic")) return 15000;
     return 0;
   };
 
-  const getCardType = (num: string) => {
-    const cleanNum = num.replace(/\s+/g, "");
-    if (cleanNum.startsWith("4")) return "visa";
-    if (/^5[1-5]/.test(cleanNum)) return "mastercard";
-    return "generic";
-  };
+  const mappedPlan = plans.find((p) => {
+    const lowerName = planName.toLowerCase();
+    if (lowerName.includes("mega") || lowerName.includes("enterprise") || lowerName.includes("premium")) return p.name === "Enterprise";
+    if (lowerName.includes("pro") || lowerName.includes("basic")) return p.name === "Pro";
+    return p.name === "Starter";
+  });
 
   const strength = (pw: string) => {
     let s = 0;
@@ -84,51 +201,6 @@ function RegisterFormContent() {
     return e;
   };
 
-  const validateCard = () => {
-    const e: Record<string, string> = {};
-    const cleanNum = cardForm.number.replace(/\s+/g, "");
-    if (cleanNum.length !== 16 || !/^\d+$/.test(cleanNum)) {
-      e.number = "Enter a valid 16-digit card number";
-    }
-    if (!/^\d{2}\/\d{2}$/.test(cardForm.expiry)) {
-      e.expiry = "Use MM/YY format";
-    } else {
-      const [m, y] = cardForm.expiry.split("/").map(Number);
-      if (m < 1 || m > 12) e.expiry = "Invalid month";
-    }
-    if (cardForm.cvc.length < 3 || cardForm.cvc.length > 4 || !/^\d+$/.test(cardForm.cvc)) {
-      e.cvc = "Invalid CVC";
-    }
-    if (!cardForm.name.trim()) {
-      e.name = "Required";
-    }
-    return e;
-  };
-
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, "");
-    if (val.length > 16) val = val.substring(0, 16);
-    const formatted = val.replace(/(.{4})/g, "$1 ").trim();
-    setCardForm((f) => ({ ...f, number: formatted }));
-    setCardErrors((errs) => { const n = { ...errs }; delete n.number; return n; });
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, "");
-    if (val.length > 4) val = val.substring(0, 4);
-    if (val.length >= 2) {
-      val = val.substring(0, 2) + "/" + val.substring(2);
-    }
-    setCardForm((f) => ({ ...f, expiry: val }));
-    setCardErrors((errs) => { const n = { ...errs }; delete n.expiry; return n; });
-  };
-
-  const handleCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, "").substring(0, 4);
-    setCardForm((f) => ({ ...f, cvc: val }));
-    setCardErrors((errs) => { const n = { ...errs }; delete n.cvc; return n; });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
@@ -136,7 +208,7 @@ function RegisterFormContent() {
     if (Object.keys(errs).length) return;
 
     if (isPaidPlan) {
-      setShowPayment(true);
+      await handleRegisterThenShowPayment();
     } else {
       await handleRegisterOnly();
     }
@@ -145,13 +217,15 @@ function RegisterFormContent() {
   const handleRegisterOnly = async () => {
     setLoading(true);
     try {
+      const isAttendee = roleMode === "ATTENDEE";
       await api.post("/api/v1/auth/register", {
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
         password: form.password,
-        isAttendee: roleMode === "ATTENDEE",
-        workspaceName: roleMode === "ATTENDEE" ? null : (isOrg ? form.orgName : `${form.firstName} ${form.lastName}`),
+        isAttendee,
+        workspaceName: isAttendee ? undefined : (isOrg ? form.orgName : `${form.firstName} ${form.lastName}`),
+        type: isAttendee ? undefined : (isOrg ? "ORGANIZATION" : "INDIVIDUAL"),
       });
       setSubmitted(true);
       setTimeout(() => router.push(from ? `/login?from=${encodeURIComponent(from)}` : "/login"), 2000);
@@ -162,73 +236,93 @@ function RegisterFormContent() {
     }
   };
 
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs = validateCard();
-    setCardErrors(errs);
-    if (Object.keys(errs).length) return;
-
-    setPaymentLoading(true);
+  // Creates the account + tenant workspace first, then drops into the real
+  // Stripe/Mobile Money checkout for the selected paid plan.
+  const handleRegisterThenShowPayment = async () => {
+    setLoading(true);
     try {
-      // 1. Map target planId
-      const mappedPlan = plans.find((p) => {
-        const lowerName = planName.toLowerCase();
-        if (lowerName.includes("pro") || lowerName.includes("basic")) {
-          return p.name === "BASIC";
-        }
-        if (lowerName.includes("enterprise") || lowerName.includes("premium")) {
-          return p.name === "PREMIUM";
-        }
-        return p.name === "FREE";
-      });
-
-      const planId = mappedPlan?.planId;
-      if (!planId) {
-        throw new Error(`Plan type "${planName}" is not seeded in database. Please contact support.`);
-      }
-
-      // 2. Register basic account (starts on FREE)
-      const authData = await api.post<any>("/api/v1/auth/register", {
+      const raw = await api.post<any>("/api/v1/auth/register", {
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
         password: form.password,
-        isAttendee: roleMode === "ATTENDEE",
-        workspaceName: roleMode === "ATTENDEE" ? null : (isOrg ? form.orgName : `${form.firstName} ${form.lastName}`),
+        isAttendee: false,
+        workspaceName: isOrg ? form.orgName : `${form.firstName} ${form.lastName}`,
+        type: isOrg ? "ORGANIZATION" : "INDIVIDUAL",
       });
-
-      // 3. Authenticate current request session by storing token
+      const authData = {
+        token: raw?.token ?? "",
+        type: "Bearer",
+        userId: raw?.userId ?? "",
+        tenantId: raw?.tenantId ?? "",
+        email: form.email,
+        planTier: "FREE",
+      };
       setStoredAuth(authData);
-
-      // 4. Create Payment transaction
-      await api.post("/api/v1/payments", {
-        tenantId: authData.tenantId,
-        amount: getPrice(),
-        currency: "XAF",
-        provider: "stripe",
-        status: "SUCCESSFUL",
-        providerReference: "ch_" + Math.random().toString(36).substr(2, 9)
-      });
-
-      // 5. Get current tenant details
-      const existingTenant = await api.get<any>(`/api/v1/tenants/${authData.tenantId}`);
-
-      // 6. Upgrade tenant plan
-      await api.put(`/api/v1/tenants/${authData.tenantId}`, {
-        ...existingTenant,
-        planId: planId,
-        type: "ORGANIZATION",
-      });
-
-      setPaymentSuccess(true);
-      setSubmitted(true);
-      setTimeout(() => {
-        router.push("/login");
-      }, 2500);
+      setRegisteredAuth({ tenantId: authData.tenantId, email: authData.email });
+      setShowPayment(true);
     } catch (err: any) {
-      setCardErrors((prev) => ({ ...prev, submit: err.message || "Payment processing failed" }));
+      setErrors((prev) => ({ ...prev, submit: err.message || "Failed to register" }));
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const onPaymentSuccess = () => {
+    setPaymentSuccess(true);
+    setSubmitted(true);
+    setTimeout(() => router.push(from ? `/login?from=${encodeURIComponent(from)}` : "/login"), 2500);
+  };
+
+  const handleMomoSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCardErrors({});
+    if (!registeredAuth?.tenantId || !mappedPlan?.planId) {
+      setCardErrors({ submit: "This plan is not linked to the billing system yet. Please contact support." });
+      return;
+    }
+    if (momoPhone.replace(/\D/g, "").length < 9) {
+      setCardErrors({ submit: "Please enter a valid phone number." });
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const subscription = await paymentService.createSubscription({
+        tenantId: registeredAuth.tenantId,
+        planId: mappedPlan.planId,
+        amount: mappedPlan.price,
+        currency: "XAF",
+        provider: "momo",
+        phoneNumber: momoPhone,
+      });
+
       setPaymentLoading(false);
+      setMomoWaiting(true);
+      let confirmed = false;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await sleep(3000);
+        const status = await paymentService.checkSubscriptionMobileMoneyStatus(subscription.id).catch(() => null);
+        if (status?.status === "ACTIVE") {
+          confirmed = true;
+          setMomoWaiting(false);
+          onPaymentSuccess();
+          break;
+        }
+        if (status?.status === "FAILED") {
+          setMomoWaiting(false);
+          setCardErrors({ submit: "Mobile Money payment failed or was declined. Please try again." });
+          return;
+        }
+      }
+      if (!confirmed) {
+        setMomoWaiting(false);
+        setCardErrors({ submit: "Still waiting for Mobile Money confirmation. Your plan will activate automatically once the payment completes — check back shortly." });
+      }
+    } catch (err: any) {
+      setPaymentLoading(false);
+      setMomoWaiting(false);
+      setCardErrors({ submit: err.message || "Failed to create subscription." });
     }
   };
 
@@ -283,16 +377,18 @@ function RegisterFormContent() {
         <div className="bg-white px-14 py-12 flex flex-col justify-center">
           {showPayment ? (
             <div>
-              <button 
-                type="button" 
-                onClick={() => setShowPayment(false)}
-                className="text-xs font-semibold text-[#EB4203] hover:underline mb-4 cursor-pointer"
-              >
-                ← Back to registration info
-              </button>
+              {!paymentSuccess && !momoWaiting && (
+                <button
+                  type="button"
+                  onClick={() => setShowPayment(false)}
+                  className="text-xs font-semibold text-[#EB4203] hover:underline mb-4 cursor-pointer"
+                >
+                  ← Back
+                </button>
+              )}
 
               <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#EB4203]">Secure Payment</h2>
-              <p className="text-sm text-[#888] mb-6">Enter your card details to finalize your subscription.</p>
+              <p className="text-sm text-[#888] mb-6">Your account is ready — finish subscribing to activate {mappedPlan?.name || planName}.</p>
 
               {paymentSuccess ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -302,8 +398,14 @@ function RegisterFormContent() {
                   <h3 className="text-lg font-bold text-green-800 mb-1">Payment Successful!</h3>
                   <p className="text-sm text-green-700">Account created. Redirecting to login...</p>
                 </div>
+              ) : momoWaiting ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-8 h-8 mb-4 border-2 border-[#EB4203] border-t-transparent rounded-full animate-spin" />
+                  <h3 className="text-sm font-bold text-[#1a1a1a] mb-1">Check your phone and confirm the USSD prompt</h3>
+                  <p className="text-xs text-[#888]">Waiting for {momoPhone} to confirm payment via Mobile Money…</p>
+                </div>
               ) : (
-                <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                <div className="space-y-4">
                   {cardErrors.submit && (
                     <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
                       ⚠️ {cardErrors.submit}
@@ -311,113 +413,68 @@ function RegisterFormContent() {
                   )}
 
                   {/* Order Summary badge */}
-                  <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-6">
+                  <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-2">
                     <div>
                       <span className="text-[10px] uppercase font-bold tracking-wider text-[#EB4203]">Selected Subscription</span>
-                      <h4 className="text-sm font-bold text-[#1a1a1a]">{planName} Plan</h4>
+                      <h4 className="text-sm font-bold text-[#1a1a1a]">{mappedPlan?.name || planName} Plan</h4>
                     </div>
                     <div className="text-right">
-                      <span className="text-lg font-extrabold text-[#1a1a1a]">${getPrice()}</span>
+                      <span className="text-lg font-extrabold text-[#1a1a1a]">{formatCfaPrice(mappedPlan?.price ?? getPrice())}</span>
                       <span className="text-[10px] text-[#888] block">/month</span>
                     </div>
                   </div>
 
-                  {/* Visual Card */}
-                  <div className="relative w-full h-40 rounded-2xl bg-gradient-to-br from-[#1a1a1a] to-[#251510] border border-[#EB4203]/25 p-5 text-white flex flex-col justify-between shadow-lg overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-radial-[at_100%_0%] from-[#EB4203]/10 to-transparent" />
-                    <div className="flex justify-between items-start">
-                      <span className="text-[9px] uppercase tracking-widest text-[#FFA382] font-bold">YowEvent Premium</span>
-                      <span className="text-sm font-black italic">
-                        {getCardType(cardForm.number) === "visa" && <span className="text-blue-400">VISA</span>}
-                        {getCardType(cardForm.number) === "mastercard" && <span className="text-orange-400">MC</span>}
-                        {getCardType(cardForm.number) === "generic" && <span className="text-stone-400">CARD</span>}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-lg tracking-[0.2em] font-mono mb-2">
-                        {cardForm.number || "•••• •••• •••• ••••"}
+                  {/* Payment method tabs */}
+                  <div className="flex bg-[#f9fafb] rounded-xl p-1 border border-[#e5e7eb]">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTab("stripe")}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "stripe" ? "bg-[#EB4203] text-white shadow-sm" : "text-[#555] hover:text-[#EB4203]"}`}
+                    >
+                      <Lock size={12} /> Card
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTab("momo")}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "momo" ? "bg-[#EB4203] text-white shadow-sm" : "text-[#555] hover:text-[#EB4203]"}`}
+                    >
+                      <Smartphone size={12} /> Mobile Money
+                    </button>
+                  </div>
+
+                  {paymentTab === "stripe" ? (
+                    <Elements stripe={stripePromise}>
+                      <StripeCardSubscribeForm
+                        mappedPlan={mappedPlan}
+                        tenantId={registeredAuth?.tenantId || ""}
+                        email={registeredAuth?.email || form.email}
+                        onSuccess={onPaymentSuccess}
+                        onError={(msg) => setCardErrors({ submit: msg })}
+                      />
+                    </Elements>
+                  ) : (
+                    <form onSubmit={handleMomoSubscribe} className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Phone Number (MTN/Orange)</label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="6xxxxxxxxx"
+                          value={momoPhone}
+                          onChange={(e) => setMomoPhone(e.target.value.replace(/\D/g, ""))}
+                          className="w-full px-4 py-2.5 border-[1.5px] border-[#e5e7eb] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:border-[#EB4203]"
+                        />
                       </div>
-                      <div className="flex justify-between text-[9px] font-mono uppercase text-stone-400">
-                        <div>
-                          <span className="block text-[7px] text-stone-500">Card Holder</span>
-                          {cardForm.name.toUpperCase() || "NAME ON CARD"}
-                        </div>
-                        <div>
-                          <span className="block text-[7px] text-stone-500">Expires</span>
-                          {cardForm.expiry || "MM/YY"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Card Number</label>
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        value={cardForm.number} 
-                        onChange={handleCardNumberChange} 
-                        placeholder="4242 4242 4242 4242"
-                        className={`w-full px-4 py-2.5 pr-10 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${cardErrors.number ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} 
-                      />
-                      <CreditCard className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#888]" size={16} />
-                    </div>
-                    {cardErrors.number && <p className="text-xs text-red-500 mt-1">{cardErrors.number}</p>}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Expiry Date</label>
-                      <input 
-                        type="text" 
-                        value={cardForm.expiry} 
-                        onChange={handleExpiryChange} 
-                        placeholder="MM/YY"
-                        className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${cardErrors.expiry ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} 
-                      />
-                      {cardErrors.expiry && <p className="text-xs text-red-500 mt-1">{cardErrors.expiry}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">CVC</label>
-                      <input 
-                        type="text" 
-                        value={cardForm.cvc} 
-                        onChange={handleCvcChange} 
-                        placeholder="123"
-                        className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${cardErrors.cvc ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} 
-                      />
-                      {cardErrors.cvc && <p className="text-xs text-red-500 mt-1">{cardErrors.cvc}</p>}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Name on Card</label>
-                    <input 
-                      type="text" 
-                      value={cardForm.name} 
-                      onChange={(e) => {
-                        setCardForm((f) => ({ ...f, name: e.target.value }));
-                        setCardErrors((errs) => { const n = { ...errs }; delete n.name; return n; });
-                      }} 
-                      placeholder="Jane Doe"
-                      className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${cardErrors.name ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} 
-                    />
-                    {cardErrors.name && <p className="text-xs text-red-500 mt-1">{cardErrors.name}</p>}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-[#888] py-1 bg-stone-50 border border-stone-100 rounded-xl px-3.5">
-                    <Lock size={12} className="text-[#EB4203]" />
-                    <span>Demo mode enabled. You can use credit card `4242 4242 4242 4242` to check out.</span>
-                  </div>
-
-                  <button 
-                    type="submit" 
-                    disabled={paymentLoading}
-                    className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {paymentLoading ? "Processing payment..." : `Pay $${getPrice()}.00 & Subscribe`}
-                  </button>
-                </form>
+                      <button
+                        type="submit"
+                        disabled={paymentLoading}
+                        className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {paymentLoading ? "Sending USSD prompt..." : `Pay ${formatCfaPrice(mappedPlan?.price ?? getPrice())} & Subscribe`}
+                      </button>
+                    </form>
+                  )}
+                </div>
               )}
             </div>
           ) : (
@@ -432,7 +489,7 @@ function RegisterFormContent() {
                     <h4 className="text-sm font-bold text-[#1a1a1a]">{planName}</h4>
                   </div>
                   <div className="text-right">
-                    <span className="text-base font-extrabold text-[#1a1a1a]">${getPrice()}</span>
+                    <span className="text-base font-extrabold text-[#1a1a1a]">{formatCfaPrice(mappedPlan?.price ?? getPrice())}</span>
                     <span className="text-[10px] text-[#888]">/mo</span>
                   </div>
                 </div>
