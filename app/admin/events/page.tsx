@@ -7,7 +7,8 @@ import {
   Plus, Trash2, Upload, Calendar, MapPin, Ticket, Users, Mic2,
   Radio, Mail, ChevronRight, X, Check, Save, Image as ImageIcon,
   Globe, Wifi, User, Pencil, Tag, Star, ScanLine, Package, QrCode,
-  Building2, Megaphone, Copy, AlertTriangle, MessageSquare, Layers
+  Building2, Megaphone, Copy, AlertTriangle, MessageSquare, Layers,
+  FileText, Sparkles
 } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
@@ -3018,25 +3019,21 @@ export default function EventsPage() {
 
                 {/* ── CUSTOM SECTIONS TAB ── */}
                 {tab === "sections" && (() => {
-                  const SECTION_TYPES: { type: string; icon: string; label: string; hint: string }[] = [
-                    { type: "HERO",          icon: "🦸",  label: "Hero",         hint: "Full-width banner at the top of the page" },
-                    { type: "TEXT",          icon: "📝",  label: "Text",         hint: "Title + description with optional image" },
-                    { type: "SPEAKERS",      icon: "🎙️", label: "Speakers",     hint: "Auto-pulls your event's speaker list" },
-                    { type: "SCHEDULE",      icon: "📅",  label: "Schedule",     hint: "Auto-pulls sessions and agenda" },
-                    { type: "SPONSORS",      icon: "🤝",  label: "Sponsors",     hint: "Auto-pulls your event's sponsors" },
-                    { type: "FAQ",           icon: "❓",  label: "FAQ",          hint: "Q&A style block — write Q: / A: pairs" },
-                    { type: "IMAGE_GALLERY", icon: "🖼️", label: "Gallery",      hint: "Emphasises an image with caption" },
-                    { type: "POLL",          icon: "📊",  label: "Poll",         hint: "Auto-pulls active polls for this event" },
-                    { type: "REGISTRATION",  icon: "🎟️", label: "Register CTA", hint: "Call-to-action block driving registrations" },
-                    { type: "CUSTOM",        icon: "✨",  label: "Custom",       hint: "Freeform block — anything goes" },
+                  const SECTION_TYPES: { type: string; icon: any; label: string; hint: string }[] = [
+                    { type: "HERO",          icon: ImageIcon,  label: "Hero",         hint: "Full-width banner at the top of the page" },
+                    { type: "TEXT",          icon: FileText,   label: "Text",         hint: "Title + description with optional image" },
+                    { type: "SCHEDULE",      icon: Calendar,   label: "Schedule",     hint: "Auto-pulls sessions and agenda" },
+                    { type: "IMAGE_GALLERY", icon: ImageIcon,  label: "Gallery",      hint: "Emphasises an image with caption" },
+                    { type: "REGISTRATION",  icon: Ticket,     label: "Register CTA", hint: "Call-to-action block driving registrations" },
+                    { type: "CUSTOM",        icon: Sparkles,   label: "Custom",       hint: "Freeform block — anything goes" },
                   ];
                   const needsImage = ["HERO", "TEXT", "IMAGE_GALLERY", "CUSTOM"].includes(sectionForm.sectionType);
-                  const isAutoType = ["SPEAKERS", "SCHEDULE", "SPONSORS", "POLL"].includes(sectionForm.sectionType);
+                  const isAutoType = ["SCHEDULE"].includes(sectionForm.sectionType);
                   return (
                   <div className="max-w-5xl grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-8">
                     {/* Left: Create/Edit Form */}
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 shadow-sm space-y-5">
-                      <div className="flex items-center justify-between">
+                       <div className="flex items-center justify-between">
                         <h3 className="font-bold text-sm text-[#1a1a1a]">
                           {editingSection ? "Edit Section" : "Add Page Section"}
                         </h3>
@@ -3048,19 +3045,22 @@ export default function EventsPage() {
                       {/* Section type picker */}
                       <div>
                         <label className={label}>Section Type</label>
-                        <div className="grid grid-cols-5 gap-2">
-                          {SECTION_TYPES.map(st => (
-                            <button
-                              key={st.type}
-                              type="button"
-                              title={st.hint}
-                              onClick={() => setSectionForm(f => ({ ...f, sectionType: st.type }))}
-                              className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border text-center transition-all cursor-pointer ${sectionForm.sectionType === st.type ? "border-[#FF4747] bg-[#fff5f5] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}
-                            >
-                              <span className="text-lg leading-none">{st.icon}</span>
-                              <span className={`text-[9px] font-semibold leading-tight ${sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"}`}>{st.label}</span>
-                            </button>
-                          ))}
+                        <div className="grid grid-cols-6 gap-2">
+                          {SECTION_TYPES.map(st => {
+                            const IconComponent = st.icon;
+                            return (
+                              <button
+                                key={st.type}
+                                type="button"
+                                title={st.hint}
+                                onClick={() => setSectionForm(f => ({ ...f, sectionType: st.type }))}
+                                className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border text-center transition-all cursor-pointer ${sectionForm.sectionType === st.type ? "border-[#FF4747] bg-[#fff5f5] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}
+                              >
+                                <IconComponent size={16} className={sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"} />
+                                <span className={`text-[9px] font-semibold leading-tight ${sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"}`}>{st.label}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                         {(() => { const t = SECTION_TYPES.find(s => s.type === sectionForm.sectionType); return t ? <p className="text-[10px] text-[#888] mt-1.5">{t.hint}</p> : null; })()}
                       </div>
@@ -3068,7 +3068,7 @@ export default function EventsPage() {
                       <form onSubmit={saveSection} className="space-y-4">
                         <div>
                           <label className={label}>Section Title *</label>
-                          <input required placeholder="e.g. About This Event, Meet the Speakers, FAQs" value={sectionForm.title} onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))} className={inp} />
+                          <input required placeholder="e.g. About This Event, Agenda, Highlights" value={sectionForm.title} onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))} className={inp} />
                         </div>
 
                         <div>
@@ -3076,20 +3076,15 @@ export default function EventsPage() {
                           <textarea
                             required={!isAutoType}
                             placeholder={
-                              sectionForm.sectionType === "FAQ"
-                                ? "Write Q&A pairs:\n\nQ: What is this event?\nA: It's an amazing experience.\n\nQ: How do I register?\nA: Click the Register button above."
-                                : isAutoType
+                              isAutoType
                                 ? "Optional intro text displayed above the list…"
                                 : "Write the details for this section…"
                             }
                             value={sectionForm.content}
                             onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
-                            rows={sectionForm.sectionType === "FAQ" ? 10 : 5}
+                            rows={5}
                             className={inp + " resize-none"}
                           />
-                          {sectionForm.sectionType === "FAQ" && (
-                            <p className="text-[10px] text-[#888] mt-1">Format each entry as <strong>Q:</strong> on one line, <strong>A:</strong> on the next, separated by a blank line.</p>
-                          )}
                         </div>
 
                         {needsImage && (
