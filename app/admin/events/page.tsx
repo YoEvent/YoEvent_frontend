@@ -3165,7 +3165,12 @@ export default function EventsPage() {
                               const isEditing = editingSection?.sectionId === sec.sectionId || editingSection?.id === sec.id;
                               return (
                                 <div key={sec.sectionId || sec.id} className={`bg-white border rounded-2xl p-4 flex items-start gap-3 transition-colors ${isEditing ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : sec.status === "INACTIVE" ? "border-[#e5e7eb] opacity-50" : "border-[#e5e7eb]"}`}>
-                                  <div className="w-9 h-9 rounded-xl bg-[#fafafa] border border-[#f0f0f0] flex items-center justify-center text-lg shrink-0">{typeInfo.icon}</div>
+                                  <div className="w-9 h-9 rounded-xl bg-[#fafafa] border border-[#f0f0f0] flex items-center justify-center shrink-0">
+                                    {(() => {
+                                      const IconComponent = typeInfo.icon;
+                                      return <IconComponent size={16} className="text-[#888]" />;
+                                    })()}
+                                  </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
                                       <span className="font-bold text-xs text-[#1a1a1a] truncate">{sec.title}</span>
