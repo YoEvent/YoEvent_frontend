@@ -10,10 +10,18 @@ import { paymentService } from "@/app/utils/services/paymentService";
 import { getDisplayPlans, formatCfaPrice } from "@/app/utils/pricingPlans";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
-const stripePromise = loadStripe(stripePublishableKey);
 const isMockStripe =
   !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === "mock_key";
+
+let stripePromise: Promise<any> | null = null;
+const getStripePromise = () => {
+  if (typeof window === "undefined") return null;
+  if (!stripePromise) {
+    stripePromise = loadStripe(stripePublishableKey);
+  }
+  return stripePromise;
+};
 
 const cardElementOptions = {
   style: {
@@ -165,14 +173,16 @@ function RegisterFormContent() {
 
   const getPrice = () => {
     const lower = planName.toLowerCase();
-    if (lower.includes("mega") || lower.includes("enterprise") || lower.includes("premium")) return 85000;
+    if (lower.includes("enterprise") || lower.includes("premium")) return 85000;
+    if (lower.includes("eventer") || lower.includes("mega")) return 35000;
     if (lower.includes("pro") || lower.includes("basic")) return 15000;
     return 0;
   };
 
   const mappedPlan = plans.find((p) => {
     const lowerName = planName.toLowerCase();
-    if (lowerName.includes("mega") || lowerName.includes("enterprise") || lowerName.includes("premium")) return p.name === "Enterprise";
+    if (lowerName.includes("enterprise") || lowerName.includes("premium")) return p.name === "Enterprise";
+    if (lowerName.includes("eventer") || lowerName.includes("mega")) return p.name === "Eventer";
     if (lowerName.includes("pro") || lowerName.includes("basic")) return p.name === "Pro";
     return p.name === "Starter";
   });
@@ -218,6 +228,8 @@ function RegisterFormContent() {
     setLoading(true);
     try {
       const isAttendee = roleMode === "ATTENDEE";
+      
+      // Call the local backend directly to register the user
       await api.post("/api/v1/auth/register", {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -227,6 +239,7 @@ function RegisterFormContent() {
         workspaceName: isAttendee ? undefined : (isOrg ? form.orgName : `${form.firstName} ${form.lastName}`),
         type: isAttendee ? undefined : (isOrg ? "ORGANIZATION" : "INDIVIDUAL"),
       });
+
       setSubmitted(true);
       setTimeout(() => router.push(from ? `/login?from=${encodeURIComponent(from)}` : "/login"), 2000);
     } catch (err: any) {
@@ -241,6 +254,7 @@ function RegisterFormContent() {
   const handleRegisterThenShowPayment = async () => {
     setLoading(true);
     try {
+      // Direct local registration
       const raw = await api.post<any>("/api/v1/auth/register", {
         firstName: form.firstName,
         lastName: form.lastName,
@@ -250,6 +264,7 @@ function RegisterFormContent() {
         workspaceName: isOrg ? form.orgName : `${form.firstName} ${form.lastName}`,
         type: isOrg ? "ORGANIZATION" : "INDIVIDUAL",
       });
+      
       const authData = {
         token: raw?.token ?? "",
         type: "Bearer",
@@ -443,7 +458,7 @@ function RegisterFormContent() {
                   </div>
 
                   {paymentTab === "stripe" ? (
-                    <Elements stripe={stripePromise}>
+                    <Elements stripe={getStripePromise()}>
                       <StripeCardSubscribeForm
                         mappedPlan={mappedPlan}
                         tenantId={registeredAuth?.tenantId || ""}

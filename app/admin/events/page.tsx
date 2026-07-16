@@ -58,7 +58,7 @@ export default function EventsPage() {
   // ── Details ──
   const [categories, setCategories] = useState<any[]>([]);
   const [banner, setBanner] = useState("");
-  const [detailsForm, setDetailsForm] = useState({ title: "", description: "", status: "DRAFT", categoryId: "", maxCapacity: 100, currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false });
+  const [detailsForm, setDetailsForm] = useState({ title: "", description: "", status: "DRAFT", categoryId: "", maxCapacity: 100, maxExhibitors: 0, currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, themes: "", motto: "" });
 
   // ── Schedule ──
   const [schedule, setSchedule] = useState<any>(null);
@@ -97,11 +97,17 @@ export default function EventsPage() {
   const [sponsors, setSponsors] = useState<any[]>([]);
   const [sponsorPackages, setSponsorPackages] = useState<any[]>([]);
   const [sponsorForm, setSponsorForm] = useState({ name: "", email: "", website: "", logoUrl: "", packageId: "" });
-  const [sponsorPkgForm, setSponsorPkgForm] = useState({ name: "", description: "", price: 0, benefits: "", applicationStart: "", applicationEnd: "" });
+  const [sponsorPkgForm, setSponsorPkgForm] = useState({ name: "", description: "", price: 0, benefits: "", maxSponsors: 0, applicationStart: "", applicationEnd: "" });
   const [volunteerOpenings, setVolunteerOpenings] = useState<any[]>([]);
   const [volunteerOpeningForm, setVolunteerOpeningForm] = useState({ title: "", description: "", requirements: "", applicationStart: "", applicationEnd: "", maxVolunteers: 0 });
   const [editingVolunteerOpening, setEditingVolunteerOpening] = useState<any>(null);
+  const [volunteerApplications, setVolunteerApplications] = useState<any[]>([]);
   const [editingSponsor, setEditingSponsor] = useState<any>(null);
+
+  // ── Invitations ──
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [inviteEmails, setInviteEmails] = useState("");
+  const [sendingInvites, setSendingInvites] = useState(false);
 
   // ── Speakers ──
   const [speakers, setSpeakers] = useState<any[]>([]);
@@ -193,7 +199,7 @@ export default function EventsPage() {
       (!tenantId || !item.tenantId || item.tenantId === tenantId);
 
     try {
-      const [ev, cats, locs, tix, scheds, sess, trks, pls, qas, camps, nets, spons, sponsPkgs, spkrs, cpns, exhbs, anncs, fdbks, volOpenings, sectionsList] = await Promise.all([
+      const [ev, cats, locs, tix, scheds, sess, trks, pls, qas, camps, nets, spons, sponsPkgs, spkrs, cpns, exhbs, anncs, fdbks, volOpenings, sectionsList, invs] = await Promise.all([
         eventService.getEventById(id).catch(() => null),
         eventService.getEventCategories().catch(() => []),
         eventService.getEventLocations().catch(() => []),
@@ -214,11 +220,12 @@ export default function EventsPage() {
         eventService.getFeedbacks().catch(() => []),
         eventService.getVolunteerOpenings().catch(() => []),
         eventService.getEventSections(id).catch(() => []),
+        eventService.getInvitations().catch(() => []),
       ]);
 
       // Populate event details directly from the fetched event (avoids stale state)
       if (ev) {
-        setDetailsForm({ title: ev.title || "", description: ev.description || "", status: ev.status || "DRAFT", categoryId: ev.categoryId || "", maxCapacity: ev.maxCapacity ?? 0, currency: ev.currency || "XAF", format: ev.format || "IN_PERSON", visibility: ev.visibility || "PUBLIC", isPaid: ev.isPaid ?? false });
+        setDetailsForm({ title: ev.title || "", description: ev.description || "", status: ev.status || "DRAFT", categoryId: ev.categoryId || "", maxCapacity: ev.maxCapacity ?? 0, maxExhibitors: ev.maxExhibitors ?? 0, currency: ev.currency || "XAF", format: ev.format || "IN_PERSON", visibility: ev.visibility || "PUBLIC", isPaid: ev.isPaid ?? false, themes: ev.themes || "", motto: ev.motto || "" });
         setBanner(ev.coverImage || "");
         // Keep events list in sync if caller passed a fresh list
         if (evList) setEvents(evList);
@@ -235,6 +242,7 @@ export default function EventsPage() {
       setQaQuestions((qas || []).filter((q: any) => eventSessionIds.has(q.sessionId || q.session?.sessionId)));
       setCampaigns((camps || []).filter(byEvent));
       setTeam((nets || []).filter((n: any) => byEvent(n) && n.role === "TEAM_MEMBER"));
+      setVolunteerApplications((nets || []).filter((n: any) => byEvent(n) && n.role === "VOLUNTEER"));
       setSponsors((spons || []).filter(byEvent));
       setSponsorPackages((sponsPkgs || []).filter(byEvent));
       setSpeakers((spkrs || []).filter(byEvent));
@@ -244,6 +252,7 @@ export default function EventsPage() {
       setFeedbacks((fdbks || []).filter(byEvent));
       setVolunteerOpenings((volOpenings || []).filter(byEvent));
       setEventSections((sectionsList || []).filter(byEvent));
+      setInvitations((invs || []).filter((inv: any) => inv.eventId === id));
 
       const sched = (scheds || []).find((s: any) => s.eventId === id || s.event?.eventId === id);
       setSchedule(sched || null);
@@ -352,11 +361,14 @@ export default function EventsPage() {
         status: detailsForm.status,
         categoryId: detailsForm.categoryId || undefined,
         maxCapacity: detailsForm.maxCapacity,
+        maxExhibitors: detailsForm.maxExhibitors || undefined,
         currency: detailsForm.currency,
         coverImage: banner || undefined,
         format: detailsForm.format || "IN_PERSON",
         visibility: detailsForm.visibility || "PUBLIC",
         isPaid: detailsForm.isPaid ?? false,
+        themes: detailsForm.themes || "",
+        motto: detailsForm.motto || "",
       });
       // Refresh events list and re-sync the selected event details
       const evs = await eventService.getMyEvents().catch(() => []);
@@ -367,6 +379,38 @@ export default function EventsPage() {
       showToast(err.message || "Failed to save details.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendInvitations = async () => {
+    if (!inviteEmails.trim() || !selectedId) return;
+    setSendingInvites(true);
+    try {
+      const emails = inviteEmails
+        .split(",")
+        .map(e => e.trim())
+        .filter(e => e.length > 0 && e.includes("@"));
+      if (emails.length === 0) {
+        showToast("No valid emails found");
+        setSendingInvites(false);
+        return;
+      }
+      for (const email of emails) {
+        await eventService.createInvitation({
+          eventId: selectedId,
+          email: email,
+          status: "PENDING",
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+      showToast(`Successfully sent ${emails.length} invitation(s)`);
+      setInviteEmails("");
+      const list = await eventService.getInvitations().catch(() => []);
+      setInvitations((list || []).filter((inv: any) => inv.eventId === selectedId));
+    } catch (err: any) {
+      showToast("Failed to send some invitations.");
+    } finally {
+      setSendingInvites(false);
     }
   };
 
@@ -688,17 +732,32 @@ export default function EventsPage() {
     const payload = { eventId: selectedId, tenantId: auth?.tenantId, name: sponsorForm.name, email: sponsorForm.email, website: sponsorForm.website, logoUrl: sponsorForm.logoUrl || undefined, packageId: sponsorForm.packageId || undefined };
     try {
       if (editingSponsor) {
-        await eventService.updateSponsor(editingSponsor.sponsorId || editingSponsor.id, payload);
+        await eventService.updateSponsor(editingSponsor.sponsorId || editingSponsor.id, { ...payload, status: editingSponsor.status || "APPROVED" });
         setEditingSponsor(null);
         showToast("Sponsor updated!");
       } else {
-        await eventService.createSponsor(payload);
+        await eventService.createSponsor({ ...payload, status: "APPROVED" });
         showToast("Sponsor added!");
       }
       setSponsorForm({ name: "", email: "", website: "", logoUrl: "", packageId: "" });
       await loadEventData(selectedId);
     } catch { showToast(editingSponsor ? "Failed to update sponsor." : "Failed to add sponsor."); }
     finally { setSaving(false); }
+  };
+
+  // ── Approve/reject a publicly-submitted sponsor application ──
+  const updateSponsorStatus = async (s: any, status: string) => {
+    try {
+      await eventService.updateSponsor(s.sponsorId || s.id, {
+        eventId: selectedId, tenantId: auth?.tenantId,
+        name: s.name, companyName: s.companyName, contactName: s.contactName,
+        email: s.email, phone: s.phone, message: s.message,
+        website: s.website, logoUrl: s.logoUrl, packageId: s.packageId,
+        status,
+      });
+      await loadEventData(selectedId);
+      showToast(`Sponsor ${status === "APPROVED" ? "approved" : "rejected"}!`);
+    } catch { showToast("Failed to update sponsor status."); }
   };
 
   // ── Save sponsorship package ──
@@ -710,10 +769,11 @@ export default function EventsPage() {
         eventId: selectedId, tenantId: auth?.tenantId,
         name: sponsorPkgForm.name, description: sponsorPkgForm.description,
         price: Number(sponsorPkgForm.price), benefits: sponsorPkgForm.benefits,
+        maxSponsors: sponsorPkgForm.maxSponsors || undefined,
         applicationStart: sponsorPkgForm.applicationStart ? new Date(sponsorPkgForm.applicationStart).toISOString() : undefined,
         applicationEnd: sponsorPkgForm.applicationEnd ? new Date(sponsorPkgForm.applicationEnd).toISOString() : undefined,
       });
-      setSponsorPkgForm({ name: "", description: "", price: 0, benefits: "", applicationStart: "", applicationEnd: "" });
+      setSponsorPkgForm({ name: "", description: "", price: 0, benefits: "", maxSponsors: 0, applicationStart: "", applicationEnd: "" });
       await loadEventData(selectedId);
       showToast("Package created!");
     } catch { showToast("Failed to create package."); }
@@ -746,6 +806,20 @@ export default function EventsPage() {
       await loadEventData(selectedId);
     } catch { showToast("Failed to save volunteer opening."); }
     finally { setSaving(false); }
+  };
+
+  // ── Approve/reject a volunteer application ──
+  const updateVolunteerApplicationStatus = async (v: any, status: string) => {
+    try {
+      await eventService.updateNetworking(v.connectionId || v.id, {
+        eventId: selectedId, tenantId: auth?.tenantId,
+        name: v.name, email: v.email, phone: v.phone,
+        role: "VOLUNTEER", skills: v.skills, availability: v.availability, photoUrl: v.photoUrl,
+        status,
+      });
+      await loadEventData(selectedId);
+      showToast(`Volunteer application ${status === "APPROVED" ? "approved" : "rejected"}!`);
+    } catch { showToast("Failed to update application status."); }
   };
 
   // ── Save speaker ──
@@ -805,17 +879,32 @@ export default function EventsPage() {
     const payload = { eventId: selectedId, tenantId: auth?.tenantId, name: exhibitorForm.name, email: exhibitorForm.email, website: exhibitorForm.website, logoUrl: exhibitorForm.logoUrl || undefined, boothNumber: exhibitorForm.boothNumber || undefined, locationId: exhibitorForm.locationId || undefined };
     try {
       if (editingExhibitor) {
-        await eventService.updateExhibitor(editingExhibitor.exhibitorId || editingExhibitor.id, payload);
+        await eventService.updateExhibitor(editingExhibitor.exhibitorId || editingExhibitor.id, { ...payload, status: editingExhibitor.status || "APPROVED" });
         setEditingExhibitor(null);
         showToast("Exhibitor updated!");
       } else {
-        await eventService.createExhibitor(payload);
+        await eventService.createExhibitor({ ...payload, status: "APPROVED" });
         showToast("Exhibitor added!");
       }
       setExhibitorForm({ name: "", email: "", website: "", logoUrl: "", boothNumber: "", locationId: "" });
       await loadEventData(selectedId);
     } catch { showToast(editingExhibitor ? "Failed to update exhibitor." : "Failed to add exhibitor."); }
     finally { setSaving(false); }
+  };
+
+  // ── Approve/reject a publicly-submitted vendor application ──
+  const updateExhibitorStatus = async (ex: any, status: string) => {
+    try {
+      await eventService.updateExhibitor(ex.exhibitorId || ex.id, {
+        eventId: selectedId, tenantId: auth?.tenantId,
+        name: ex.name, companyName: ex.companyName,
+        email: ex.email, website: ex.website, logoUrl: ex.logoUrl,
+        boothNumber: ex.boothNumber, locationId: ex.locationId,
+        status,
+      });
+      await loadEventData(selectedId);
+      showToast(`Vendor ${status === "APPROVED" ? "approved" : "rejected"}!`);
+    } catch { showToast("Failed to update vendor status."); }
   };
 
   // ── Save announcement ──
@@ -1367,6 +1456,16 @@ export default function EventsPage() {
                         <label className={label}>Overview / Description</label>
                         <textarea value={detailsForm.description} onChange={e => setDetailsForm(f => ({ ...f, description: e.target.value }))} rows={5} className={inp + " resize-none"} placeholder="Describe what attendees can expect..." />
                       </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className={label}>Event Motto</label>
+                          <input value={detailsForm.motto || ""} onChange={e => setDetailsForm(f => ({ ...f, motto: e.target.value }))} className={inp} placeholder="e.g. Connect and Create" />
+                        </div>
+                        <div>
+                          <label className={label}>Event Themes (comma-separated)</label>
+                          <input value={detailsForm.themes || ""} onChange={e => setDetailsForm(f => ({ ...f, themes: e.target.value }))} className={inp} placeholder="e.g. Tech, AI, Innovation" />
+                        </div>
+                      </div>
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <label className={label}>Status</label>
@@ -1410,7 +1509,6 @@ export default function EventsPage() {
                           <select value={detailsForm.visibility} onChange={e => setDetailsForm(f => ({ ...f, visibility: e.target.value }))} className={inp}>
                             <option value="PUBLIC">Public</option>
                             <option value="PRIVATE">Private</option>
-                            <option value="INVITE_ONLY">Invite Only</option>
                           </select>
                         </div>
                         <div>
@@ -1422,17 +1520,63 @@ export default function EventsPage() {
                           </select>
                         </div>
                       </div>
-                      {detailsForm.visibility !== "PUBLIC" && (
-                        <div className={`text-xs rounded-xl px-4 py-3 border flex items-start gap-2 ${detailsForm.visibility === "PRIVATE" ? "text-amber-700 bg-amber-50 border-amber-200" : "text-blue-700 bg-blue-50 border-blue-200"}`}>
-                          <span className="mt-0.5 text-base leading-none">{detailsForm.visibility === "PRIVATE" ? "🔒" : "✉️"}</span>
-                          <div>
-                            <strong>{detailsForm.visibility === "PRIVATE" ? "Private event" : "Invite-only event"}</strong>
-                            <p className="mt-0.5 font-normal">
-                              {detailsForm.visibility === "PRIVATE"
-                                ? "This event won't appear in public listings. Anyone you share the direct link with can view and register."
-                                : "Hidden from all public listings. Only attendees you personally invite can register — others see a locked page even with the link. You can still publish; invitations control access, not publish status. Send invites from the Engagements → Invitations section."}
-                            </p>
+                      {detailsForm.visibility === "PRIVATE" && (
+                        <div className="border border-amber-200 bg-amber-50/50 rounded-2xl p-5 space-y-4">
+                          <div className="flex gap-2 items-start text-xs text-amber-800">
+                            <span className="text-base">🔒</span>
+                            <div>
+                              <strong>Private event</strong>
+                              <p className="mt-0.5 font-normal">This event won't appear in public listings. Anyone you share the direct link with can view and register.</p>
+                            </div>
                           </div>
+                          
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-[#1a1a1a]">Invite Attendees via Email</label>
+                            <div className="flex gap-2">
+                              <textarea
+                                value={inviteEmails}
+                                onChange={e => setInviteEmails(e.target.value)}
+                                className={inp + " h-20 resize-none py-2"}
+                                placeholder="Enter email addresses separated by commas (e.g. john@example.com, jane@example.com)"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleSendInvitations}
+                                disabled={sendingInvites || !inviteEmails.trim()}
+                                className="px-4 py-2 bg-[#FF4747] text-white rounded-xl text-xs font-bold hover:bg-[#e03b3b] disabled:opacity-50 transition-colors self-end h-[38px] cursor-pointer"
+                              >
+                                {sendingInvites ? "Sending..." : "Send"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {invitations.length > 0 && (
+                            <div className="space-y-1.5">
+                              <div className="text-xs font-bold text-[#1a1a1a]">Sent Invitations ({invitations.length})</div>
+                              <div className="max-h-40 overflow-y-auto border border-[#e5e7eb] rounded-xl bg-white text-xs">
+                                <table className="w-full text-left border-collapse">
+                                  <thead>
+                                    <tr className="border-b border-[#e5e7eb] bg-[#fcfcfc] text-[#888]">
+                                      <th className="p-2 font-semibold">Email</th>
+                                      <th className="p-2 font-semibold">Status</th>
+                                      <th className="p-2 font-semibold">Expires At</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {invitations.map((inv: any) => (
+                                      <tr key={inv.invitationId || inv.id} className="border-b border-[#e5e7eb] last:border-none">
+                                        <td className="p-2 font-medium">{inv.email}</td>
+                                        <td className="p-2">
+                                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">{inv.status || "PENDING"}</span>
+                                        </td>
+                                        <td className="p-2 text-gray-500">{new Date(inv.expiresAt).toLocaleDateString()}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -2324,13 +2468,19 @@ export default function EventsPage() {
                       <h3 className="font-bold text-sm text-[#1a1a1a] mb-4">Sponsorship Packages</h3>
                       {sponsorPackages.length > 0 ? (
                         <div className="grid md:grid-cols-3 gap-3 mb-4">
-                          {sponsorPackages.map((pkg: any) => (
+                          {sponsorPackages.map((pkg: any) => {
+                            const takenSlots = sponsors.filter((s: any) => (s.packageId || "") === (pkg.packageId || pkg.id) && s.status !== "REJECTED").length;
+                            return (
                             <div key={pkg.packageId || pkg.id} className="bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-4">
                               <div className="font-bold text-sm text-[#1a1a1a]">{pkg.name}</div>
                               <div className="text-sm font-black text-[#FF4747] mt-1">{Number(pkg.price).toLocaleString()} FCFA</div>
                               {pkg.description && <div className="text-xs text-[#888] mt-1">{pkg.description}</div>}
+                              {pkg.maxSponsors > 0 && (
+                                <div className="text-[10px] text-[#888] mt-2 font-semibold">{takenSlots} / {pkg.maxSponsors} slots filled</div>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : <p className="text-xs text-[#aaa] italic mb-4">No packages yet.</p>}
                       <form onSubmit={saveSponsorPackage} className="space-y-3">
@@ -2340,29 +2490,50 @@ export default function EventsPage() {
                           <input placeholder="Benefits" value={sponsorPkgForm.benefits} onChange={e => setSponsorPkgForm(f => ({ ...f, benefits: e.target.value }))} className={inp} />
                         </div>
                         <div className="grid grid-cols-3 gap-3 items-end">
+                          <div><label className={label}>Max Sponsors (slots)</label><input type="number" min={0} placeholder="Unlimited" value={sponsorPkgForm.maxSponsors || ""} onChange={e => setSponsorPkgForm(f => ({ ...f, maxSponsors: Number(e.target.value) }))} className={inp} /></div>
                           <div><label className={label}>Applications Open</label><input type="datetime-local" value={sponsorPkgForm.applicationStart} onChange={e => setSponsorPkgForm(f => ({ ...f, applicationStart: e.target.value }))} className={inp} /></div>
                           <div><label className={label}>Applications Close</label><input type="datetime-local" value={sponsorPkgForm.applicationEnd} onChange={e => setSponsorPkgForm(f => ({ ...f, applicationEnd: e.target.value }))} className={inp} /></div>
-                          <button type="submit" disabled={saving} className={saveBtn + " justify-center h-[38px]"}><Plus size={13} />{saving ? "..." : "Add Package"}</button>
                         </div>
+                        <button type="submit" disabled={saving} className={saveBtn + " justify-center h-[38px]"}><Plus size={13} />{saving ? "..." : "Add Package"}</button>
                       </form>
                     </div>
 
                     {/* Sponsors list */}
                     {sponsors.length > 0 && (
                       <div className="grid md:grid-cols-2 gap-4">
-                        {sponsors.map((s: any) => (
+                        {sponsors.map((s: any) => {
+                          const sponsorName = s.name || s.companyName || "Unnamed sponsor";
+                          const statusBadge: Record<string, string> = {
+                            PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+                            APPROVED: "bg-green-50 text-green-700 border-green-200",
+                            REJECTED: "bg-red-50 text-red-700 border-red-200",
+                          };
+                          return (
                           <div key={s.sponsorId || s.id} className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-colors ${editingSponsor?.sponsorId === s.sponsorId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
-                            {s.logoUrl ? <img src={s.logoUrl} alt={s.name} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" /> : <div className="w-10 h-10 rounded-lg bg-[#F7E998]/60 flex items-center justify-center font-black text-sm text-[#7a6a00] shrink-0">{(s.name || "?").charAt(0)}</div>}
+                            {s.logoUrl ? <img src={s.logoUrl} alt={sponsorName} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" /> : <div className="w-10 h-10 rounded-lg bg-[#F7E998]/60 flex items-center justify-center font-black text-sm text-[#7a6a00] shrink-0">{sponsorName.charAt(0)}</div>}
                             <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm text-[#1a1a1a]">{s.name}</div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{sponsorName}</div>
+                                {s.status && (
+                                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[s.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{s.status}</span>
+                                )}
+                              </div>
                               {s.website && <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">{s.website}</a>}
+                              {s.email && <div className="text-[10px] text-[#888]">{s.email}</div>}
                             </div>
                             <div className="flex gap-1 flex-col shrink-0">
+                              {s.status === "PENDING" && (
+                                <>
+                                  <button type="button" onClick={() => updateSponsorStatus(s, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
+                                  <button type="button" onClick={() => updateSponsorStatus(s, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
+                                </>
+                              )}
                               <button type="button" onClick={() => { setEditingSponsor(s); setSponsorForm({ name: s.name || "", email: s.email || "", website: s.website || "", logoUrl: s.logoUrl || "", packageId: s.packageId || "" }); sponsorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
                               <button type="button" onClick={async () => { if (!confirm("Remove sponsor?")) return; try { await eventService.deleteSponsor(s.sponsorId || s.id); await loadEventData(selectedId); showToast("Sponsor removed!"); } catch { showToast("Failed to remove sponsor."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 
@@ -2462,6 +2633,51 @@ export default function EventsPage() {
                         <button type="submit" disabled={saving} className={saveBtn}>{editingVolunteerOpening ? <><Save size={13} />{saving ? "Saving..." : "Save Opening"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Opening"}</>}</button>
                       </form>
                     </div>
+
+                    {/* Volunteer Applications */}
+                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6">
+                      <h3 className="font-bold text-sm text-[#1a1a1a] mb-1">Volunteer Applications</h3>
+                      <p className="text-xs text-[#888] mb-4">People who applied to volunteer via the public event page.</p>
+                      {volunteerApplications.length === 0 ? (
+                        <div className="border border-dashed border-[#e5e7eb] rounded-xl p-8 text-center">
+                          <p className="text-xs text-[#aaa]">No volunteer applications yet.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {volunteerApplications.map((v: any) => {
+                            const statusBadge: Record<string, string> = {
+                              PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+                              APPROVED: "bg-green-50 text-green-700 border-green-200",
+                              REJECTED: "bg-red-50 text-red-700 border-red-200",
+                            };
+                            return (
+                              <div key={v.connectionId || v.id} className="border border-[#e5e7eb] rounded-xl p-4 flex items-start gap-3">
+                                {v.photoUrl ? (
+                                  <img src={v.photoUrl} alt={v.name} className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#f0f0f0]" />
+                                ) : (
+                                  <div className="w-9 h-9 rounded-full bg-[#f5f5f5] flex items-center justify-center shrink-0 font-black text-xs text-[#555]">{(v.name || "?").charAt(0)}</div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <div className="font-bold text-sm text-[#1a1a1a]">{v.name}</div>
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[v.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{v.status || "PENDING"}</span>
+                                  </div>
+                                  <div className="text-[10px] text-[#888] mt-0.5">{v.email}{v.phone ? ` · ${v.phone}` : ""}</div>
+                                  {v.skills && <div className="text-xs text-[#555] mt-1"><span className="text-[#aaa]">Skills:</span> {v.skills}</div>}
+                                  {v.availability && <div className="text-xs text-[#555]"><span className="text-[#aaa]">Availability:</span> {v.availability}</div>}
+                                </div>
+                                {v.status === "PENDING" && (
+                                  <div className="flex gap-1 shrink-0">
+                                    <button type="button" onClick={() => updateVolunteerApplicationStatus(v, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
+                                    <button type="button" onClick={() => updateVolunteerApplicationStatus(v, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -2520,21 +2736,57 @@ export default function EventsPage() {
                 {/* ── VENDORS TAB ── */}
                 {tab === "vendors" && (
                   <div className="max-w-4xl space-y-6">
+                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6">
+                      <h3 className="font-bold text-sm text-[#1a1a1a] mb-1">Vendor Slots</h3>
+                      <p className="text-xs text-[#888] mb-4">Limit how many vendors/exhibitors can be accepted for this event. Leave at 0 for unlimited.</p>
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1 max-w-[180px]">
+                          <label className={label}>Max Vendors</label>
+                          <input type="number" min={0} placeholder="Unlimited" value={detailsForm.maxExhibitors || ""} onChange={e => setDetailsForm(f => ({ ...f, maxExhibitors: Number(e.target.value) }))} className={inp} />
+                        </div>
+                        <button type="button" onClick={saveDetails} disabled={saving} className={saveBtn + " h-[38px]"}><Save size={13} />{saving ? "Saving..." : "Save"}</button>
+                        {detailsForm.maxExhibitors > 0 && (
+                          <span className="text-xs text-[#888] font-semibold pb-2">
+                            {exhibitors.filter((ex: any) => ex.status !== "REJECTED").length} / {detailsForm.maxExhibitors} slots filled
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     {exhibitors.length > 0 && (
                       <div className="grid md:grid-cols-2 gap-4">
-                        {exhibitors.map((ex: any) => (
+                        {exhibitors.map((ex: any) => {
+                          const exhibitorName = ex.name || ex.companyName || "Unnamed vendor";
+                          const statusBadge: Record<string, string> = {
+                            PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+                            APPROVED: "bg-green-50 text-green-700 border-green-200",
+                            REJECTED: "bg-red-50 text-red-700 border-red-200",
+                          };
+                          return (
                           <div key={ex.exhibitorId || ex.id} className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-colors ${editingExhibitor?.exhibitorId === ex.exhibitorId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
                             {ex.logoUrl ? (
-                              <img src={ex.logoUrl} alt={ex.name} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" />
+                              <img src={ex.logoUrl} alt={exhibitorName} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-[#f5f5f5] flex items-center justify-center shrink-0 font-black text-sm text-[#555]">{(ex.name || "?").charAt(0)}</div>
+                              <div className="w-10 h-10 rounded-lg bg-[#f5f5f5] flex items-center justify-center shrink-0 font-black text-sm text-[#555]">{exhibitorName.charAt(0)}</div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm text-[#1a1a1a]">{ex.name}</div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{exhibitorName}</div>
+                                {ex.status && (
+                                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[ex.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{ex.status}</span>
+                                )}
+                              </div>
                               {ex.boothNumber && <div className="text-[10px] text-[#FF4747] font-semibold">Booth #{ex.boothNumber}</div>}
                               {ex.website && <a href={ex.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">{ex.website}</a>}
+                              {ex.email && <div className="text-[10px] text-[#888]">{ex.email}</div>}
                             </div>
                             <div className="flex gap-1 flex-col shrink-0">
+                              {ex.status === "PENDING" && (
+                                <>
+                                  <button type="button" onClick={() => updateExhibitorStatus(ex, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
+                                  <button type="button" onClick={() => updateExhibitorStatus(ex, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
+                                </>
+                              )}
                               <button type="button" onClick={() => {
                                 setEditingExhibitor(ex);
                                 setExhibitorForm({ name: ex.name || "", email: ex.email || "", website: ex.website || "", logoUrl: ex.logoUrl || "", boothNumber: ex.boothNumber || "", locationId: ex.locationId || "" });
@@ -2543,7 +2795,8 @@ export default function EventsPage() {
                               <button type="button" onClick={async () => { if (!confirm("Remove exhibitor?")) return; try { await eventService.deleteExhibitor(ex.exhibitorId || ex.id); await loadEventData(selectedId); showToast("Exhibitor removed!"); } catch { showToast("Failed to remove."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">

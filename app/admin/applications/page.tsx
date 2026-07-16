@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
-import { CheckCircle, XCircle, Users, Handshake, ChevronDown, Building2, Star, Plus, Trash2, Pencil, Save, Image as ImageIcon } from "lucide-react";
+import { CheckCircle, XCircle, Users, Handshake, ChevronDown, Building2, Star, Plus, Trash2, Pencil, Save, Image as ImageIcon, Phone, Globe, Mail, User } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 
@@ -10,6 +10,7 @@ type Tab = "sponsors" | "vendors" | "volunteers";
 const STATUS_STYLES: Record<string, string> = {
   PENDING:  "bg-amber-900/30 text-amber-300 border border-amber-700/40",
   ACCEPTED: "bg-green-900/30 text-green-400 border border-green-700/40",
+  CONFIRMED: "bg-green-900/30 text-green-400 border border-green-700/40",
   REJECTED: "bg-red-900/30 text-red-400 border border-red-700/40",
 };
 
@@ -22,10 +23,8 @@ export default function ApplicationsPage() {
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [sponsors, setSponsors] = useState<any[]>([]);
-  const [exhibitors, setExhibitors] = useState<any[]>([]);
-  const [volunteers, setVolunteers] = useState<any[]>([]);
-  const [sponsorPackages, setSponsorPackages] = useState<any[]>([]);
-  const [settings, setSettings] = useState<any>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   
   const [maxSponsors, setMaxSponsors] = useState(10);
   const [maxVendors, setMaxVendors] = useState(15);
@@ -39,29 +38,42 @@ export default function ApplicationsPage() {
   // Forms
   const [editingSponsor, setEditingSponsor] = useState<any>(null);
   const [sponsorForm, setSponsorForm] = useState({
-    name: "",
-    email: "",
-    website: "",
-    logoUrl: "",
-    packageId: "",
-  });
-
-  const [editingVendor, setEditingVendor] = useState<any>(null);
-  const [vendorForm, setVendorForm] = useState({
-    name: "",
-    email: "",
-    website: "",
-    logoUrl: "",
-  });
-
-  const [editingVolunteer, setEditingVolunteer] = useState<any>(null);
-  const [volunteerForm, setVolunteerForm] = useState({
-    name: "",
+    organizationId: "",
+    newCompanyName: "",
+    newCompanyLogo: "",
+    newCompanyWebsite: "",
     email: "",
     phone: "",
-    skills: "",
-    availability: "",
+    contactName: "",
+    packageId: "",
+    amount: "",
+    message: ""
+  });
+
+  const [editingParticipant, setEditingParticipant] = useState<any>(null);
+
+  const [vendorForm, setVendorForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    organizationId: "",
+    newCompanyName: "",
+    newCompanyLogo: "",
+    newCompanyWebsite: "",
+    status: "pending",
+    notes: ""
+  });
+
+  const [volunteerForm, setVolunteerForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    bio: "",
     photoUrl: "",
+    status: "pending",
+    notes: ""
   });
 
   const sponsorFormRef = useRef<HTMLFormElement>(null);
@@ -89,34 +101,15 @@ export default function ApplicationsPage() {
 
   const loadApplications = async (eventId: string) => {
     setLoading(true);
-    const auth = getStoredAuth();
-    const tenantId = auth?.tenantId;
-    const byEventAndTenant = (item: any) =>
-      (item.eventId === eventId || item.event?.eventId === eventId) &&
-      (!tenantId || !item.tenantId || item.tenantId === tenantId);
     try {
-      const [allSponsors, allNetworkings, allSettings, allExhibitors, allPackages] = await Promise.all([
+      const [allSponsors, allParticipants, allOrgs] = await Promise.all([
         eventService.getSponsors().catch(() => []),
-        eventService.getNetworkings().catch(() => []),
-        eventService.getEventSettings().catch(() => []),
-        eventService.getExhibitors().catch(() => []),
-        eventService.getSponsorshipPackages().catch(() => []),
+        eventService.getParticipantsByEvent(eventId).catch(() => []),
+        eventService.getOrganizations().catch(() => []),
       ]);
-      setSponsors((allSponsors || []).filter(byEventAndTenant));
-      setExhibitors((allExhibitors || []).filter(byEventAndTenant));
-      setVolunteers((allNetworkings || []).filter((n: any) => byEventAndTenant(n) && n.role === "VOLUNTEER"));
-      setSponsorPackages((allPackages || []).filter((p: any) => p.eventId === eventId || p.event?.eventId === eventId));
-
-      const evSetting = (allSettings || []).find((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
-      setSettings(evSetting || null);
-      if (evSetting?.notificationPrefs) {
-        try {
-          const prefs = JSON.parse(evSetting.notificationPrefs);
-          if (prefs.maxSponsors) setMaxSponsors(prefs.maxSponsors);
-          if (prefs.maxVolunteers) setMaxVolunteers(prefs.maxVolunteers);
-          if (prefs.maxVendors) setMaxVendors(prefs.maxVendors);
-        } catch {}
-      }
+      setSponsors((allSponsors || []).filter((s: any) => s.eventId === eventId));
+      setParticipants(allParticipants || []);
+      setOrganizations(allOrgs || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -124,23 +117,9 @@ export default function ApplicationsPage() {
     }
   };
 
-  const saveLimit = async (field: "maxSponsors" | "maxVolunteers" | "maxVendors", value: number) => {
-    if (!selectedEventId) return;
-    try {
-      const auth = getStoredAuth();
-      const currentPrefs = (() => { try { return settings?.notificationPrefs ? JSON.parse(settings.notificationPrefs) : {}; } catch { return {}; } })();
-      const newPrefs = JSON.stringify({ ...currentPrefs, [field]: value });
-      if (settings?.settingId) {
-        await eventService.updateEventSetting(settings.settingId, { ...settings, notificationPrefs: newPrefs });
-      } else {
-        const created = await eventService.createEventSetting({ eventId: selectedEventId, tenantId: auth?.tenantId, notificationPrefs: newPrefs });
-        setSettings(created);
-      }
-      showToast("success", "Limit saved.");
-    } catch {
-      showToast("error", "Failed to save limit.");
-    }
-  };
+  // Filter Event Participants by roles
+  const exhibitors = participants.filter(p => p.role?.id === "a0000000-0000-0000-0000-000000000004");
+  const volunteers = participants.filter(p => p.role?.id === "a0000000-0000-0000-0000-000000000003");
 
   const updateSponsorStatus = async (sponsor: any, status: "ACCEPTED" | "REJECTED") => {
     const id = sponsor.sponsorId || sponsor.id;
@@ -161,18 +140,18 @@ export default function ApplicationsPage() {
     }
   };
 
-  const updateVendorStatus = async (vendor: any, status: "ACCEPTED" | "REJECTED") => {
-    const id = vendor.exhibitorId || vendor.id;
-    const acceptedCount = exhibitors.filter(v => v.status === "ACCEPTED").length;
-    if (status === "ACCEPTED" && acceptedCount >= maxVendors) {
-      showToast("error", `Maximum vendor limit (${maxVendors}) already reached.`);
-      return;
-    }
+  const updateParticipantStatus = async (part: any, status: "confirmed" | "rejected") => {
+    const id = part.id;
     setActionLoading(id);
     try {
-      await eventService.updateExhibitor(id, { ...vendor, status });
-      setExhibitors(prev => prev.map(v => (v.exhibitorId === id || v.id === id) ? { ...v, status } : v));
-      showToast("success", `Vendor ${status === "ACCEPTED" ? "accepted" : "rejected"}.`);
+      await eventService.updateParticipant(id, {
+        eventId: selectedEventId,
+        personId: part.person?.id,
+        roleId: part.role?.id,
+        status: status
+      });
+      showToast("success", `Participant status updated to ${status}.`);
+      await loadApplications(selectedEventId);
     } catch {
       showToast("error", "Action failed.");
     } finally {
@@ -180,41 +159,42 @@ export default function ApplicationsPage() {
     }
   };
 
-  const updateVolunteerStatus = async (volunteer: any, status: "ACCEPTED" | "REJECTED") => {
-    const id = volunteer.connectionId || volunteer.id;
-    const acceptedCount = volunteers.filter(v => v.status === "ACCEPTED").length;
-    if (status === "ACCEPTED" && acceptedCount >= maxVolunteers) {
-      showToast("error", `Maximum volunteer limit (${maxVolunteers}) already reached.`);
-      return;
-    }
-    setActionLoading(id);
-    try {
-      await eventService.updateNetworking(id, { ...volunteer, status });
-      setVolunteers(prev => prev.map(v => (v.connectionId === id || v.id === id) ? { ...v, status } : v));
-      showToast("success", `Volunteer ${status === "ACCEPTED" ? "accepted" : "rejected"}.`);
-    } catch {
-      showToast("error", "Action failed.");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
+  // Save Sponsor
   const saveSponsor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEventId) return;
     setSaving(true);
-    const auth = getStoredAuth();
-    const payload = {
-      eventId: selectedEventId,
-      tenantId: auth?.tenantId,
-      name: sponsorForm.name,
-      email: sponsorForm.email,
-      website: sponsorForm.website,
-      logoUrl: sponsorForm.logoUrl || undefined,
-      packageId: sponsorForm.packageId || undefined,
-      status: "ACCEPTED",
-    };
+    
     try {
+      // Resolve organization id
+      let orgId = sponsorForm.organizationId;
+      if (sponsorForm.newCompanyName.trim()) {
+        const org = await eventService.createOrganization({
+          name: sponsorForm.newCompanyName,
+          website: sponsorForm.newCompanyWebsite || undefined,
+          logo: sponsorForm.newCompanyLogo || undefined,
+          type: "sponsor"
+        });
+        orgId = org.id;
+      }
+
+      if (!orgId) {
+        showToast("error", "Please select or create an organization.");
+        setSaving(false);
+        return;
+      }
+
+      const payload = {
+        eventId: selectedEventId,
+        organizationId: orgId,
+        sponsorshipAmount: sponsorForm.amount ? parseFloat(sponsorForm.amount) : undefined,
+        contactName: sponsorForm.contactName,
+        email: sponsorForm.email,
+        phone: sponsorForm.phone,
+        message: sponsorForm.message,
+        status: "ACCEPTED",
+      };
+
       if (editingSponsor) {
         await eventService.updateSponsor(editingSponsor.sponsorId || editingSponsor.id, payload);
         setEditingSponsor(null);
@@ -223,10 +203,22 @@ export default function ApplicationsPage() {
         await eventService.createSponsor(payload);
         showToast("success", "Sponsor added!");
       }
-      setSponsorForm({ name: "", email: "", website: "", logoUrl: "", packageId: "" });
+
+      setSponsorForm({
+        organizationId: "",
+        newCompanyName: "",
+        newCompanyLogo: "",
+        newCompanyWebsite: "",
+        email: "",
+        phone: "",
+        contactName: "",
+        packageId: "",
+        amount: "",
+        message: ""
+      });
       await loadApplications(selectedEventId);
     } catch (err: any) {
-      showToast("error", err.message || "Failed to save sponsor.");
+      showToast("error", err.response?.data?.message || "Failed to save sponsor.");
     } finally {
       setSaving(false);
     }
@@ -236,10 +228,6 @@ export default function ApplicationsPage() {
     if (!confirm("Delete this sponsor?")) return;
     try {
       await eventService.deleteSponsor(id);
-      if (editingSponsor?.sponsorId === id || editingSponsor?.id === id) {
-        setEditingSponsor(null);
-        setSponsorForm({ name: "", email: "", website: "", logoUrl: "", packageId: "" });
-      }
       await loadApplications(selectedEventId);
       showToast("success", "Sponsor deleted!");
     } catch {
@@ -247,107 +235,140 @@ export default function ApplicationsPage() {
     }
   };
 
+  // Save Vendor (Exhibitor)
   const saveVendor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEventId) return;
+    if (!selectedEventId || !vendorForm.firstName.trim() || !vendorForm.email.trim()) return;
     setSaving(true);
-    const auth = getStoredAuth();
-    const payload = {
-      eventId: selectedEventId,
-      tenantId: auth?.tenantId,
-      name: vendorForm.name,
-      email: vendorForm.email,
-      website: vendorForm.website,
-      logoUrl: vendorForm.logoUrl || undefined,
-      status: "ACCEPTED",
-    };
+
     try {
-      if (editingVendor) {
-        await eventService.updateExhibitor(editingVendor.exhibitorId || editingVendor.id, payload);
-        setEditingVendor(null);
+      // 1. Resolve organization
+      let orgId = vendorForm.organizationId;
+      if (vendorForm.newCompanyName.trim()) {
+        const org = await eventService.createOrganization({
+          name: vendorForm.newCompanyName,
+          website: vendorForm.newCompanyWebsite || undefined,
+          logo: vendorForm.newCompanyLogo || undefined,
+          type: "vendor"
+        });
+        orgId = org.id;
+      }
+
+      // 2. Create/Update Person
+      const person = await eventService.createPerson({
+        firstName: vendorForm.firstName,
+        lastName: vendorForm.lastName,
+        email: vendorForm.email,
+        phone: vendorForm.phone,
+        organizationId: orgId || undefined
+      });
+
+      // 3. Link Event Participant
+      const participantPayload = {
+        eventId: selectedEventId,
+        personId: person.id,
+        roleId: "a0000000-0000-0000-0000-000000000004", // Exhibitor role ID
+        status: vendorForm.status,
+        notes: vendorForm.notes || undefined
+      };
+
+      if (editingParticipant) {
+        await eventService.updateParticipant(editingParticipant.id, participantPayload);
+        setEditingParticipant(null);
         showToast("success", "Vendor updated!");
       } else {
-        await eventService.createExhibitor(payload);
+        await eventService.createParticipant(participantPayload);
         showToast("success", "Vendor added!");
       }
-      setVendorForm({ name: "", email: "", website: "", logoUrl: "" });
+
+      setVendorForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        organizationId: "",
+        newCompanyName: "",
+        newCompanyLogo: "",
+        newCompanyWebsite: "",
+        status: "pending",
+        notes: ""
+      });
       await loadApplications(selectedEventId);
     } catch (err: any) {
-      showToast("error", err.message || "Failed to save vendor.");
+      showToast("error", err.response?.data?.message || "Failed to save vendor.");
     } finally {
       setSaving(false);
     }
   };
 
-  const deleteVendor = async (id: string) => {
-    if (!confirm("Delete this vendor?")) return;
-    try {
-      await eventService.deleteExhibitor(id);
-      if (editingVendor?.exhibitorId === id || editingVendor?.id === id) {
-        setEditingVendor(null);
-        setVendorForm({ name: "", email: "", website: "", logoUrl: "" });
-      }
-      await loadApplications(selectedEventId);
-      showToast("success", "Vendor deleted!");
-    } catch {
-      showToast("error", "Failed to delete vendor.");
-    }
-  };
-
+  // Save Volunteer
   const saveVolunteer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEventId) return;
+    if (!selectedEventId || !volunteerForm.firstName.trim() || !volunteerForm.email.trim()) return;
     setSaving(true);
-    const auth = getStoredAuth();
-    const payload = {
-      eventId: selectedEventId,
-      tenantId: auth?.tenantId,
-      name: volunteerForm.name,
-      email: volunteerForm.email,
-      phone: volunteerForm.phone,
-      skills: volunteerForm.skills,
-      availability: volunteerForm.availability,
-      photoUrl: volunteerForm.photoUrl || undefined,
-      role: "VOLUNTEER",
-      status: "ACCEPTED",
-    };
+
     try {
-      if (editingVolunteer) {
-        await eventService.updateNetworking(editingVolunteer.connectionId || editingVolunteer.id, payload);
-        setEditingVolunteer(null);
+      // 1. Create/Update Person
+      const person = await eventService.createPerson({
+        firstName: volunteerForm.firstName,
+        lastName: volunteerForm.lastName,
+        email: volunteerForm.email,
+        phone: volunteerForm.phone,
+        bio: volunteerForm.bio || undefined,
+        profilePhoto: volunteerForm.photoUrl || undefined
+      });
+
+      // 2. Link Event Participant
+      const participantPayload = {
+        eventId: selectedEventId,
+        personId: person.id,
+        roleId: "a0000000-0000-0000-0000-000000000003", // Volunteer role ID
+        status: volunteerForm.status,
+        notes: volunteerForm.notes || undefined
+      };
+
+      if (editingParticipant) {
+        await eventService.updateParticipant(editingParticipant.id, participantPayload);
+        setEditingParticipant(null);
         showToast("success", "Volunteer updated!");
       } else {
-        await eventService.createNetworking(payload);
+        await eventService.createParticipant(participantPayload);
         showToast("success", "Volunteer added!");
       }
-      setVolunteerForm({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" });
+
+      setVolunteerForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        bio: "",
+        photoUrl: "",
+        status: "pending",
+        notes: ""
+      });
       await loadApplications(selectedEventId);
     } catch (err: any) {
-      showToast("error", err.message || "Failed to save volunteer.");
+      showToast("error", err.response?.data?.message || "Failed to save volunteer.");
     } finally {
       setSaving(false);
     }
   };
 
-  const deleteVolunteer = async (id: string) => {
-    if (!confirm("Delete this volunteer?")) return;
+  const deleteParticipant = async (id: string) => {
+    if (!confirm("Delete this participant application?")) return;
     try {
-      await eventService.deleteNetworking(id);
-      if (editingVolunteer?.connectionId === id || editingVolunteer?.id === id) {
-        setEditingVolunteer(null);
-        setVolunteerForm({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" });
-      }
+      await eventService.deleteParticipant(id);
       await loadApplications(selectedEventId);
-      showToast("success", "Volunteer deleted!");
+      showToast("success", "Application deleted.");
     } catch {
-      showToast("error", "Failed to delete volunteer.");
+      showToast("error", "Failed to delete.");
     }
   };
 
   const selectedEvent = events.find(e => e.eventId === selectedEventId);
-  const pendingSponsors = sponsors.filter(s => s.status === "PENDING").length;
-  const pendingVendors = exhibitors.filter(v => v.status === "PENDING").length;
-  const pendingVolunteers = volunteers.filter(v => v.status === "PENDING").length;
+  const pendingSponsors = sponsors.filter(s => s.status === "PENDING" || s.status === "pending").length;
+  const pendingVendors = exhibitors.filter(v => v.status === "PENDING" || v.status === "pending").length;
+  const pendingVolunteers = volunteers.filter(v => v.status === "PENDING" || v.status === "pending").length;
 
   return (
     <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
@@ -362,8 +383,7 @@ export default function ApplicationsPage() {
                 onChange={e => {
                   setSelectedEventId(e.target.value);
                   setEditingSponsor(null);
-                  setEditingVendor(null);
-                  setEditingVolunteer(null);
+                  setEditingParticipant(null);
                 }}
                 className="appearance-none bg-white border border-[#e5e7eb] text-[#1a1a1a] text-sm rounded-lg px-4 py-1.5 pr-8 outline-none cursor-pointer"
               >
@@ -389,72 +409,29 @@ export default function ApplicationsPage() {
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-amber-900/30 flex items-center justify-center"><Handshake size={20} className="text-amber-300" /></div>
               <div>
-                <p className="text-xs text-[#555] uppercase tracking-wider">Sponsor Applications</p>
+                <p className="text-xs text-[#555] uppercase tracking-wider">Sponsor Partners</p>
                 <p className="text-2xl font-bold text-[#1a1a1a]">{sponsors.length} <span className="text-sm font-normal text-amber-300">({pendingSponsors} pending)</span></p>
               </div>
             </div>
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-purple-900/30 flex items-center justify-center"><Building2 size={20} className="text-purple-300" /></div>
               <div>
-                <p className="text-xs text-[#555] uppercase tracking-wider">Vendor Applications</p>
+                <p className="text-xs text-[#555] uppercase tracking-wider">Vendors / Exhibitors</p>
                 <p className="text-2xl font-bold text-[#1a1a1a]">{exhibitors.length} <span className="text-sm font-normal text-purple-300">({pendingVendors} pending)</span></p>
               </div>
             </div>
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-blue-900/30 flex items-center justify-center"><Users size={20} className="text-blue-300" /></div>
               <div>
-                <p className="text-xs text-[#555] uppercase tracking-wider">Volunteer Applications</p>
+                <p className="text-xs text-[#555] uppercase tracking-wider">Volunteers</p>
                 <p className="text-2xl font-bold text-[#1a1a1a]">{volunteers.length} <span className="text-sm font-normal text-blue-300">({pendingVolunteers} pending)</span></p>
-              </div>
-            </div>
-          </div>
-
-          {/* LIMITS */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <h2 className="font-display font-bold text-[#EB4203] mb-4">Acceptance Limits — {selectedEvent?.title || "Select an event"}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-xs text-[#555] uppercase tracking-wider mb-2">Max Sponsors</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number" min={1} value={maxSponsors}
-                    onChange={e => setMaxSponsors(Number(e.target.value))}
-                    className="w-24 bg-white border border-[#e5e7eb] text-[#1a1a1a] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#F7E998]"
-                  />
-                  <button onClick={() => saveLimit("maxSponsors", maxSponsors)} className="px-4 py-1.5 bg-[#EB4203] text-white text-xs font-bold rounded-lg hover:bg-[#c23b02] transition-colors cursor-pointer">Save</button>
-                  <span className="text-xs text-[#555]">{sponsors.filter(s => s.status === "ACCEPTED").length} accepted</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[#555] uppercase tracking-wider mb-2">Max Vendors</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number" min={1} value={maxVendors}
-                    onChange={e => setMaxVendors(Number(e.target.value))}
-                    className="w-24 bg-white border border-[#e5e7eb] text-[#1a1a1a] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#F7E998]"
-                  />
-                  <button onClick={() => saveLimit("maxVendors", maxVendors)} className="px-4 py-1.5 bg-[#EB4203] text-white text-xs font-bold rounded-lg hover:bg-[#c23b02] transition-colors cursor-pointer">Save</button>
-                  <span className="text-xs text-[#555]">{exhibitors.filter(v => v.status === "ACCEPTED").length} accepted</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[#555] uppercase tracking-wider mb-2">Max Volunteers</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number" min={1} value={maxVolunteers}
-                    onChange={e => setMaxVolunteers(Number(e.target.value))}
-                    className="w-24 bg-white border border-[#e5e7eb] text-[#1a1a1a] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#F7E998]"
-                  />
-                  <button onClick={() => saveLimit("maxVolunteers", maxVolunteers)} className="px-4 py-1.5 bg-[#EB4203] text-white text-xs font-bold rounded-lg hover:bg-[#c23b02] transition-colors cursor-pointer">Save</button>
-                  <span className="text-xs text-[#555]">{volunteers.filter(v => v.status === "ACCEPTED").length} accepted</span>
-                </div>
               </div>
             </div>
           </div>
 
           {/* TABS */}
           <div className="flex gap-1 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl p-1 w-fit">
-            {([["sponsors", "Sponsors", Handshake], ["vendors", "Vendors", Building2], ["volunteers", "Volunteers", Users]] as const).map(([key, label, Icon]) => (
+            {([["sponsors", "Sponsors", Handshake], ["vendors", "Vendors / Exhibitors", Building2], ["volunteers", "Volunteers", Users]] as const).map(([key, label, Icon]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${tab === key ? "bg-[#FF4747] text-white" : "text-[#666] hover:text-[#1a1a1a]"}`}>
                 <Icon size={15} />{label}
@@ -469,30 +446,31 @@ export default function ApplicationsPage() {
               {/* Sponsors List */}
               <div className="space-y-3">
                 {sponsors.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#555]">No sponsor applications for this event.</div>
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#555]">No sponsor partners registered.</div>
                 ) : sponsors.map((s) => {
                   const id = s.sponsorId || s.id;
+                  const org = s.organization;
                   return (
                     <div key={id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-5">
                       {/* Logo */}
                       <div className="w-14 h-14 rounded-xl bg-[#ffffff] border border-[#e5e7eb] flex items-center justify-center shrink-0 overflow-hidden">
-                        {s.logo || s.logoUrl ? (
-                          <img src={s.logo || s.logoUrl} alt={s.companyName} className="w-full h-full object-contain p-1" />
+                        {org?.logo ? (
+                          <img src={org.logo} alt={org.name} className="w-full h-full object-contain p-1" />
                         ) : (
                           <Handshake size={22} className="text-[#444]" />
                         )}
                       </div>
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[#1a1a1a] truncate">{s.companyName || s.name || "Unknown Company"}</p>
-                        <p className="text-xs text-[#666] mt-0.5">{s.email || s.contactEmail || "—"} {s.phone ? `· ${s.phone}` : ""}</p>
-                        {s.website && <p className="text-xs text-[#EB4203] mt-1"><a href={s.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{s.website}</a></p>}
+                        <p className="font-semibold text-[#1a1a1a] truncate">{org?.name || "Unknown Company"}</p>
+                        <p className="text-xs text-[#666] mt-0.5">{s.email || "—"} {s.phone ? `· ${s.phone}` : ""}</p>
+                        {org?.website && <p className="text-xs text-[#EB4203] mt-1"><a href={org.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{org.website}</a></p>}
                         {s.message && <p className="text-xs text-[#555] mt-1 line-clamp-2 italic">"{s.message}"</p>}
                       </div>
                       {/* Amount */}
                       {s.sponsorshipAmount && (
                         <div className="text-right shrink-0">
-                          <p className="text-xs text-[#555]">Amount</p>
+                          <p className="text-xs text-[#555]">Sponsorship</p>
                           <p className="text-sm font-bold text-[#EB4203]">{Number(s.sponsorshipAmount).toLocaleString()} FCFA</p>
                         </div>
                       )}
@@ -502,33 +480,20 @@ export default function ApplicationsPage() {
                       </span>
                       {/* Actions */}
                       <div className="flex gap-2 shrink-0">
-                        {(s.status === "PENDING" || !s.status) && (
-                          <>
-                            <button
-                              onClick={() => updateSponsorStatus(s, "ACCEPTED")}
-                              disabled={actionLoading === id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            >
-                              <CheckCircle size={13} /> Accept
-                            </button>
-                            <button
-                              onClick={() => updateSponsorStatus(s, "REJECTED")}
-                              disabled={actionLoading === id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            >
-                              <XCircle size={13} /> Reject
-                            </button>
-                          </>
-                        )}
                         <button
                           onClick={() => {
                             setEditingSponsor(s);
                             setSponsorForm({
-                              name: s.companyName || s.name || "",
-                              email: s.email || s.contactEmail || "",
-                              website: s.website || "",
-                              logoUrl: s.logo || s.logoUrl || "",
-                              packageId: s.packageId || "",
+                              organizationId: org?.id || "",
+                              newCompanyName: "",
+                              newCompanyLogo: "",
+                              newCompanyWebsite: "",
+                              email: s.email || "",
+                              phone: s.phone || "",
+                              contactName: s.contactName || "",
+                              packageId: s.sponsorshipPackage?.packageId || "",
+                              amount: s.sponsorshipAmount?.toString() || "",
+                              message: s.message || ""
                             });
                             sponsorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                           }}
@@ -553,64 +518,61 @@ export default function ApplicationsPage() {
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSponsor ? "Edit Sponsor" : "Add Sponsor"}</h3>
                   {editingSponsor && (
-                    <button type="button" onClick={() => { setEditingSponsor(null); setSponsorForm({ name: "", email: "", website: "", logoUrl: "", packageId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                    <button type="button" onClick={() => { setEditingSponsor(null); setSponsorForm({ organizationId: "", newCompanyName: "", newCompanyLogo: "", newCompanyWebsite: "", email: "", phone: "", contactName: "", packageId: "", amount: "", message: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                   )}
                 </div>
                 <form ref={sponsorFormRef} onSubmit={saveSponsor} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={label}>Sponsor Name *</label>
-                      <input required placeholder="Acme Corp" value={sponsorForm.name} onChange={e => setSponsorForm(f => ({ ...f, name: e.target.value }))} className={inp} />
-                    </div>
-                    <div>
-                      <label className={label}>Email</label>
-                      <input type="email" placeholder="sponsor@acme.com" value={sponsorForm.email} onChange={e => setSponsorForm(f => ({ ...f, email: e.target.value }))} className={inp} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={label}>Website / Link</label>
-                      <input type="url" placeholder="https://acme.com" value={sponsorForm.website} onChange={e => setSponsorForm(f => ({ ...f, website: e.target.value }))} className={inp} />
-                    </div>
-                    <div>
-                      <label className={label}>Package</label>
-                      <select value={sponsorForm.packageId} onChange={e => setSponsorForm(f => ({ ...f, packageId: e.target.value }))} className={inp}>
-                        <option value="">— No package —</option>
-                        {sponsorPackages.map((p: any) => <option key={p.packageId || p.id} value={p.packageId || p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
+                  <div>
+                    <label className={label}>Select Existing Organization</label>
+                    <select value={sponsorForm.organizationId} onChange={e => setSponsorForm(f => ({ ...f, organizationId: e.target.value }))} className={inp}>
+                      <option value="">— Select Organization —</option>
+                      {organizations.map(org => (
+                        <option key={org.id} value={org.id}>{org.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label className={label}>Sponsor Logo</label>
-                    <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
-                      {sponsorForm.logoUrl ? (
-                        <img src={sponsorForm.logoUrl} alt="Preview" className="w-14 h-14 rounded-lg object-contain border border-[#e5e7eb] shrink-0 bg-[#fafafa]" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
-                          <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-sm font-semibold text-[#1a1a1a]">{sponsorForm.logoUrl ? "Click to change" : "Upload logo"}</div>
-                        <div className="text-xs text-[#aaa]">PNG or JPG</div>
-                      </div>
-                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        try {
-                          setSaving(true);
-                          const res = await eventService.uploadImage(f);
-                          setSponsorForm(f => ({ ...f, logoUrl: res.url }));
-                          showToast("success", "Logo uploaded successfully!");
-                        } catch (err: any) {
-                          showToast("error", "Failed to upload logo: " + (err.message || err));
-                        } finally {
-                          setSaving(false);
-                        }
-                      }} />
-                    </label>
-                    {sponsorForm.logoUrl && <button type="button" onClick={() => setSponsorForm(f => ({ ...f, logoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove logo</button>}
+                    <label className={label}>Or Create New Organization</label>
+                    <input placeholder="e.g. Acme Corp" value={sponsorForm.newCompanyName} onChange={e => setSponsorForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={label}>New Org Logo URL</label>
+                      <input placeholder="https://..." value={sponsorForm.newCompanyLogo} onChange={e => setSponsorForm(f => ({ ...f, newCompanyLogo: e.target.value }))} className={inp} />
+                    </div>
+                    <div>
+                      <label className={label}>New Org Website</label>
+                      <input placeholder="https://..." value={sponsorForm.newCompanyWebsite} onChange={e => setSponsorForm(f => ({ ...f, newCompanyWebsite: e.target.value }))} className={inp} />
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[#f0f0f0] pt-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={label}>Contact Person Name</label>
+                        <input placeholder="Jane Doe" value={sponsorForm.contactName} onChange={e => setSponsorForm(f => ({ ...f, contactName: e.target.value }))} className={inp} />
+                      </div>
+                      <div>
+                        <label className={label}>Sponsorship Amount (FCFA)</label>
+                        <input type="number" placeholder="500000" value={sponsorForm.amount} onChange={e => setSponsorForm(f => ({ ...f, amount: e.target.value }))} className={inp} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={label}>Email *</label>
+                        <input required type="email" placeholder="partner@acme.com" value={sponsorForm.email} onChange={e => setSponsorForm(f => ({ ...f, email: e.target.value }))} className={inp} />
+                      </div>
+                      <div>
+                        <label className={label}>Phone</label>
+                        <input placeholder="+237..." value={sponsorForm.phone} onChange={e => setSponsorForm(f => ({ ...f, phone: e.target.value }))} className={inp} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={label}>Partnership Message</label>
+                      <textarea placeholder="Special message or notes..." value={sponsorForm.message} onChange={e => setSponsorForm(f => ({ ...f, message: e.target.value }))} rows={2} className={inp + " resize-none"} />
+                    </div>
+                  </div>
+
                   <button type="submit" disabled={saving} className={saveBtn}>
                     <Save size={13} /> {editingSponsor ? (saving ? "Saving..." : "Save Sponsor") : (saving ? "Adding..." : "Add Sponsor")}
                   </button>
@@ -622,57 +584,56 @@ export default function ApplicationsPage() {
               {/* Vendors List */}
               <div className="space-y-3">
                 {exhibitors.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#555]">No vendor applications for this event.</div>
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#555]">No vendor / exhibitor applications.</div>
                 ) : exhibitors.map((v) => {
-                  const id = v.exhibitorId || v.id;
+                  const id = v.id;
+                  const person = v.person;
                   return (
                     <div key={id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-5">
                       {/* Logo */}
                       <div className="w-14 h-14 rounded-xl bg-[#ffffff] border border-[#e5e7eb] flex items-center justify-center shrink-0 overflow-hidden">
-                        {v.logo || v.logoUrl ? (
-                          <img src={v.logo || v.logoUrl} alt={v.name || v.companyName} className="w-full h-full object-contain p-1" />
+                        {person?.organization?.logo ? (
+                          <img src={person.organization.logo} alt={person.organization.name} className="w-full h-full object-contain p-1" />
                         ) : (
                           <Building2 size={22} className="text-[#444]" />
                         )}
                       </div>
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[#1a1a1a] truncate">{v.name || v.companyName || "Unknown Vendor"}</p>
-                        <p className="text-xs text-[#666] mt-0.5">{v.email || "—"} {v.phone ? `· ${v.phone}` : ""}</p>
-                        {v.website && <p className="text-xs text-[#EB4203] mt-1"><a href={v.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{v.website}</a></p>}
+                        <p className="font-semibold text-[#1a1a1a] truncate">{person?.firstName} {person?.lastName}</p>
+                        {person?.organization && <p className="text-xs text-blue-600 font-semibold flex items-center gap-0.5"><Building2 size={11} /> {person.organization.name}</p>}
+                        <p className="text-xs text-[#666] mt-0.5">{person?.email || "—"} {person?.phone ? `· ${person.phone}` : ""}</p>
+                        {v.notes && <p className="text-xs text-[#888] italic mt-1">&ldquo;{v.notes}&rdquo;</p>}
                       </div>
                       {/* Status */}
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shrink-0 ${STATUS_STYLES[v.status] || STATUS_STYLES.PENDING}`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shrink-0 ${STATUS_STYLES[v.status?.toUpperCase()] || STATUS_STYLES.PENDING}`}>
                         {v.status || "PENDING"}
                       </span>
                       {/* Actions */}
                       <div className="flex gap-2 shrink-0">
-                        {(v.status === "PENDING" || !v.status) && (
-                          <>
-                            <button
-                              onClick={() => updateVendorStatus(v, "ACCEPTED")}
-                              disabled={actionLoading === id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            >
-                              <CheckCircle size={13} /> Accept
-                            </button>
-                            <button
-                              onClick={() => updateVendorStatus(v, "REJECTED")}
-                              disabled={actionLoading === id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            >
-                              <XCircle size={13} /> Reject
-                            </button>
-                          </>
+                        {v.status !== "confirmed" && (
+                          <button
+                            onClick={() => updateParticipantStatus(v, "confirmed")}
+                            disabled={actionLoading === id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            <CheckCircle size={13} /> Approve
+                          </button>
                         )}
                         <button
                           onClick={() => {
-                            setEditingVendor(v);
+                            setEditingParticipant(v);
                             setVendorForm({
-                              name: v.name || v.companyName || "",
-                              email: v.email || "",
-                              website: v.website || "",
-                              logoUrl: v.logo || v.logoUrl || "",
+                              firstName: person?.firstName || "",
+                              lastName: person?.lastName || "",
+                              email: person?.email || "",
+                              phone: person?.phone || "",
+                              organizationId: person?.organization?.id || "",
+                              newCompanyName: "",
+                              newCompanyLogo: "",
+                              newCompanyWebsite: "",
+                              status: v.status || "pending",
+                              notes: v.notes || ""
                             });
                             vendorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                           }}
@@ -681,7 +642,7 @@ export default function ApplicationsPage() {
                           <Pencil size={13} />
                         </button>
                         <button
-                          onClick={() => deleteVendor(id)}
+                          onClick={() => deleteParticipant(id)}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
@@ -695,122 +656,105 @@ export default function ApplicationsPage() {
               {/* Add Vendor Form */}
               <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="font-bold text-sm text-[#1a1a1a]">{editingVendor ? "Edit Vendor" : "Add Vendor"}</h3>
-                  {editingVendor && (
-                    <button type="button" onClick={() => { setEditingVendor(null); setVendorForm({ name: "", email: "", website: "", logoUrl: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                  <h3 className="font-bold text-sm text-[#1a1a1a]">{editingParticipant ? "Edit Vendor Representative" : "Add Vendor Representative"}</h3>
+                  {editingParticipant && (
+                    <button type="button" onClick={() => { setEditingParticipant(null); setVendorForm({ firstName: "", lastName: "", email: "", phone: "", organizationId: "", newCompanyName: "", newCompanyLogo: "", newCompanyWebsite: "", status: "pending", notes: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                   )}
                 </div>
                 <form ref={vendorFormRef} onSubmit={saveVendor} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
+                    <div><label className={label}>First Name *</label><input required placeholder="Acme Rep" value={vendorForm.firstName} onChange={e => setVendorForm(f => ({ ...f, firstName: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>Last Name</label><input placeholder="First" value={vendorForm.lastName} onChange={e => setVendorForm(f => ({ ...f, lastName: e.target.value }))} className={inp} /></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className={label}>Email *</label><input required type="email" placeholder="vendor@acme.com" value={vendorForm.email} onChange={e => setVendorForm(f => ({ ...f, email: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>Phone</label><input placeholder="+237..." value={vendorForm.phone} onChange={e => setVendorForm(f => ({ ...f, phone: e.target.value }))} className={inp} /></div>
+                  </div>
+
+                  <div className="border-t border-[#f0f0f0] pt-4 space-y-4">
                     <div>
-                      <label className={label}>Vendor Name *</label>
-                      <input required placeholder="Vendor Corp" value={vendorForm.name} onChange={e => setVendorForm(f => ({ ...f, name: e.target.value }))} className={inp} />
+                      <label className={label}>Select Represented Organization</label>
+                      <select value={vendorForm.organizationId} onChange={e => setVendorForm(f => ({ ...f, organizationId: e.target.value }))} className={inp}>
+                        <option value="">— Select Organization —</option>
+                        {organizations.map(org => (
+                          <option key={org.id} value={org.id}>{org.name}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <label className={label}>Email</label>
-                      <input type="email" placeholder="vendor@acme.com" value={vendorForm.email} onChange={e => setVendorForm(f => ({ ...f, email: e.target.value }))} className={inp} />
+                      <label className={label}>Or Create New Organization Name</label>
+                      <input placeholder="e.g. Acme Booths" value={vendorForm.newCompanyName} onChange={e => setVendorForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><label className={label}>New Org Logo URL</label><input placeholder="https://..." value={vendorForm.newCompanyLogo} onChange={e => setVendorForm(f => ({ ...f, newCompanyLogo: e.target.value }))} className={inp} /></div>
+                      <div><label className={label}>New Org Website</label><input placeholder="https://..." value={vendorForm.newCompanyWebsite} onChange={e => setVendorForm(f => ({ ...f, newCompanyWebsite: e.target.value }))} className={inp} /></div>
+                    </div>
+                    <div>
+                      <label className={label}>Application Notes</label>
+                      <textarea placeholder="Booth assignment, special requirements..." value={vendorForm.notes} onChange={e => setVendorForm(f => ({ ...f, notes: e.target.value }))} rows={2} className={inp + " resize-none"} />
                     </div>
                   </div>
-                  <div>
-                    <label className={label}>Website / Link</label>
-                    <input type="url" placeholder="https://vendor.com" value={vendorForm.website} onChange={e => setVendorForm(f => ({ ...f, website: e.target.value }))} className={inp} />
-                  </div>
-                  <div>
-                    <label className={label}>Vendor Logo</label>
-                    <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
-                      {vendorForm.logoUrl ? (
-                        <img src={vendorForm.logoUrl} alt="Preview" className="w-14 h-14 rounded-lg object-contain border border-[#e5e7eb] shrink-0 bg-[#fafafa]" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
-                          <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-sm font-semibold text-[#1a1a1a]">{vendorForm.logoUrl ? "Click to change" : "Upload logo"}</div>
-                        <div className="text-xs text-[#aaa]">PNG or JPG</div>
-                      </div>
-                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        try {
-                          setSaving(true);
-                          const res = await eventService.uploadImage(f);
-                          setVendorForm(f => ({ ...f, logoUrl: res.url }));
-                          showToast("success", "Logo uploaded successfully!");
-                        } catch (err: any) {
-                          showToast("error", "Failed to upload logo: " + (err.message || err));
-                        } finally {
-                          setSaving(false);
-                        }
-                      }} />
-                    </label>
-                    {vendorForm.logoUrl && <button type="button" onClick={() => setVendorForm(f => ({ ...f, logoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove logo</button>}
-                  </div>
+
                   <button type="submit" disabled={saving} className={saveBtn}>
-                    <Save size={13} /> {editingVendor ? (saving ? "Saving..." : "Save Vendor") : (saving ? "Adding..." : "Add Vendor")}
+                    <Save size={13} /> {editingParticipant ? (saving ? "Saving..." : "Save Vendor") : (saving ? "Adding..." : "Add Vendor")}
                   </button>
                 </form>
               </div>
             </div>
           ) : (
+            // VOLUNTEERS TAB
             <div className="grid lg:grid-cols-[1.8fr_1.2fr] gap-8">
               {/* Volunteers List */}
               <div className="space-y-3">
                 {volunteers.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#555]">No volunteer applications for this event.</div>
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#555]">No volunteer applications.</div>
                 ) : volunteers.map((v) => {
-                  const id = v.connectionId || v.id;
+                  const id = v.id;
+                  const person = v.person;
                   return (
                     <div key={id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-5">
                       {/* Photo */}
                       <div className="w-14 h-14 rounded-full bg-[#ffffff] border border-[#e5e7eb] flex items-center justify-center shrink-0 overflow-hidden">
-                        {v.photoUrl ? (
-                          <img src={v.photoUrl} alt={v.name} className="w-full h-full object-cover" />
+                        {person?.profilePhoto ? (
+                          <img src={person.profilePhoto} alt={person.firstName} className="w-full h-full object-cover" />
                         ) : (
-                          <Users size={22} className="text-[#444]" />
+                          <User size={22} className="text-[#444]" />
                         )}
                       </div>
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-[#1a1a1a] truncate">{v.name || `Volunteer ${(id || "").substring(0, 8)}`}</p>
-                        <p className="text-xs text-[#666] mt-0.5">{v.email || "—"} {v.phone ? `· ${v.phone}` : ""}</p>
-                        {v.skills && <p className="text-xs text-[#555] mt-1"><strong className="font-medium text-[#1a1a1a]">Skills:</strong> {v.skills}</p>}
-                        {v.availability && <p className="text-xs text-[#555]"><strong className="font-medium text-[#1a1a1a]">Availability:</strong> {v.availability}</p>}
+                        <p className="font-semibold text-[#1a1a1a] truncate">{person?.firstName} {person?.lastName}</p>
+                        <p className="text-xs text-[#666] mt-0.5">{person?.email || "—"} {person?.phone ? `· ${person.phone}` : ""}</p>
+                        {person?.bio && <p className="text-xs text-[#555] mt-1"><strong className="font-medium text-[#1a1a1a]">Biography:</strong> {person.bio}</p>}
+                        {v.notes && <p className="text-xs text-[#888] italic">&ldquo;{v.notes}&rdquo;</p>}
                       </div>
                       {/* Status */}
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shrink-0 ${STATUS_STYLES[v.status] || STATUS_STYLES.PENDING}`}>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shrink-0 ${STATUS_STYLES[v.status?.toUpperCase()] || STATUS_STYLES.PENDING}`}>
                         {v.status || "PENDING"}
                       </span>
                       {/* Actions */}
                       <div className="flex gap-2 shrink-0">
-                        {(v.status === "PENDING" || !v.status) && (
-                          <>
-                            <button
-                              onClick={() => updateVolunteerStatus(v, "ACCEPTED")}
-                              disabled={actionLoading === id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            >
-                              <CheckCircle size={13} /> Accept
-                            </button>
-                            <button
-                              onClick={() => updateVolunteerStatus(v, "REJECTED")}
-                              disabled={actionLoading === id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
-                            >
-                              <XCircle size={13} /> Reject
-                            </button>
-                          </>
+                        {v.status !== "confirmed" && (
+                          <button
+                            onClick={() => updateParticipantStatus(v, "confirmed")}
+                            disabled={actionLoading === id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            <CheckCircle size={13} /> Approve
+                          </button>
                         )}
                         <button
                           onClick={() => {
-                            setEditingVolunteer(v);
+                            setEditingParticipant(v);
                             setVolunteerForm({
-                              name: v.name || "",
-                              email: v.email || "",
-                              phone: v.phone || "",
-                              skills: v.skills || "",
-                              availability: v.availability || "",
-                              photoUrl: v.photoUrl || "",
+                              firstName: person?.firstName || "",
+                              lastName: person?.lastName || "",
+                              email: person?.email || "",
+                              phone: person?.phone || "",
+                              bio: person?.bio || "",
+                              photoUrl: person?.profilePhoto || "",
+                              status: v.status || "pending",
+                              notes: v.notes || ""
                             });
                             volunteerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                           }}
@@ -819,7 +763,7 @@ export default function ApplicationsPage() {
                           <Pencil size={13} />
                         </button>
                         <button
-                          onClick={() => deleteVolunteer(id)}
+                          onClick={() => deleteParticipant(id)}
                           className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
@@ -833,69 +777,35 @@ export default function ApplicationsPage() {
               {/* Add Volunteer Form */}
               <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="font-bold text-sm text-[#1a1a1a]">{editingVolunteer ? "Edit Volunteer" : "Add Volunteer"}</h3>
-                  {editingVolunteer && (
-                    <button type="button" onClick={() => { setEditingVolunteer(null); setVolunteerForm({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                  <h3 className="font-bold text-sm text-[#1a1a1a]">{editingParticipant ? "Edit Volunteer Info" : "Add Volunteer"}</h3>
+                  {editingParticipant && (
+                    <button type="button" onClick={() => { setEditingParticipant(null); setVolunteerForm({ firstName: "", lastName: "", email: "", phone: "", bio: "", photoUrl: "", status: "pending", notes: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                   )}
                 </div>
                 <form ref={volunteerFormRef} onSubmit={saveVolunteer} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={label}>Name *</label>
-                      <input required placeholder="John Doe" value={volunteerForm.name} onChange={e => setVolunteerForm(f => ({ ...f, name: e.target.value }))} className={inp} />
-                    </div>
-                    <div>
-                      <label className={label}>Email</label>
-                      <input type="email" placeholder="john@example.com" value={volunteerForm.email} onChange={e => setVolunteerForm(f => ({ ...f, email: e.target.value }))} className={inp} />
-                    </div>
+                    <div><label className={label}>First Name *</label><input required placeholder="Jane" value={volunteerForm.firstName} onChange={e => setVolunteerForm(f => ({ ...f, firstName: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>Last Name</label><input placeholder="Doe" value={volunteerForm.lastName} onChange={e => setVolunteerForm(f => ({ ...f, lastName: e.target.value }))} className={inp} /></div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={label}>Phone</label>
-                      <input placeholder="+237699..." value={volunteerForm.phone} onChange={e => setVolunteerForm(f => ({ ...f, phone: e.target.value }))} className={inp} />
-                    </div>
-                    <div>
-                      <label className={label}>Availability</label>
-                      <input placeholder="e.g. Day 1, Mornings" value={volunteerForm.availability} onChange={e => setVolunteerForm(f => ({ ...f, availability: e.target.value }))} className={inp} />
-                    </div>
+                    <div><label className={label}>Email *</label><input required type="email" placeholder="jane@example.com" value={volunteerForm.email} onChange={e => setVolunteerForm(f => ({ ...f, email: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>Phone</label><input placeholder="+237..." value={volunteerForm.phone} onChange={e => setVolunteerForm(f => ({ ...f, phone: e.target.value }))} className={inp} /></div>
                   </div>
                   <div>
-                    <label className={label}>Skills / Notes</label>
-                    <textarea placeholder="e.g. Graphic design, crowd control" value={volunteerForm.skills} onChange={e => setVolunteerForm(f => ({ ...f, skills: e.target.value }))} rows={2} className={inp + " resize-none"} />
+                    <label className={label}>Biography / Skills</label>
+                    <textarea placeholder="Experience with events, first-aid, etc..." value={volunteerForm.bio} onChange={e => setVolunteerForm(f => ({ ...f, bio: e.target.value }))} rows={2} className={inp + " resize-none"} />
                   </div>
                   <div>
-                    <label className={label}>Photo</label>
-                    <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
-                      {volunteerForm.photoUrl ? (
-                        <img src={volunteerForm.photoUrl} alt="Preview" className="w-14 h-14 rounded-full object-cover border border-[#e5e7eb] shrink-0" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-full bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
-                          <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-sm font-semibold text-[#1a1a1a]">{volunteerForm.photoUrl ? "Click to change" : "Upload photo"}</div>
-                        <div className="text-xs text-[#aaa]">PNG or JPG</div>
-                      </div>
-                      <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                        const f = e.target.files?.[0];
-                        if (!f) return;
-                        try {
-                          setSaving(true);
-                          const res = await eventService.uploadImage(f);
-                          setVolunteerForm(f => ({ ...f, photoUrl: res.url }));
-                          showToast("success", "Photo uploaded successfully!");
-                        } catch (err: any) {
-                          showToast("error", "Failed to upload photo: " + (err.message || err));
-                        } finally {
-                          setSaving(false);
-                        }
-                      }} />
-                    </label>
-                    {volunteerForm.photoUrl && <button type="button" onClick={() => setVolunteerForm(f => ({ ...f, photoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove photo</button>}
+                    <label className={label}>Application Notes</label>
+                    <textarea placeholder="Shift preferences, notes..." value={volunteerForm.notes} onChange={e => setVolunteerForm(f => ({ ...f, notes: e.target.value }))} rows={2} className={inp + " resize-none"} />
                   </div>
+                  <div>
+                    <label className={label}>Profile Photo URL</label>
+                    <input placeholder="https://..." value={volunteerForm.photoUrl} onChange={e => setVolunteerForm(f => ({ ...f, photoUrl: e.target.value }))} className={inp} />
+                  </div>
+
                   <button type="submit" disabled={saving} className={saveBtn}>
-                    <Save size={13} /> {editingVolunteer ? (saving ? "Saving..." : "Save Volunteer") : (saving ? "Adding..." : "Add Volunteer")}
+                    <Save size={13} /> {editingParticipant ? (saving ? "Saving..." : "Save Volunteer") : (saving ? "Adding..." : "Add Volunteer")}
                   </button>
                 </form>
               </div>

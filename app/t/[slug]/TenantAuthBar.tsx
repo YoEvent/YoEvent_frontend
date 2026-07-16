@@ -30,7 +30,12 @@ export default function TenantAuthBar({ slug }: Props) {
       return;
     }
     const claims = getAuthClaims();
-    const name = claims?.firstName || auth.email?.split("@")[0] || "You";
+    // Prefer stored real name, then JWT claims, then email prefix
+    const firstName = auth.firstName || claims?.firstName || claims?.given_name || "";
+    const lastName = auth.lastName || claims?.lastName || claims?.family_name || "";
+    const name = firstName
+      ? `${firstName}${lastName ? " " + lastName : ""}`.trim()
+      : auth.email?.split("@")[0] || "You";
     setDisplayName(name);
     setStatus("authenticated");
   }, []);

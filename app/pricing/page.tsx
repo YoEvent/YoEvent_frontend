@@ -42,10 +42,18 @@ function formatLimit(value: number, unit: string): string {
 }
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
-const stripePromise = loadStripe(stripePublishableKey);
 const isMockStripe =
   !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ||
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY === "mock_key";
+
+let stripePromise: Promise<any> | null = null;
+const getStripePromise = () => {
+  if (typeof window === "undefined") return null;
+  if (!stripePromise) {
+    stripePromise = loadStripe(stripePublishableKey);
+  }
+  return stripePromise;
+};
 
 const cardElementOptions = {
   style: {
@@ -215,7 +223,9 @@ export default function PricingPage() {
     setStoredAuth({ ...currentAuth, planTier: mapPlanNameToTier(selectedPlan.name) });
     alert(`Successfully subscribed to the ${selectedPlan.name} plan!`);
     setShowModal(false);
-    router.push("/admin");
+    // Full reload (not router.push) so /admin's data fetch re-runs instead of reusing
+    // Next.js's cached page instance, which would otherwise keep showing the old plan.
+    window.location.href = "/admin";
   };
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -429,7 +439,7 @@ export default function PricingPage() {
                   </form>
                 )
               ) : auth?.tenantId ? (
-                <Elements stripe={stripePromise}>
+                <Elements stripe={getStripePromise()}>
                   <StripeSubscriptionForm
                     selectedPlan={selectedPlan}
                     auth={{ tenantId: auth.tenantId, email: auth.email }}

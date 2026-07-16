@@ -14,6 +14,10 @@ export interface AuthData {
   tenantId: string;
   email: string;
   planTier: string;
+  /** Role from signup or JWT: ATTENDEE | TENANT_OWNER | SUPER_ADMIN */
+  role?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 export function getStoredAuth(): AuthData | null {
@@ -24,10 +28,13 @@ export function getStoredAuth(): AuthData | null {
   const tenantId = localStorage.getItem("ye_tenantId");
   const email = localStorage.getItem("ye_email");
   const planTier = localStorage.getItem("ye_planTier");
+  const role = localStorage.getItem("ye_role") || undefined;
+  const firstName = localStorage.getItem("ye_firstName") || undefined;
+  const lastName = localStorage.getItem("ye_lastName") || undefined;
 
   if (!token || !userId) return null;
   const cleanTenantId = tenantId === "null" || !tenantId ? "" : tenantId;
-  return { token, type: type || "Bearer", userId, tenantId: cleanTenantId, email: email || "", planTier: planTier || "FREE" };
+  return { token, type: type || "Bearer", userId, tenantId: cleanTenantId, email: email || "", planTier: planTier || "FREE", role, firstName, lastName };
 }
 
 export function setStoredAuth(auth: Partial<AuthData> & { token: string; userId: string }) {
@@ -38,6 +45,9 @@ export function setStoredAuth(auth: Partial<AuthData> & { token: string; userId:
   localStorage.setItem("ye_tenantId", auth.tenantId ?? "");
   localStorage.setItem("ye_email", auth.email ?? "");
   localStorage.setItem("ye_planTier", auth.planTier ?? "FREE");
+  if (auth.role) localStorage.setItem("ye_role", auth.role);
+  if (auth.firstName) localStorage.setItem("ye_firstName", auth.firstName);
+  if (auth.lastName) localStorage.setItem("ye_lastName", auth.lastName);
 }
 
 export function clearStoredAuth() {
@@ -48,6 +58,9 @@ export function clearStoredAuth() {
   localStorage.removeItem("ye_tenantId");
   localStorage.removeItem("ye_email");
   localStorage.removeItem("ye_planTier");
+  localStorage.removeItem("ye_role");
+  localStorage.removeItem("ye_firstName");
+  localStorage.removeItem("ye_lastName");
 }
 
 export interface ApiRequestInit extends RequestInit {

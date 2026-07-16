@@ -51,10 +51,13 @@ export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
   },
 ];
 
+// Backend seeds exactly 4 plans: FREE, BASIC, PREMIUM, MEGA. "Eventer" (our curated
+// "Most Popular" tier) has no direct backend counterpart by name, so it's paired with
+// MEGA — the one seeded plan that would otherwise never be reachable from any UI.
 const PLAN_ALIASES: Record<string, string[]> = {
   Starter: ["starter", "free"],
   Pro: ["pro", "basic"],
-  Eventer: ["eventer", "pro eventer"],
+  Eventer: ["eventer", "mega", "pro eventer"],
   Enterprise: ["enterprise", "premium"],
 };
 

@@ -54,6 +54,15 @@ export default function EngagementsPage() {
   const [announcementForm, setAnnouncementForm] = useState({ title: "", content: "", type: "GENERAL" });
   const announcementFormRef = useRef<HTMLFormElement>(null);
 
+  // Computed filtered lists for active session scope
+  const filteredPolls = selectedSessionId
+    ? polls.filter((p: any) => (p.sessionId || p.session?.id || p.session?.sessionId) === selectedSessionId)
+    : polls;
+
+  const filteredAnnouncements = selectedSessionId
+    ? announcements.filter((a: any) => (a.sessionId || a.session?.id || a.session?.sessionId) === selectedSessionId)
+    : announcements;
+
   const showToast = (type: "success" | "error", text: string) => {
     setToast({ type, text });
     setTimeout(() => setToast(null), 3000);
@@ -148,6 +157,7 @@ export default function EngagementsPage() {
       question: pollForm.question,
       options: JSON.stringify(pollForm.options.filter(Boolean)),
       isActive: true,
+      sessionId: selectedSessionId || undefined,
     };
     try {
       if (editingPoll) {
@@ -287,6 +297,7 @@ export default function EngagementsPage() {
       type: announcementForm.type,
       publishedAt: new Date().toISOString(),
       isPinned: true,
+      sessionId: selectedSessionId || undefined,
     };
     try {
       setSaving(true);
@@ -347,30 +358,53 @@ export default function EngagementsPage() {
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
           <h1 className="font-display text-xl font-bold text-[#EB4203]">Engagements & Reports</h1>
-          {events.length > 0 && (
-            <div className="relative">
-              <select
-                value={selectedEventId}
-                onChange={(e) => {
-                  setSelectedEventId(e.target.value);
-                  setEditingPoll(null);
-                  setPollForm({ question: "", options: ["", ""] });
-                  setEditingAnnouncement(null);
-                  setAnnouncementForm({ title: "", content: "", type: "GENERAL" });
-                  setEditingQA(null);
-                  setQaForm({ sessionId: "", questionText: "", isAnonymous: false, answerText: "" });
-                }}
-                className="appearance-none bg-white border border-[#e5e7eb] text-[#1a1a1a] text-sm rounded-lg px-4 py-1.5 pr-8 outline-none cursor-pointer"
-              >
-                {events.map((ev) => (
-                  <option key={ev.eventId || ev.id} value={ev.eventId || ev.id}>
-                    {ev.title}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {events.length > 0 && (
+              <div className="relative">
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => {
+                    setSelectedEventId(e.target.value);
+                    setEditingPoll(null);
+                    setPollForm({ question: "", options: ["", ""] });
+                    setEditingAnnouncement(null);
+                    setAnnouncementForm({ title: "", content: "", type: "GENERAL" });
+                    setEditingQA(null);
+                    setQaForm({ sessionId: "", questionText: "", isAnonymous: false, answerText: "" });
+                  }}
+                  className="appearance-none bg-white border border-[#e5e7eb] text-[#1a1a1a] text-sm rounded-lg px-4 py-1.5 pr-8 outline-none cursor-pointer"
+                >
+                  {events.map((ev) => (
+                    <option key={ev.eventId || ev.id} value={ev.eventId || ev.id}>
+                      {ev.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+              </div>
+            )}
+
+            {sessions.length > 0 && (
+              <div className="relative">
+                <select
+                  value={selectedSessionId}
+                  onChange={(e) => {
+                    const sessId = e.target.value;
+                    setSelectedSessionId(sessId);
+                    setQaForm(q => ({ ...q, sessionId: sessId }));
+                  }}
+                  className="appearance-none bg-white border border-[#e5e7eb] text-[#1a1a1a] text-sm rounded-lg px-4 py-1.5 pr-8 outline-none cursor-pointer"
+                >
+                  {sessions.map((s) => (
+                    <option key={s.sessionId || s.id} value={s.sessionId || s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+              </div>
+            )}
+          </div>
         </header>
 
         <main className="p-8 space-y-6 max-w-[1400px]">
@@ -469,9 +503,9 @@ export default function EngagementsPage() {
               {/* Polls list */}
               <div className="space-y-4">
                 <h3 className="font-display font-bold text-[#1a1a1a]">Live Polls</h3>
-                {polls.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">No polls launched yet.</div>
-                ) : polls.map((p, idx) => {
+                {filteredPolls.length === 0 ? (
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">No polls launched for this session yet.</div>
+                ) : filteredPolls.map((p, idx) => {
                   const id = p.pollId || p.id;
                   const opts = typeof p.options === "string" ? JSON.parse(p.options) : (p.options || []);
                   return (
@@ -541,22 +575,6 @@ export default function EngagementsPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="font-display font-bold text-[#1a1a1a]">Moderation Q&A {activeSession && <span className="text-xs font-normal text-[#666] ml-2">(for {activeSession.title})</span>}</h3>
-                  {sessions.length > 0 && (
-                    <div className="relative">
-                      <select
-                        value={selectedSessionId}
-                        onChange={(e) => setSelectedSessionId(e.target.value)}
-                        className="appearance-none bg-white border border-[#e5e7eb] rounded-lg px-4 py-1.5 pr-8 text-xs text-[#1a1a1a] outline-none cursor-pointer"
-                      >
-                        {sessions.map((s) => (
-                          <option key={s.sessionId || s.id} value={s.sessionId || s.id}>
-                            {s.title}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -699,9 +717,9 @@ export default function EngagementsPage() {
               {/* List */}
               <div className="space-y-4">
                 <h3 className="font-display font-bold text-[#1a1a1a]">Event Announcements</h3>
-                {announcements.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">No announcements broadcasted yet.</div>
-                ) : announcements.map((a, idx) => {
+                {filteredAnnouncements.length === 0 ? (
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">No announcements broadcasted for this session yet.</div>
+                ) : filteredAnnouncements.map((a, idx) => {
                   const id = a.announcementId || a.id;
                   return (
                     <div key={`${id || idx}-${idx}`} className="bg-white border border-[#e5e7eb] rounded-xl p-5 hover:border-[#FF4747]/20 transition-all">

@@ -32,7 +32,22 @@ export default function Navbar() {
     if (!auth) return false;
     try {
       const claims = getAuthClaims();
-      return claims?.scope && !claims.scope.includes("ATTENDEE") && !claims.scope.includes("SUPER_ADMIN");
+      const rawScope = claims?.scope || claims?.roles || claims?.permissions || "";
+      const scopeStr = Array.isArray(rawScope) 
+        ? rawScope.join(" ") 
+        : typeof rawScope === "string" 
+          ? rawScope 
+          : "";
+      
+      const isSuperAdmin = scopeStr.includes("SUPER_ADMIN");
+      const isAttendee = scopeStr.includes("ATTENDEE");
+      
+      if (isAttendee || isSuperAdmin) return false;
+      const storedTenantId = auth?.tenantId;
+      return !!(claims?.tenantId && claims.tenantId !== "null" && claims.tenantId !== "") ||
+             !!(storedTenantId && storedTenantId !== "null" && storedTenantId !== "") ||
+             scopeStr.includes("TENANT_OWNER") ||
+             scopeStr.includes("ORGANIZER");
     } catch {
       return false;
     }
@@ -47,10 +62,15 @@ export default function Navbar() {
     if (!auth?.token) return "/admin";
     try {
       const claims = getAuthClaims();
-      if (claims?.scope) {
-        if (claims.scope.includes("SUPER_ADMIN")) return "/super-admin";
-        if (claims.scope.includes("ATTENDEE")) return "/user/dashboard";
-      }
+      const rawScope = claims?.scope || claims?.roles || claims?.permissions || "";
+      const scopeStr = Array.isArray(rawScope) 
+        ? rawScope.join(" ") 
+        : typeof rawScope === "string" 
+          ? rawScope 
+          : "";
+      
+      if (scopeStr.includes("SUPER_ADMIN")) return "/super-admin";
+      if (scopeStr.includes("ATTENDEE")) return "/user/dashboard";
     } catch {}
     return "/admin";
   };

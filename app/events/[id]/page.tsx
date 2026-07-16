@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { authService } from "@/app/utils/services/authService";
-import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket, Star, ArrowRight, ArrowLeft, Tag, Eye, Info } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket, Star, ArrowRight, ArrowLeft, Tag, Eye, Info, Image as ImageIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
 
@@ -22,13 +22,20 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { paymentService } from "@/app/utils/services/paymentService";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key");
+let stripePromise: Promise<any> | null = null;
+const getStripePromise = () => {
+  if (typeof window === "undefined") return null;
+  if (!stripePromise) {
+    stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key");
+  }
+  return stripePromise;
+};
 
 import Navbar from "@/components/Navbar";
 
 export default function EventDetailsPage() {
   return (
-    <Elements stripe={stripePromise}>
+    <Elements stripe={getStripePromise()}>
       <EventDetailsPageContent />
     </Elements>
   );
@@ -93,9 +100,11 @@ function EventDetailsPageContent() {
   const [volunteerOpenings, setVolunteerOpenings] = useState<any[]>([]);
   const [showSponsorForm, setShowSponsorForm] = useState(false);
   const [showVolunteerForm, setShowVolunteerForm] = useState(false);
+  const [showVendorForm, setShowVendorForm] = useState(false);
   const [sponsorForm, setSponsorForm] = useState({ companyName: "", contactName: "", email: "", phone: "", message: "", packageId: "", logoUrl: "" });
   const [volunteerForm, setVolunteerForm] = useState({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" });
-  const [applicationMsg, setApplicationMsg] = useState<{ type: "success" | "error"; text: string; source?: "sponsor" | "volunteer" } | null>(null);
+  const [vendorForm, setVendorForm] = useState({ name: "", email: "", website: "", logoUrl: "" });
+  const [applicationMsg, setApplicationMsg] = useState<{ type: "success" | "error"; text: string; source?: "sponsor" | "volunteer" | "vendor" } | null>(null);
   const [appLoading, setAppLoading] = useState(false);
 
   useEffect(() => {
@@ -274,6 +283,13 @@ function EventDetailsPageContent() {
       const beforeEnd = !v.applicationEnd || now <= new Date(v.applicationEnd);
       return afterStart && beforeEnd;
     });
+  })();
+
+  const isVendorApplicationOpen = (() => {
+    if (isEventOver) return false;
+    if (!event?.maxExhibitors) return true;
+    const activeCount = exhibitors.filter((ex: any) => ex.status !== "REJECTED").length;
+    return activeCount < event.maxExhibitors;
   })();
 
   const isRegistrationClosed = (() => {
@@ -595,6 +611,43 @@ function EventDetailsPageContent() {
     }
   };
 
+  const handleVendorApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isVendorApplicationOpen) {
+      alert("Vendor applications are closed.");
+      return;
+    }
+    if (!vendorForm.name || !vendorForm.email) return;
+
+    const alreadyApplied = exhibitors.some((ex: any) => sameEmail(ex.email, vendorForm.email));
+    if (alreadyApplied) {
+      setApplicationMsg({ type: "error", text: "An application with this email has already been submitted for this event.", source: "vendor" });
+      return;
+    }
+
+    setAppLoading(true);
+    setApplicationMsg(null);
+    try {
+      const created = await eventService.createExhibitor({
+        eventId,
+        tenantId: event.tenantId,
+        name: vendorForm.name,
+        companyName: vendorForm.name,
+        email: vendorForm.email,
+        website: vendorForm.website,
+        logoUrl: vendorForm.logoUrl || undefined,
+        status: "PENDING",
+      });
+      setExhibitors((prev) => [...prev, created]);
+      setApplicationMsg({ type: "success", text: "Your vendor application has been submitted! The organizer will contact you shortly.", source: "vendor" });
+      setShowVendorForm(false);
+      setVendorForm({ name: "", email: "", website: "", logoUrl: "" });
+    } catch (err: any) {
+      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again.", source: "vendor" });
+    } finally {
+      setAppLoading(false);
+    }
+  };
 
   const handlePostFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1415,6 +1468,112 @@ function EventDetailsPageContent() {
             </div>
           )}
 
+          <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
+            <h2 className="font-display text-2xl font-black text-[#1a1a1a] mb-3">Become a Vendor</h2>
+            <p className="text-[#666] text-sm leading-relaxed mb-6">
+              Showcase your products or services to attendees at this event. Apply for a booth and the organizer will follow up with details.
+            </p>
+            {!isVendorApplicationOpen ? (
+              <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
+                <Clock size={14} className="shrink-0" />
+                <span>{isEventOver ? "Vendor applications are closed." : "All vendor slots have been filled."}</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowVendorForm(v => !v)}
+                className="px-5 py-2.5 border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] text-sm font-semibold rounded-xl hover:bg-[#1a1a1a] hover:text-white transition-colors cursor-pointer"
+              >
+                {showVendorForm ? "Cancel" : "Apply as Vendor"}
+              </button>
+            )}
+            {isVendorApplicationOpen && showVendorForm && (
+              <form onSubmit={handleVendorApply} className="mt-6 space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Company Name *</label>
+                    <input
+                      required
+                      value={vendorForm.name}
+                      onChange={e => setVendorForm(f => ({ ...f, name: e.target.value }))}
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Email *</label>
+                    <input
+                      required
+                      type="email"
+                      value={vendorForm.email}
+                      onChange={e => setVendorForm(f => ({ ...f, email: e.target.value }))}
+                      className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Website</label>
+                  <input
+                    type="url"
+                    placeholder="https://yourcompany.com"
+                    value={vendorForm.website}
+                    onChange={e => setVendorForm(f => ({ ...f, website: e.target.value }))}
+                    className="w-full border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#EB4203] bg-white text-[#1a1a1a]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[#555] uppercase tracking-wider mb-1.5">Company Logo</label>
+                  <label className="flex items-center gap-5 border-2 border-dashed border-[#e5e7eb] rounded-xl p-4 cursor-pointer hover:border-[#EB4203] hover:bg-[#faf9f7] transition-colors group">
+                    {vendorForm.logoUrl ? (
+                      <img src={vendorForm.logoUrl} alt="Logo preview" className="w-16 h-16 rounded-lg object-contain border-2 border-[#e5e7eb] shrink-0 bg-white" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-[#ffffff] flex items-center justify-center text-[#aaa] group-hover:text-[#EB4203] transition-colors shrink-0">
+                        <ImageIcon size={22} />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold text-[#1a1a1a]">{vendorForm.logoUrl ? "Click to change logo" : "Upload company logo"}</p>
+                      <p className="text-xs text-[#888] mt-0.5">PNG or JPG — max 2MB</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          setAppLoading(true);
+                          const res = await eventService.uploadImage(file);
+                          setVendorForm(f => ({ ...f, logoUrl: res.url }));
+                        } catch (err: any) {
+                          alert("Failed to upload logo: " + (err.message || err));
+                        } finally {
+                          setAppLoading(false);
+                        }
+                      }}
+                    />
+                  </label>
+                  {vendorForm.logoUrl && (
+                    <button type="button" onClick={() => setVendorForm(f => ({ ...f, logoUrl: "" }))} className="mt-1.5 text-xs text-red-500 hover:underline cursor-pointer">Remove logo</button>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={appLoading}
+                  className="px-6 py-2.5 bg-[#1a1a1a] text-white text-sm font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {appLoading ? "Submitting..." : "Submit Application"}
+                </button>
+              </form>
+            )}
+          </section>
+
+          {applicationMsg?.source === "vendor" && (
+            <div className={`flex items-start gap-3 p-4 rounded-xl border text-sm ${applicationMsg.type === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+              <span className="flex-1">{applicationMsg.text}</span>
+              <button onClick={() => setApplicationMsg(null)} className="shrink-0 cursor-pointer"><X size={16} /></button>
+            </div>
+          )}
+
           {/* ATTENDEE FEEDBACK & COMMENTS */}
           <section className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
             <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-2">Feedback &amp; Comments</h2>
@@ -1806,45 +1965,54 @@ function EventDetailsPageContent() {
             );
           })()}
 
-          {/* SPONSORS & EXHIBITORS */}
-          {(sponsors.length > 0 || exhibitors.length > 0) && (
+          {/* SPONSORS & EXHIBITORS — only show approved ones publicly, not pending/rejected applications */}
+          {(() => {
+            const approvedSponsors = sponsors.filter((s: any) => !s.status || s.status === "APPROVED");
+            const approvedExhibitors = exhibitors.filter((e: any) => !e.status || e.status === "APPROVED");
+            if (approvedSponsors.length === 0 && approvedExhibitors.length === 0) return null;
+            return (
             <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
               <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
                 <Box size={18} className="text-[#EB4203]" /> Supported By
               </h3>
-              
-              {sponsors.length > 0 && (
+
+              {approvedSponsors.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-[10px] uppercase tracking-wider font-bold text-[#888] mb-3">Sponsors</h4>
                   <div className="grid grid-cols-2 gap-3">
-                    {sponsors.map((s) => (
+                    {approvedSponsors.map((s: any) => {
+                      const sponsorName = s.companyName || s.name || "Sponsor";
+                      const sponsorLogo = s.logo || s.logoUrl;
+                      return (
                       <div key={s.sponsorId} className="border border-[#f0ebe1] rounded-xl p-3 flex flex-col items-center justify-center gap-2 bg-[#faf9f7]">
-                        {s.logo ? (
-                          <img src={s.logo} alt={s.companyName} className="h-8 object-contain" />
+                        {sponsorLogo ? (
+                          <img src={sponsorLogo} alt={sponsorName} className="h-8 object-contain" />
                         ) : (
-                          <div className="h-8 flex items-center justify-center font-bold text-xs text-[#888]">{s.companyName}</div>
+                          <div className="h-8 flex items-center justify-center font-bold text-xs text-[#888]">{sponsorName}</div>
                         )}
-                        <span className="text-[9px] font-medium text-[#666] text-center line-clamp-1">{s.companyName}</span>
+                        <span className="text-[9px] font-medium text-[#666] text-center line-clamp-1">{sponsorName}</span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {exhibitors.length > 0 && (
+              {approvedExhibitors.length > 0 && (
                 <div>
                   <h4 className="text-[10px] uppercase tracking-wider font-bold text-[#888] mb-3">Exhibitors</h4>
                   <div className="flex flex-wrap gap-2">
-                    {exhibitors.map((e) => (
+                    {approvedExhibitors.map((e: any) => (
                       <span key={e.exhibitorId} className="px-3 py-1 bg-[#ffffff] text-[#555] text-[10px] font-bold rounded-full">
-                        {e.companyName}
+                        {e.companyName || e.name || "Vendor"}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
         </div>
       </main>

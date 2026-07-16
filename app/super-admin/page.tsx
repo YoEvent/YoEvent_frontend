@@ -49,7 +49,15 @@ export default function SuperAdminPage() {
   useEffect(() => {
     // 1. Authorize role
     const claims = getAuthClaims();
-    if (!claims || !claims.scope || !claims.scope.includes("SUPER_ADMIN")) {
+    const rawScope = claims?.scope || claims?.roles || claims?.permissions || "";
+    const scopeStr = Array.isArray(rawScope) 
+      ? rawScope.join(" ") 
+      : typeof rawScope === "string" 
+        ? rawScope 
+        : "";
+    const isSuperAdmin = scopeStr.includes("SUPER_ADMIN");
+
+    if (!claims || !isSuperAdmin) {
       router.push("/login");
     } else {
       setAuthorized(true);

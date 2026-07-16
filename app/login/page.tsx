@@ -25,27 +25,62 @@ function LoginForm() {
     if (Object.keys(errs).length) return;
     setLoading(true);
     try {
-      const raw = await api.post<any>("/api/v1/auth/login", {
+      // Direct local authentication login
+      const response = await api.post<any>("/api/v1/auth/login", {
         email: form.email,
         password: form.password,
       });
-      const token = raw?.token ?? raw?.accessToken;
-      const userId = raw?.userId ?? raw?.id;
+
+      const token = response?.token;
       if (!token) throw new Error("No token in login response");
+
+      // Decode token claims locally
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        window.atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+      const claims = JSON.parse(jsonPayload);
+
+      // Determine role from JWT claims scope/roles
+      const scope = claims.scope || claims.roles || [];
+      const hasScope = (s: string) => {
+        if (Array.isArray(scope)) return scope.includes(s);
+        if (typeof scope === "string") return scope.split(" ").map((x: string) => x.trim()).includes(s);
+        return false;
+      };
+
+      let resolvedRole: string;
+      if (hasScope("SUPER_ADMIN")) {
+        resolvedRole = "SUPER_ADMIN";
+      } else if (hasScope("ATTENDEE")) {
+        resolvedRole = "ATTENDEE";
+      } else if (hasScope("TENANT_OWNER") || hasScope("ORGANIZER") || hasScope("ADMIN")) {
+        resolvedRole = "TENANT_OWNER";
+      } else {
+        resolvedRole = (response.tenantId && response.tenantId !== "null") ? "TENANT_OWNER" : "ATTENDEE";
+      }
+
       const data: AuthData = {
         token,
         type: "Bearer",
-        userId: userId ?? "",
-        tenantId: raw?.tenantId ?? "",
-        email: form.email,
-        planTier: raw?.planTier ?? "FREE",
+        userId: response.userId ?? claims.sub ?? "",
+        tenantId: response.tenantId === "null" || !response.tenantId ? "" : response.tenantId,
+        email: response.email ?? claims.email ?? form.email,
+        planTier: response.planTier ?? claims.planTier ?? "FREE",
+        role: resolvedRole,
+        firstName: claims.firstName ?? claims.given_name ?? undefined,
+        lastName: claims.lastName ?? claims.family_name ?? undefined,
       };
+
       setStoredAuth(data);
-      const claims = getAuthClaims();
-      if (claims?.scope && claims.scope.includes("SUPER_ADMIN")) {
+
+      if (resolvedRole === "SUPER_ADMIN") {
         router.push("/super-admin");
-      } else if (claims?.scope && claims.scope.includes("ATTENDEE")) {
-        // Redirect back to the tenant page (or event page) the user came from
+      } else if (resolvedRole === "ATTENDEE") {
         router.push(from || "/user/dashboard");
       } else {
         router.push("/admin");

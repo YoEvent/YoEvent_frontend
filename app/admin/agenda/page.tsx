@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Plus, Trash2, Calendar, MapPin, Users, Mic, Save, Pencil, Clock, Star } from "lucide-react";
+import { Plus, Trash2, Calendar, MapPin, Users, Mic, Save, Pencil, Clock, Star, Copy } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 
@@ -61,13 +61,16 @@ export default function AgendaPage() {
     }
   };
 
+  const [assignments, setAssignments] = useState<any[]>([]);
+
   const fetchAgendaConfig = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const [sessionsList, tracksList, locationsList] = await Promise.all([
+      const [sessionsList, tracksList, locationsList, assignmentsList] = await Promise.all([
         eventService.getSessions().catch(() => []),
         eventService.getTracks().catch(() => []),
         eventService.getEventLocations().catch(() => []),
+        eventService.getAssignmentsByEvent(eventId).catch(() => []),
       ]);
 
       const eventSessions = (sessionsList || []).filter((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
@@ -78,6 +81,8 @@ export default function AgendaPage() {
 
       const eventLocations = (locationsList || []).filter((l: any) => l.eventId === eventId || l.event?.eventId === eventId);
       setLocations(eventLocations);
+
+      setAssignments(assignmentsList || []);
     } catch (err) {
       console.error("Failed to load agenda config:", err);
     }
@@ -236,6 +241,26 @@ export default function AgendaPage() {
                       <div className="flex-1 min-w-0">
                         <div className="font-bold text-sm text-[#1a1a1a] truncate">{s.title}</div>
                         {s.description && <div className="text-xs text-[#888] mt-0.5 line-clamp-1">{s.description}</div>}
+                        
+                        {(() => {
+                          const sessionAssigns = assignments.filter(a => a.sessionId === (s.sessionId || s.id));
+                          const speakersForSession = sessionAssigns.map(a => a.eventParticipant?.person).filter(Boolean);
+                          if (speakersForSession.length === 0) return null;
+                          return (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <span className="text-[9px] font-semibold text-[#888] uppercase tracking-wider">Speakers:</span>
+                              <div className="flex -space-x-1.5">
+                                {speakersForSession.map((sp: any, idx: number) => (
+                                  sp.profilePhoto ? (
+                                    <img key={idx} src={sp.profilePhoto} title={`${sp.firstName} ${sp.lastName}`} className="inline-block h-5 w-5 rounded-full ring-2 ring-white object-cover" />
+                                  ) : (
+                                    <div key={idx} title={`${sp.firstName} ${sp.lastName}`} className="inline-block h-5 w-5 rounded-full bg-stone-100 border border-[#e5e7eb] text-[#333] ring-2 ring-white text-[8px] flex items-center justify-center font-bold">{(sp.firstName || "?").charAt(0)}</div>
+                                  )
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
                           <span className="px-2 py-0.5 bg-[#fafafa] border border-[#f0f0f0] rounded font-medium text-[#555]">{s.type}</span>
                           {s.maxCapacity && <span className="text-[#888]">Cap: {s.maxCapacity}</span>}
@@ -271,6 +296,26 @@ export default function AgendaPage() {
                           className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
                         >
                           <Pencil size={9} /> Edit
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setEditingSession(null);
+                            setSessionForm({
+                              title: (s.title || "") + " (Copy)",
+                              description: s.description || "",
+                              type: s.type || "TALK",
+                              startTime: s.startTime ? new Date(s.startTime).toISOString().slice(0, 16) : "",
+                              endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "",
+                              capacity: s.maxCapacity || 50,
+                              trackId: s.trackId || "",
+                              locationId: s.locationId || "",
+                            });
+                            sessionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }} 
+                          className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-blue-500 hover:text-blue-500 transition-colors cursor-pointer"
+                        >
+                          <Copy size={9} /> Dup
                         </button>
                         <button 
                           type="button" 

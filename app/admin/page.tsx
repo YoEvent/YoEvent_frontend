@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [attendeeUsers, setAttendeeUsers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [stripeStatus, setStripeStatus] = useState<any>(null);
@@ -34,9 +35,12 @@ export default function AdminPage() {
   const [tenantSettings, setTenantSettings] = useState<any>(null);
   const [planLimits, setPlanLimits] = useState<any>(null);
 
-  useEffect(() => {
+  const loadDashboard = () => {
     const auth = getStoredAuth();
     if (!auth) return;
+
+    setLoading(true);
+    setLoadError(false);
 
     Promise.all([
       authService.getUserById(auth.userId),
@@ -70,8 +74,15 @@ export default function AdminPage() {
         fetched.filter(Boolean).forEach((u: any) => { userMap[u.userId] = u; });
         setAttendeeUsers(userMap);
       })
-      .catch((err) => console.error("Dashboard load failed:", err))
+      .catch((err) => {
+        console.error("Dashboard load failed:", err);
+        setLoadError(true);
+      })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   const handleStripeConnect = async () => {
@@ -227,6 +238,19 @@ export default function AdminPage() {
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-[#e5e7eb] border-t-[#EB4203] rounded-full animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center max-w-sm">
+              <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={24} className="text-red-500" />
+              </div>
+              <h2 className="font-display text-lg font-bold text-[#1a1a1a] mb-2">Couldn't connect to the server</h2>
+              <p className="text-sm text-[#666] mb-6">We weren't able to load your dashboard data. Check your internet connection and that the server is reachable, then try again.</p>
+              <button onClick={loadDashboard} className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-sm font-semibold rounded-full transition-colors cursor-pointer">
+                <RefreshCw size={14} /> Retry
+              </button>
+            </div>
           </div>
         ) : (
           <main className="p-8 space-y-6">

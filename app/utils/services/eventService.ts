@@ -101,6 +101,10 @@ export const eventService = {
   updateExhibitor: (id: string, data: T.ExhibitorRequest) => api.put<T.ExhibitorResponse>(`api/v1/exhibitors/${id}`, data),
   deleteExhibitor: (id: string) => api.delete<void>(`api/v1/exhibitors/${id}`),
 
+  // Invitations
+  getInvitations: () => api.get<any[]>("api/v1/invitations"),
+  createInvitation: (data: any) => api.post<any>("api/v1/invitations", data),
+
   // Event Types
   getEventTypes: () => api.get<T.EventTypeResponse[]>("api/v1/eventtypes"),
   createEventType: (data: T.EventTypeRequest) => api.post<T.EventTypeResponse>("api/v1/eventtypes", data),
@@ -267,5 +271,41 @@ export const eventService = {
   getRoomsByLocation: (locationId: string) => api.get<any[]>(`api/v1/rooms/location/${locationId}`),
   createRoom: (data: any) => api.post<any>("api/v1/rooms", data),
   updateRoom: (id: string, data: any) => api.put<any>(`api/v1/rooms/${id}`, data),
-  deleteRoom: (id: string) => api.delete<void>(`api/v1/rooms/${id}`)
+  deleteRoom: (id: string) => api.delete<void>(`api/v1/rooms/${id}`),
+
+  // Organizations
+  getOrganizations: () => api.get<any[]>("api/v1/organizations"),
+  createOrganization: (data: any) => api.post<any>("api/v1/organizations", data),
+  updateOrganization: (id: string, data: any) => api.put<any>(`api/v1/organizations/${id}`, data),
+  deleteOrganization: (id: string) => api.delete<void>(`api/v1/organizations/${id}`),
+
+  // Roles
+  getRoles: () => api.get<any[]>("api/v1/event-roles"),
+  getRolesByTenant: (tenantId: string) => api.get<any[]>(`api/v1/event-roles/tenant/${tenantId}`),
+  createRole: (data: any) => api.post<any>("api/v1/event-roles", data),
+  updateRole: (id: string, data: any) => api.put<any>(`api/v1/event-roles/${id}`, data),
+  deleteRole: (id: string) => api.delete<void>(`api/v1/event-roles/${id}`),
+
+  // Persons / People
+  getPeople: () => api.get<any[]>("api/v1/people"),
+  createPerson: (data: any) => api.post<any>("api/v1/people", data),
+  updatePerson: (id: string, data: any) => api.put<any>(`api/v1/people/${id}`, data),
+  deletePerson: (id: string) => api.delete<void>(`api/v1/people/${id}`),
+
+  // Event Participants
+  getEventParticipants: () => api.get<any[]>("api/v1/event-participants"),
+  getParticipantsByEvent: (eventId: string) => api.get<any[]>(`api/v1/event-participants/event/${eventId}`),
+  getParticipantsByEventAndRole: (eventId: string, roleName: string) => api.get<any[]>(`api/v1/event-participants/event/${eventId}/role/${roleName}`),
+  createParticipant: (data: any) => api.post<any>("api/v1/event-participants", data),
+  updateParticipant: (id: string, data: any) => api.put<any>(`api/v1/event-participants/${id}`, data),
+  deleteParticipant: (id: string) => api.delete<void>(`api/v1/event-participants/${id}`),
+
+  // Assignments
+  getAssignments: () => api.get<any[]>("api/v1/assignments"),
+  getAssignmentsByEvent: (eventId: string) => api.get<any[]>(`api/v1/assignments/event/${eventId}`),
+  getAssignmentsBySession: (sessionId: string) => api.get<any[]>(`api/v1/assignments/session/${sessionId}`),
+  getAssignmentsByLocation: (locationId: string) => api.get<any[]>(`api/v1/assignments/location/${locationId}`),
+  createAssignment: (data: any) => api.post<any>("api/v1/assignments", data),
+  updateAssignment: (id: string, data: any) => api.put<any>(`api/v1/assignments/${id}`, data),
+  deleteAssignment: (id: string) => api.delete<void>(`api/v1/assignments/${id}`)
 };

@@ -14,7 +14,14 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+let stripePromise: Promise<any> | null = null;
+const getStripePromise = () => {
+  if (typeof window === "undefined") return null;
+  if (!stripePromise) {
+    stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key");
+  }
+  return stripePromise;
+};
 
 // Real, curated FCFA prices — the seeded subscription_plan rows in the DB hold
 // placeholder values (29, 99) that were never converted to real currency amounts.
@@ -54,6 +61,9 @@ function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSucces
       if (!auth) throw new Error("Not authenticated");
       const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
       const tenantId = data.tenantId ? String(data.tenantId) : "";
+      // Store the freshly-issued TENANT_OWNER-scoped token BEFORE createSubscription —
+      // otherwise that call uses the stale pre-upgrade (ATTENDEE-scoped) token and 403s.
+      setStoredAuth({ token: data.token || auth.token, type: data.type || "Bearer", userId: String(data.userId || auth.userId), tenantId, email: data.email || auth.email, planTier: selectedPlan || data.planTier });
       if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
         const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
         if (matchedPlan?.planId) {
@@ -137,6 +147,10 @@ export default function AttendeeDashboard() {
     setRefundConfirmTicket(null);
     if (ticket.isPastEvent) {
       setRefundStatus({ type: "error", title: "Refund Not Available", message: "This event has already ended. Refunds are not available after the event date." });
+      return;
+    }
+    if (!(ticket.totalAmount > 0)) {
+      setRefundStatus({ type: "error", title: "Refund Not Applicable", message: "This ticket was free, so there is no payment to refund. You can cancel it instead." });
       return;
     }
     const ticketOrderId = ticket.orderId || ticket.id;
@@ -361,12 +375,22 @@ export default function AttendeeDashboard() {
     setShowUpgradeModal(true);
   };
 
-  const finishUpgrade = (data: any) => {
+  // Stores the freshly-issued TENANT_OWNER-scoped token/tenantId from upgradeToOrganizer.
+  // Must run BEFORE any subsequent authenticated call (e.g. createSubscription) — those
+  // otherwise use the stale pre-upgrade (ATTENDEE-scoped) token and get 403'd.
+  const storeUpgradedAuth = (data: any) => {
     const auth = getStoredAuth();
     const tenantId = data.tenantId ? String(data.tenantId) : "";
     setStoredAuth({ token: data.token || auth?.token || "", type: data.type || "Bearer", userId: String(data.userId || auth?.userId || ""), tenantId, email: data.email || auth?.email || "", planTier: selectedPlan || data.planTier });
+    return tenantId;
+  };
+
+  const finishUpgrade = (data: any) => {
+    storeUpgradedAuth(data);
     setShowUpgradeModal(false);
-    router.push("/admin");
+    // Full reload (not router.push) so /admin's data fetch re-runs instead of reusing
+    // a cached page instance, which would otherwise keep showing the pre-upgrade plan.
+    window.location.href = "/admin";
   };
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -379,7 +403,7 @@ export default function AttendeeDashboard() {
     setUpgradeLoading(true);
     try {
       const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
-      const tenantId = data.tenantId ? String(data.tenantId) : "";
+      const tenantId = storeUpgradedAuth(data);
       if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
         const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
         if (matchedPlan?.planId) {
@@ -514,7 +538,7 @@ export default function AttendeeDashboard() {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      await eventService.createPollResponse({ pollId, userId: auth.userId, response: option } as any);
+      await eventService.createPollResponse({ pollId, userId: auth.userId, selectedOption: option });
       alert("Vote recorded — thank you!");
     } catch (err: any) {
       alert(err.message || "Failed to vote");
@@ -835,7 +859,7 @@ export default function AttendeeDashboard() {
 
                           {/* Actions */}
                           <div className="flex gap-2 mt-4 flex-wrap">
-                            {isPaid && !isUsed && !isRefunded && (
+                            {isPaid && !isUsed && !isRefunded && ticket.totalAmount > 0 && (
                               <button onClick={() => handleRefund(ticket)} disabled={refundLoadingId === (ticket.orderId || ticket.id)}
                                 className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1">
                                 <RefreshCw size={10} /> {refundLoadingId === (ticket.orderId || ticket.id) ? "Refunding..." : "Request Refund"}
@@ -1320,7 +1344,7 @@ export default function AttendeeDashboard() {
                   ))}
                 </div>
                 {upgradePaymentMethod === "stripe" ? (
-                  <Elements stripe={stripePromise}>
+                  <Elements stripe={getStripePromise()}>
                     <StripeUpgradeForm
                       selectedPlan={selectedPlan}
                       upgradeForm={upgradeForm}
