@@ -142,14 +142,14 @@ function StripeSubscriptionForm({
           <p className="text-[10px] text-[#888] mt-1.5">Test card: 4242 4242 4242 4242 · any future expiry · any CVC</p>
         </div>
       ) : (
-        <p className="text-[10px] text-[#888] bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-3">
+        <p className="text-[10px] text-[#888] bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
           Stripe mock mode — no real card required. Set <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
         </p>
       )}
       <button
         type="submit"
         disabled={submitting || (!isMockStripe && !stripe)}
-        className="w-full py-3.5 bg-[#1a1a1a] hover:bg-[#333] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+        className="w-full py-3.5 bg-[#FF4747] hover:bg-[#e03e3e] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
       >
         {submitting ? "Processing payment..." : `Pay ${formatCfaPrice(selectedPlan.price)} & Subscribe`}
       </button>
@@ -294,7 +294,7 @@ export default function PricingPage() {
   const displayPlans = plans;
 
   return (
-    <div className="min-h-screen bg-[#ffffff] text-[#1a1a1a]">
+    <div className="min-h-screen bg-white text-[#1a1a1a]">
       <Navbar />
 
       {/* HEADER */}
@@ -314,7 +314,7 @@ export default function PricingPage() {
                 key={plan.planId || plan.name || i}
                 className={`rounded-3xl p-8 border-[1.5px] flex flex-col justify-between transition-all hover:-translate-y-1 ${
                   isHighlighted
-                    ? "bg-[#1a1a1a] text-white border-transparent shadow-2xl relative overflow-hidden"
+                    ? "bg-white text-[#1a1a1a] border-[#FF4747] shadow-xl shadow-[#FF4747]/10 relative overflow-hidden"
                     : "bg-white border-[#e5e7eb] text-[#1a1a1a]"
                 }`}
               >
@@ -327,12 +327,12 @@ export default function PricingPage() {
                   <h3 className="font-display text-xl font-bold mb-4">{plan.name}</h3>
                   <div className="flex items-baseline mb-6 flex-wrap gap-x-1.5">
                     <span className="text-3xl font-extrabold font-display break-words">{formatCfaPrice(plan.price)}</span>
-                    <span className={`text-xs ${isHighlighted ? "text-[#aaa]" : "text-[#888]"}`}>
+                    <span className="text-xs text-[#888]">
                       /{plan.billingCycle?.toLowerCase()}
                     </span>
                   </div>
 
-                  <hr className={`my-6 border-t ${isHighlighted ? "border-[#333]" : "border-[#e5e7eb]"}`} />
+                  <hr className="my-6 border-t border-[#e5e7eb]" />
 
                   <ul className="space-y-4 text-xs list-none pl-0">
                     <li className="flex items-start gap-2.5 min-w-0">
@@ -365,7 +365,7 @@ export default function PricingPage() {
                     className={`w-full py-3.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                       isHighlighted
                         ? "bg-[#FF4747] hover:bg-[#e03e3e] text-white"
-                        : "bg-[#1a1a1a] hover:bg-[#333] text-white"
+                        : "bg-transparent border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white"
                     }`}
                   >
                     Choose {plan.name}
@@ -389,7 +389,7 @@ export default function PricingPage() {
               <button onClick={() => { setShowModal(false); setMomoWaiting(false); }} className="text-zinc-400 hover:text-zinc-600 text-xl font-bold bg-transparent border-none cursor-pointer">✕</button>
             </div>
 
-            <div className="p-4 bg-[#ffffff] border border-[#e5e7eb] rounded-xl flex justify-between items-center text-xs">
+            <div className="p-4 bg-white border border-[#e5e7eb] rounded-xl flex justify-between items-center text-xs">
               <span className="font-semibold text-[#555]">Plan price:</span>
               <span className="font-black text-base text-[#FF4747]">{formatCfaPrice(selectedPlan.price)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
             </div>
@@ -432,7 +432,7 @@ export default function PricingPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="w-full py-3.5 bg-[#1a1a1a] hover:bg-[#333] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      className="w-full py-3.5 bg-[#FF4747] hover:bg-[#e03e3e] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
                     >
                       {submitting ? "Sending USSD prompt..." : "Confirm & Subscribe"}
                     </button>

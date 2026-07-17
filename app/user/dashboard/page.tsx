@@ -548,7 +548,7 @@ export default function AttendeeDashboard() {
   // ── render ─────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] flex text-[#1a1a1a]">
+    <div className="min-h-screen bg-white flex text-[#1a1a1a]">
 
       {/* SIDEBAR */}
       <aside className="w-[260px] shrink-0 bg-white border-r border-[#e5e7eb] flex flex-col sticky top-0 h-screen">
@@ -618,7 +618,7 @@ export default function AttendeeDashboard() {
         {/* Upgrade CTA */}
         {!isOrganizer && (
           <div className="px-4 py-4 border-t border-[#f0f0f0]">
-            <button onClick={openUpgradeModal} className="w-full bg-[#1a1a1a] hover:bg-[#333] text-white text-xs font-bold py-3 px-4 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2">
+            <button onClick={openUpgradeModal} className="w-full bg-[#FF4747] hover:bg-[#e03e3e] text-white text-xs font-bold py-3 px-4 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2">
               <Zap size={13} /> Become an Organizer
             </button>
           </div>
@@ -1451,7 +1451,7 @@ export default function AttendeeDashboard() {
               {refundStatus.message}
             </p>
             <button onClick={() => setRefundStatus(null)}
-              className={`w-full py-3 font-bold rounded-xl text-sm transition-colors cursor-pointer ${refundStatus.type === "success" ? "bg-green-500 hover:bg-green-600 text-white" : "bg-[#1a1a1a] hover:bg-[#333] text-white"}`}>
+              className={`w-full py-3 font-bold rounded-xl text-sm transition-colors cursor-pointer ${refundStatus.type === "success" ? "bg-green-500 hover:bg-green-600 text-white" : "bg-[#FF4747] hover:bg-[#e03e3e] text-white"}`}>
               Dismiss
             </button>
           </div>

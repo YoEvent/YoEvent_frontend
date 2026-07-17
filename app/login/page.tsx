@@ -98,7 +98,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#ffffff]">
+    <div className="min-h-screen flex flex-col bg-white">
       <nav className="flex items-center justify-between px-16 py-5 bg-white border-b border-[#e5e7eb]">
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
           Yow<span className="text-[#EB4203]">Event</span>
@@ -139,7 +139,7 @@ function LoginForm() {
               <div>
                 <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Email Address</label>
                 <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@company.com"
-                  className={`w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
               </div>
 
@@ -150,7 +150,7 @@ function LoginForm() {
                 </div>
                 <div className="relative">
                   <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Your password"
-                    className={`w-full px-4 py-3 pr-11 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.password ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                    className={`w-full px-4 py-3 pr-11 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.password ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
                   <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#1a1a1a]">
                     {show ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>

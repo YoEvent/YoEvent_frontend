@@ -53,7 +53,7 @@ export default function FeedbackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin" />
       </div>
     );
@@ -61,7 +61,7 @@ export default function FeedbackPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
         <div className="max-w-md w-full text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <Check size={36} className="text-green-500" />
@@ -77,7 +77,7 @@ export default function FeedbackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] py-12 px-6">
+    <div className="min-h-screen bg-white py-12 px-6">
       <div className="max-w-xl mx-auto">
 
         <Link href={`/events/${id}`} className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#1a1a1a] transition-colors mb-8">
@@ -138,7 +138,7 @@ export default function FeedbackPage() {
                   key={opt.value}
                   type="button"
                   onClick={() => setCategory(opt.value)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold transition-colors cursor-pointer ${category === opt.value ? "bg-[#FF4747] text-white" : "bg-[#f5f5f5] text-[#555] hover:bg-[#eee]"}`}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold transition-colors cursor-pointer ${category === opt.value ? "bg-[#FF4747] text-white" : "bg-[#f5f5f5] text-[#555] hover:bg-[#f5f5f5]"}`}
                 >
                   {opt.label}
                 </button>
