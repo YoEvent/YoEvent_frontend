@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { api, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 // ── Transactions : agrégation & sparkline (100% frontend, pas de nouvel endpoint backend) ──
 
