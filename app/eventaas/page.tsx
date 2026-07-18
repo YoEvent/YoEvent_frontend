@@ -211,7 +211,7 @@ export default function EventaaSPage() {
       </section>
 
       {/* FEATURES */}
-      <section id="features" className="max-w-6xl mx-auto px-8 py-24 border-t border-[#f0f0f0] bg-[#fafafa]">
+      <section id="features" className="max-w-6xl mx-auto px-8 py-24 border-t border-[#f0f0f0] bg-white">
         <div className="text-center mb-14">
           <div className="text-xs text-[#aaa] uppercase tracking-widest font-semibold mb-3">Why EventaaS</div>
           <h2 className="font-display text-4xl font-black text-[#1a1a1a]">Built for African event infrastructure</h2>
@@ -236,7 +236,7 @@ export default function EventaaSPage() {
           <h2 className="font-display text-4xl font-black text-[#1a1a1a]">Ship in 3 steps</h2>
         </div>
         <div className="relative">
-          <div className="absolute left-[19px] top-0 bottom-0 w-px bg-[#f0f0f0]" />
+          <div className="absolute left-[19px] top-0 bottom-0 w-px bg-[#f5f5f5]" />
           {[
             { n: "01", title: "Register & get your API key", desc: "Create a free account. Your tenant workspace and API credentials are provisioned instantly." },
             { n: "02", title: "Call the REST API", desc: "Hit any of the 5 microservices through the unified gateway. Full Swagger docs at /swagger-ui.html." },
@@ -254,7 +254,7 @@ export default function EventaaSPage() {
       </section>
 
       {/* PRICING */}
-      <section id="pricing" className="max-w-5xl mx-auto px-8 py-24 border-t border-[#f0f0f0] bg-[#fafafa]">
+      <section id="pricing" className="max-w-5xl mx-auto px-8 py-24 border-t border-[#f0f0f0] bg-white">
         <div className="text-center mb-14">
           <div className="text-xs text-[#aaa] uppercase tracking-widest font-semibold mb-3">API Pricing</div>
           <h2 className="font-display text-4xl font-black text-[#1a1a1a]">Pay for what you use</h2>

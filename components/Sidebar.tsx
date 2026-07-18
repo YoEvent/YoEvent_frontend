@@ -161,7 +161,7 @@ export default function Sidebar() {
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}
-                className={`flex items-center gap-3 px-6 py-2.5 text-sm transition-all ${active ? "bg-[#f9fafb] text-[#EB4203] font-bold border-r-2 border-[#EB4203]" : "text-[#666] hover:bg-stone-50 hover:text-[#1a1a1a]"}`}>
+                className={`flex items-center gap-3 px-6 py-2.5 text-sm transition-all ${active ? "bg-[#f9fafb] text-[#EB4203] font-bold border-r-2 border-[#EB4203]" : "text-[#666] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]"}`}>
                 <Icon size={16} />
                 {item.label}
               </Link>
@@ -175,7 +175,7 @@ export default function Sidebar() {
                 <button
                   type="button"
                   onClick={() => setExpandedMenus(prev => ({ ...prev, [item.label]: !prev[item.label] }))}
-                  className={`flex items-center justify-between px-6 py-2.5 text-sm transition-all w-full text-left cursor-pointer ${hasActiveSub ? "text-[#EB4203] font-semibold" : "text-[#666] hover:text-[#1a1a1a] hover:bg-stone-50"}`}
+                  className={`flex items-center justify-between px-6 py-2.5 text-sm transition-all w-full text-left cursor-pointer ${hasActiveSub ? "text-[#EB4203] font-semibold" : "text-[#666] hover:text-[#1a1a1a] hover:bg-[#f5f5f5]"}`}
                 >
                   <div className="flex items-center gap-3">
                     <Icon size={16} />
@@ -184,7 +184,7 @@ export default function Sidebar() {
                   <ChevronDown size={14} className={`transform transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
                 </button>
                 {isExpanded && (
-                  <div className="pl-6 pr-4 py-1.5 space-y-1 bg-[#fafafa]/50 border-l border-[#e5e7eb] ml-7">
+                  <div className="pl-6 pr-4 py-1.5 space-y-1 bg-white/50 border-l border-[#e5e7eb] ml-7">
                     {item.subLinks?.map(sub => {
                       const subActive = path === sub.href;
                       const SubIcon = sub.icon;

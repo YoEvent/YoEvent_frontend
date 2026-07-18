@@ -131,26 +131,40 @@ export default function PublicEventsPage() {
       <Navbar />
 
       {/* ── HERO HEADER ── */}
-      <header className="relative bg-[#0f0f0f] text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070')` }} />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0f0f0f]/80 to-[#0f0f0f]" />
+      <header className="bg-white text-[#1a1a1a]">
+
         <div className="relative z-10 max-w-4xl mx-auto px-8 py-20 text-center">
-          <span className="inline-flex items-center gap-2 bg-[#FF4747]/20 border border-[#FF4747]/30 text-[#FF4747] text-xs font-bold rounded-full px-4 py-1.5 mb-6">
+          <span className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 text-[#FF4747] text-xs font-bold rounded-full px-4 py-1.5 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" /> Live events across Africa
           </span>
           <h1 className="font-display text-5xl md:text-6xl font-black tracking-tight mb-5 leading-[1.05]">
-            Explore <span className="text-[#F7E998]">Public</span> Events
+            Explore <span className="text-[#FF4747]">Public</span> Events
           </h1>
-          <p className="text-[#aaa] text-base max-w-xl mx-auto leading-relaxed">
+          <p className="text-[#666] text-base max-w-xl mx-auto leading-relaxed mb-9">
             Discover incredible events hosted by organisations across Africa. Find your next experience below.
           </p>
+
+          {/* Welcoming sector snapshot — a quick visual taste of what's out there */}
+          <div className="flex items-center justify-center gap-4">
+            {[
+              { label: "Music", img: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=200" },
+              { label: "Business", img: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=200" },
+              { label: "Tech", img: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=200" },
+              { label: "Sports", img: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=200" },
+            ].map(s => (
+              <div key={s.label} className="flex flex-col items-center gap-1.5">
+                <img src={s.img} alt={s.label} className="w-14 h-14 rounded-full object-cover border-4 border-white shadow-lg shadow-black/10" />
+                <span className="text-[10px] font-semibold text-[#888]">{s.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </header>
 
       {/* ── FILTERS ── */}
       <div className="sticky top-[61px] z-30 bg-white border-b border-[#f0f0f0] shadow-sm">
         <div className="max-w-7xl mx-auto px-8 py-4 flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-[#fafafa] border border-[#f0f0f0] rounded-full px-4 py-2.5">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px] bg-white border border-[#f0f0f0] rounded-full px-4 py-2.5">
             <Search size={15} className="text-[#aaa] shrink-0" />
             <input
               placeholder="Search events..."
@@ -164,7 +178,7 @@ export default function PublicEventsPage() {
               <button
                 key={f}
                 onClick={() => setFormatFilter(f)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${formatFilter === f ? "bg-[#FF4747] text-white shadow-sm" : "bg-[#fafafa] text-[#666] border border-[#f0f0f0] hover:border-[#FF4747]/30"}`}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${formatFilter === f ? "bg-[#FF4747] text-white shadow-sm" : "bg-white text-[#666] border border-[#f0f0f0] hover:border-[#FF4747]/30"}`}
               >
                 {f === "VIRTUAL" ? <Wifi size={12} /> : f === "IN_PERSON" ? <MapPin size={12} /> : <Tag size={12} />}
                 {f === "ALL" ? "All Events" : f === "IN_PERSON" ? "In Person" : "Online"}
@@ -184,19 +198,19 @@ export default function PublicEventsPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
             {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="bg-[#fafafa] border border-[#f0f0f0] rounded-3xl overflow-hidden animate-pulse">
-                <div className="h-44 bg-[#f0f0f0]" />
+              <div key={i} className="bg-white border border-[#f0f0f0] rounded-3xl overflow-hidden animate-pulse">
+                <div className="h-44 bg-[#f5f5f5]" />
                 <div className="p-6 space-y-3">
-                  <div className="h-4 bg-[#f0f0f0] rounded w-3/4" />
-                  <div className="h-3 bg-[#f0f0f0] rounded w-full" />
-                  <div className="h-3 bg-[#f0f0f0] rounded w-2/3" />
+                  <div className="h-4 bg-[#f5f5f5] rounded w-3/4" />
+                  <div className="h-3 bg-[#f5f5f5] rounded w-full" />
+                  <div className="h-3 bg-[#f5f5f5] rounded w-2/3" />
                 </div>
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-28">
-            <div className="w-16 h-16 bg-[#fafafa] border border-[#f0f0f0] rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <div className="w-16 h-16 bg-white border border-[#f0f0f0] rounded-2xl flex items-center justify-center mx-auto mb-5">
               <Calendar size={28} className="text-[#ddd]" />
             </div>
             <h3 className="font-display text-xl font-bold text-[#1a1a1a] mb-2">
@@ -276,7 +290,7 @@ export default function PublicEventsPage() {
 
                     <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-2 group-hover:text-[#FF4747] transition-colors line-clamp-2 leading-snug">{ev.title}</h3>
                     <p className="text-[#777] text-sm line-clamp-2 leading-relaxed mb-5">{ev.description || "No description provided."}</p>
-                    <div className="flex items-center justify-between pt-4 border-t border-[#f5f5f5]">
+                    <div className="flex items-center justify-between pt-4 border-t border-[#f0f0f0]">
                       <div className="flex items-center gap-2 text-xs text-[#888]">
                         <Calendar size={12} className="text-[#FF4747]" />
                         {ev.startDate ? new Date(ev.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "TBA"}
@@ -294,7 +308,7 @@ export default function PublicEventsPage() {
       </main>
 
       {/* ── HOST CTA ── */}
-      <section className="mx-8 mb-12 rounded-3xl bg-[#0f0f0f] text-white p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8">
+      <section className="mx-8 mb-12 rounded-3xl bg-white border-2 border-[#FF4747]/15 text-[#1a1a1a] p-10 md:p-14 flex flex-col md:flex-row items-center justify-between gap-8 shadow-sm">
         <div>
           <h3 className="font-display text-2xl font-black mb-2">Host your own event</h3>
           <p className="text-[#777] text-sm max-w-sm">Create, manage, and sell tickets for your next event in minutes. Free to start.</p>

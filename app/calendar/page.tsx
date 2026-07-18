@@ -260,7 +260,7 @@ export default function CalendarPage() {
                   const evs = (ds && events[ds]) || [];
                   const today = current && isToday(day);
                   return (
-                    <div key={i} className={`min-h-[100px] p-2 border-r border-b border-[#e5e7eb] last:border-r-0 transition-colors ${!current ? "opacity-30" : ""} ${today ? "bg-[#EB4203]/5" : "hover:bg-[#ffffff]"}`}>
+                    <div key={i} className={`min-h-[100px] p-2 border-r border-b border-[#e5e7eb] last:border-r-0 transition-colors ${!current ? "opacity-30" : ""} ${today ? "bg-[#EB4203]/5" : "hover:bg-white"}`}>
                       <div className={`w-6 h-6 flex items-center justify-center text-xs font-medium mb-1.5 rounded-full ${today ? "bg-[#EB4203] text-[#1a1a1a] font-bold" : "text-[#555]"}`}>{day}</div>
                       {evs.slice(0, 2).map((ev, j) => (
                         <div key={j} className={`text-[10px] font-medium rounded px-1.5 py-0.5 mb-0.5 truncate cursor-pointer hover:brightness-110 transition-all ${ev.cls}`}>{ev.time} {ev.title}</div>
@@ -326,18 +326,18 @@ export default function CalendarPage() {
               <div>
                 <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Event Title *</label>
                 <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Annual Conference 2026"
-                  className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors"/>
+                  className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors"/>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Start Date</label>
                   <input type="date" value={form.start} onChange={e => setForm(f => ({ ...f, start: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
+                    className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Category</label>
                   <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors">
+                    className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors">
                     {["Conference","Workshop","Webinar","Internal","Other"].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
@@ -346,21 +346,21 @@ export default function CalendarPage() {
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Start Time</label>
                   <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
+                    className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">End Time</label>
                   <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
+                    className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Description</label>
                 <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} rows={3} placeholder="Brief description…"
-                  className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors resize-none"/>
+                  className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors resize-none"/>
               </div>
               <div className="flex gap-3 justify-end pt-2">
-                <button onClick={() => setModal(false)} className="px-5 py-2.5 text-sm border border-[#e5e7eb] rounded-full text-[#555] hover:bg-[#ffffff] transition-colors cursor-pointer">Cancel</button>
+                <button onClick={() => setModal(false)} className="px-5 py-2.5 text-sm border border-[#e5e7eb] rounded-full text-[#555] hover:bg-white transition-colors cursor-pointer">Cancel</button>
                 <button onClick={handleCreate} className="px-5 py-2.5 text-sm bg-[#EB4203] text-white rounded-full font-semibold hover:bg-[#c23b02] transition-colors cursor-pointer">Create Event</button>
               </div>
             </div>

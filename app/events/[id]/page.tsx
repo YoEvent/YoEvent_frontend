@@ -12,7 +12,7 @@ import Footer from "@/components/Footer";
 const EventMap = dynamic(() => import("@/components/EventMap"), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-56 bg-[#ffffff] flex items-center justify-center rounded-2xl border border-[#e5e7eb] mt-4">
+    <div className="w-full h-56 bg-white flex items-center justify-center rounded-2xl border border-[#e5e7eb] mt-4">
       <span className="text-xs text-[#666] font-medium">Loading Map...</span>
     </div>
   ),
@@ -679,7 +679,7 @@ function EventDetailsPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#ffffff] flex justify-center items-center">
+      <div className="min-h-screen bg-white flex justify-center items-center">
         <div className="w-10 h-10 border-4 border-[#e5e7eb] border-t-[#EB4203] rounded-full animate-spin"></div>
       </div>
     );
@@ -688,7 +688,7 @@ function EventDetailsPageContent() {
   if (!event) return null;
 
   return (
-    <div className="min-h-screen bg-[#ffffff] text-[#1a1a1a] overflow-x-hidden">
+    <div className="min-h-screen bg-white text-[#1a1a1a] overflow-x-hidden">
       <Navbar />
 
       {/* HERO BANNER */}
@@ -1096,7 +1096,7 @@ function EventDetailsPageContent() {
                           <h3 className="font-display text-xl font-bold text-[#1a1a1a]">{session.title}</h3>
                           <div className="flex items-center gap-4 text-xs font-medium text-[#666] mt-2">
                             <span className="flex items-center gap-1"><Clock size={14} /> {new Date(session.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            <span className="px-2 py-0.5 bg-[#ffffff] text-[#EB4203] rounded uppercase tracking-wider">{session.type}</span>
+                            <span className="px-2 py-0.5 bg-white text-[#EB4203] rounded uppercase tracking-wider">{session.type}</span>
                           </div>
                         </div>
                       </div>
@@ -1401,7 +1401,7 @@ function EventDetailsPageContent() {
                     {volunteerForm.photoUrl ? (
                       <img src={volunteerForm.photoUrl} alt="Photo preview" className="w-16 h-16 rounded-full object-cover border-2 border-[#e5e7eb] shrink-0" />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-[#ffffff] flex items-center justify-center text-[#aaa] group-hover:text-[#EB4203] transition-colors shrink-0">
+                      <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-[#aaa] group-hover:text-[#EB4203] transition-colors shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                       </div>
                     )}
@@ -1525,7 +1525,7 @@ function EventDetailsPageContent() {
                     {vendorForm.logoUrl ? (
                       <img src={vendorForm.logoUrl} alt="Logo preview" className="w-16 h-16 rounded-lg object-contain border-2 border-[#e5e7eb] shrink-0 bg-white" />
                     ) : (
-                      <div className="w-16 h-16 rounded-lg bg-[#ffffff] flex items-center justify-center text-[#aaa] group-hover:text-[#EB4203] transition-colors shrink-0">
+                      <div className="w-16 h-16 rounded-lg bg-white flex items-center justify-center text-[#aaa] group-hover:text-[#EB4203] transition-colors shrink-0">
                         <ImageIcon size={22} />
                       </div>
                     )}
@@ -2003,7 +2003,7 @@ function EventDetailsPageContent() {
                   <h4 className="text-[10px] uppercase tracking-wider font-bold text-[#888] mb-3">Exhibitors</h4>
                   <div className="flex flex-wrap gap-2">
                     {approvedExhibitors.map((e: any) => (
-                      <span key={e.exhibitorId} className="px-3 py-1 bg-[#ffffff] text-[#555] text-[10px] font-bold rounded-full">
+                      <span key={e.exhibitorId} className="px-3 py-1 bg-white text-[#555] text-[10px] font-bold rounded-full">
                         {e.companyName || e.name || "Vendor"}
                       </span>
                     ))}
@@ -2112,7 +2112,7 @@ function EventDetailsPageContent() {
                             <div className="text-xs text-[#666] mt-1 line-clamp-1">{t.description || "General admission ticket"}</div>
                             <div className="text-sm font-black text-[#EB4203] mt-2">{t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} FCFA`}</div>
                           </div>
-                          <div className="flex items-center gap-3 bg-[#ffffff] p-1.5 rounded-xl">
+                          <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl">
                             <button onClick={() => handleQuantityChange(t.ticketId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">-</button>
                             <span className="w-6 text-center font-bold text-[#1a1a1a]">{selectedTickets[t.ticketId] || 0}</span>
                             <button onClick={() => handleQuantityChange(t.ticketId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">+</button>
@@ -2122,7 +2122,7 @@ function EventDetailsPageContent() {
                     </div>
                   )}
 
-                  <div className="p-5 bg-[#ffffff] rounded-2xl border border-[#e5e7eb] mb-8">
+                  <div className="p-5 bg-white rounded-2xl border border-[#e5e7eb] mb-8">
                     <h3 className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider mb-3">Discount Code</h3>
                     <div className="flex gap-3">
                       <input 
@@ -2215,7 +2215,7 @@ function EventDetailsPageContent() {
                               {paymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number
                             </label>
                             <div className="flex gap-2">
-                              <div className="px-3 py-3 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
+                              <div className="px-3 py-3 bg-white border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
                               <input
                                 type="tel"
                                 placeholder="6XXXXXXXX"

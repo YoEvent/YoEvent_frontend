@@ -110,13 +110,13 @@ function StripeCardSubscribeForm({
         </div>
       ) : (
         <p className="text-[10px] text-[#888] bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
-          Stripe mock mode — no real card required. Set <code className="text-[#EB4203]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
+          Stripe mock mode — no real card required. Set <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
         </p>
       )}
       <button
         type="submit"
         disabled={submitting || (!isMockStripe && !stripe)}
-        className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+        className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
       >
         {submitting ? "Processing payment..." : `Pay ${formatCfaPrice(mappedPlan?.price ?? 0)} & Subscribe`}
       </button>
@@ -351,7 +351,7 @@ function RegisterFormContent() {
       {/* NAV */}
       <nav className="flex items-center justify-between px-16 py-5 bg-white border-b border-[#e5e7eb]">
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a] hover:opacity-80 transition-opacity">
-          Yow<span className="text-[#EB4203]">Event</span>
+          Yow<span className="text-[#FF4747]">Event</span>
         </Link>
         <span className="text-sm text-[#888]">Already have an account?{" "}
           <Link href={from ? `/login?from=${encodeURIComponent(from)}` : "/login"} className="text-[#1a1a1a] font-semibold hover:underline">Log in</Link>
@@ -360,15 +360,13 @@ function RegisterFormContent() {
 
       <main className="flex-1 grid md:grid-cols-2">
         {/* LEFT */}
-        <div className="relative bg-gradient-to-br from-[#1a1a1a] to-[#251510] px-14 py-16 flex flex-col justify-center overflow-hidden">
-          <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-radial-[at_50%_50%] from-[#EB4203]/15 to-transparent" />
-          <div className="absolute -bottom-16 -left-16 w-60 h-60 rounded-full bg-radial-[at_50%_50%] from-[#FF4747]/10 to-transparent" />
+        <div className="bg-white px-14 py-16 flex flex-col justify-center">
           <div className="relative z-10">
-            <span className="inline-block bg-[#EB4203]/10 border border-[#EB4203]/25 rounded-full px-4 py-1.5 text-xs text-[#FFA382] uppercase tracking-widest mb-8">Get Started Today</span>
-            <h2 className="font-display text-4xl font-bold text-white leading-[1.15] tracking-tight mb-5">
-              Your events,<br /><em className="italic text-[#FF7247]">your rules.</em>
+            <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-8">Get Started Today</span>
+            <h2 className="font-display text-4xl font-bold text-[#1a1a1a] leading-[1.15] tracking-tight mb-5">
+              Your events,<br /><em className="italic text-[#FF4747]">your rules.</em>
             </h2>
-            <p className="text-sm text-[#aaa] leading-relaxed max-w-sm mb-12">Provision your own isolated event management environment in seconds. No setup fees, no sales call required.</p>
+            <p className="text-sm text-[#666] leading-relaxed max-w-sm mb-12">Provision your own isolated event management environment in seconds. No setup fees, no sales call required.</p>
             <div className="space-y-6">
               {[
                 ["🎟", "Free tier included", "Start with no credit card. Upgrade when you grow."],
@@ -377,9 +375,9 @@ function RegisterFormContent() {
                 ["⚡", "Live in under 3 minutes", "From sign-up to your first published event — fast."],
               ].map(([icon, title, desc]) => (
                 <div key={title} className="flex items-start gap-4">
-                  <div className="w-9 h-9 rounded-xl bg-[#EB4203]/10 flex items-center justify-center text-base flex-shrink-0">{icon}</div>
+                  <div className="w-9 h-9 rounded-xl bg-[#f5f5f5] flex items-center justify-center text-base flex-shrink-0 shadow-sm">{icon}</div>
                   <div>
-                    <div className="text-sm font-medium text-white mb-0.5">{title}</div>
+                    <div className="text-sm font-medium text-[#1a1a1a] mb-0.5">{title}</div>
                     <div className="text-xs text-[#777]">{desc}</div>
                   </div>
                 </div>
@@ -396,13 +394,13 @@ function RegisterFormContent() {
                 <button
                   type="button"
                   onClick={() => setShowPayment(false)}
-                  className="text-xs font-semibold text-[#EB4203] hover:underline mb-4 cursor-pointer"
+                  className="text-xs font-semibold text-[#FF4747] hover:underline mb-4 cursor-pointer"
                 >
                   ← Back
                 </button>
               )}
 
-              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#EB4203]">Secure Payment</h2>
+              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#FF4747]">Secure Payment</h2>
               <p className="text-sm text-[#888] mb-6">Your account is ready — finish subscribing to activate {mappedPlan?.name || planName}.</p>
 
               {paymentSuccess ? (
@@ -415,7 +413,7 @@ function RegisterFormContent() {
                 </div>
               ) : momoWaiting ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="w-8 h-8 mb-4 border-2 border-[#EB4203] border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 mb-4 border-2 border-[#FF4747] border-t-transparent rounded-full animate-spin" />
                   <h3 className="text-sm font-bold text-[#1a1a1a] mb-1">Check your phone and confirm the USSD prompt</h3>
                   <p className="text-xs text-[#888]">Waiting for {momoPhone} to confirm payment via Mobile Money…</p>
                 </div>
@@ -428,9 +426,9 @@ function RegisterFormContent() {
                   )}
 
                   {/* Order Summary badge */}
-                  <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-2">
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-2">
                     <div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#EB4203]">Selected Subscription</span>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#FF4747]">Selected Subscription</span>
                       <h4 className="text-sm font-bold text-[#1a1a1a]">{mappedPlan?.name || planName} Plan</h4>
                     </div>
                     <div className="text-right">
@@ -444,14 +442,14 @@ function RegisterFormContent() {
                     <button
                       type="button"
                       onClick={() => setPaymentTab("stripe")}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "stripe" ? "bg-[#EB4203] text-white shadow-sm" : "text-[#555] hover:text-[#EB4203]"}`}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "stripe" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"}`}
                     >
                       <Lock size={12} /> Card
                     </button>
                     <button
                       type="button"
                       onClick={() => setPaymentTab("momo")}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "momo" ? "bg-[#EB4203] text-white shadow-sm" : "text-[#555] hover:text-[#EB4203]"}`}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "momo" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"}`}
                     >
                       <Smartphone size={12} /> Mobile Money
                     </button>
@@ -477,13 +475,13 @@ function RegisterFormContent() {
                           placeholder="6xxxxxxxxx"
                           value={momoPhone}
                           onChange={(e) => setMomoPhone(e.target.value.replace(/\D/g, ""))}
-                          className="w-full px-4 py-2.5 border-[1.5px] border-[#e5e7eb] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:border-[#EB4203]"
+                          className="w-full px-4 py-2.5 border-[1.5px] border-[#e5e7eb] rounded-xl text-sm bg-white outline-none transition-all focus:border-[#FF4747]"
                         />
                       </div>
                       <button
                         type="submit"
                         disabled={paymentLoading}
-                        className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                        className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                       >
                         {paymentLoading ? "Sending USSD prompt..." : `Pay ${formatCfaPrice(mappedPlan?.price ?? getPrice())} & Subscribe`}
                       </button>
@@ -494,13 +492,13 @@ function RegisterFormContent() {
             </div>
           ) : (
             <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#EB4203]">Create your account</h2>
+              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#FF4747]">Create your account</h2>
               <p className="text-sm text-[#888] mb-8">Already have an account?{" "}<Link href="/login" className="text-[#1a1a1a] font-semibold hover:underline">Log in</Link></p>
 
               {isPaidPlan && (
-                <div className="bg-[#ffffff] border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-6">
+                <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-6">
                   <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#EB4203]">Selected Plan</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#FF4747]">Selected Plan</span>
                     <h4 className="text-sm font-bold text-[#1a1a1a]">{planName}</h4>
                   </div>
                   <div className="text-right">
@@ -522,12 +520,12 @@ function RegisterFormContent() {
                 </div>
               )}
 
-              <div className="flex bg-[#ffffff] rounded-xl p-1 mb-6 border border-[#e5e7eb]">
+              <div className="flex bg-white rounded-xl p-1 mb-6 border border-[#e5e7eb]">
                 <button
                   type="button"
                   onClick={() => setRoleMode("ATTENDEE")}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    roleMode === "ATTENDEE" ? "bg-[#EB4203] text-white shadow-sm" : "text-[#555] hover:text-[#EB4203]"
+                    roleMode === "ATTENDEE" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
                   }`}
                 >
                   Attendee
@@ -536,7 +534,7 @@ function RegisterFormContent() {
                   type="button"
                   onClick={() => setRoleMode("ORGANIZER")}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    roleMode === "ORGANIZER" ? "bg-[#EB4203] text-white shadow-sm" : "text-[#555] hover:text-[#EB4203]"
+                    roleMode === "ORGANIZER" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
                   }`}
                 >
                   Event Organizer
@@ -549,7 +547,7 @@ function RegisterFormContent() {
                     type="button"
                     onClick={() => setIsOrg(false)}
                     className={`flex-1 py-1.5 text-[10px] uppercase font-bold rounded-md transition-all cursor-pointer ${
-                      !isOrg ? "bg-white text-[#EB4203] shadow-sm" : "text-[#888] hover:text-[#EB4203]"
+                      !isOrg ? "bg-white text-[#FF4747] shadow-sm" : "text-[#888] hover:text-[#FF4747]"
                     }`}
                   >
                     Individual
@@ -558,7 +556,7 @@ function RegisterFormContent() {
                     type="button"
                     onClick={() => setIsOrg(true)}
                     className={`flex-1 py-1.5 text-[10px] uppercase font-bold rounded-md transition-all cursor-pointer ${
-                      isOrg ? "bg-white text-[#EB4203] shadow-sm" : "text-[#888] hover:text-[#EB4203]"
+                      isOrg ? "bg-white text-[#FF4747] shadow-sm" : "text-[#888] hover:text-[#FF4747]"
                     }`}
                   >
                     Organisation
@@ -573,7 +571,7 @@ function RegisterFormContent() {
                       <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{f === "firstName" ? "First Name" : "Last Name"}</label>
                       <input value={form[f]} onChange={(e) => set(f, e.target.value)}
                         placeholder={f === "firstName" ? "Jean" : "Dupont"}
-                        className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors[f] ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                        className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors[f] ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                       {errors[f] && <p className="text-xs text-red-500 mt-1">{errors[f]}</p>}
                     </div>
                   ))}
@@ -582,7 +580,7 @@ function RegisterFormContent() {
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Email Address</label>
                   <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@company.com"
-                    className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                    className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
 
@@ -590,7 +588,7 @@ function RegisterFormContent() {
                   <div>
                     <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Organisation Name</label>
                     <input type="text" value={form.orgName} onChange={(e) => set("orgName", e.target.value)} placeholder="Acme Corp"
-                      className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.orgName ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                      className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.orgName ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                     {errors.orgName && <p className="text-xs text-red-500 mt-1">{errors.orgName}</p>}
                   </div>
                 )}
@@ -599,7 +597,7 @@ function RegisterFormContent() {
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Password</label>
                   <div className="relative">
                     <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Min. 8 characters"
-                      className={`w-full px-4 py-2.5 pr-11 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.password ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                      className={`w-full px-4 py-2.5 pr-11 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.password ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                     <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#1a1a1a]">
                       {show ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -621,7 +619,7 @@ function RegisterFormContent() {
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Confirm Password</label>
                   <div className="relative">
                     <input type={showC ? "text" : "password"} value={form.confirm} onChange={(e) => set("confirm", e.target.value)} placeholder="Repeat your password"
-                      className={`w-full px-4 py-2.5 pr-11 border-[1.5px] rounded-xl text-sm bg-[#ffffff] outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.confirm ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
+                      className={`w-full px-4 py-2.5 pr-11 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.confirm ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                     <button type="button" onClick={() => setShowC(!showC)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#1a1a1a]">
                       {showC ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -638,7 +636,7 @@ function RegisterFormContent() {
                 {errors.agree && <p className="text-xs text-red-500 -mt-2">{errors.agree}</p>}
 
                 <button type="submit" disabled={loading || submitted}
-                  className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 cursor-pointer">
+                  className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 cursor-pointer">
                   {loading ? "Creating account…" : submitted ? "✓ Account Created!" : isPaidPlan ? "Proceed to Payment" : "Create Free Account"}
                 </button>
               </form>
@@ -653,8 +651,8 @@ function RegisterFormContent() {
 export default function RegisterPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#ffffff]">
-        <div className="w-12 h-12 rounded-full border-4 border-[#1a1a1a]/10 border-t-[#EB4203] animate-spin mb-4" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+        <div className="w-12 h-12 rounded-full border-4 border-[#1a1a1a]/10 border-t-[#FF4747] animate-spin mb-4" />
         <span className="text-sm font-medium text-[#666]">Loading...</span>
       </div>
     }>

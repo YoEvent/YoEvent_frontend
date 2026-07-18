@@ -72,15 +72,15 @@ export default function UpdatesPage() {
       <Navbar />
 
       {/* ── HERO ── */}
-      <header className="bg-[#0f0f0f] text-white px-8 md:px-16 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <span className="inline-flex items-center gap-2 bg-[#FF4747]/15 border border-[#FF4747]/30 text-[#FF4747] text-xs font-bold rounded-full px-4 py-1.5 mb-6">
+      <header className="bg-white text-[#1a1a1a] px-8 md:px-16 py-20">
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <span className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 text-[#FF4747] text-xs font-bold rounded-full px-4 py-1.5 mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" /> News & Updates
           </span>
           <h1 className="font-display text-5xl md:text-6xl font-black tracking-tight mb-5">
-            What&apos;s New at <span className="text-[#F7E998]">YowEvent</span>
+            What&apos;s New at <span className="text-[#FF4747]">YowEvent</span>
           </h1>
-          <p className="text-[#aaa] text-base max-w-lg mx-auto leading-relaxed">
+          <p className="text-[#666] text-base max-w-lg mx-auto leading-relaxed">
             Stay up to date with the latest features, improvements, and news designed to help you run better events.
           </p>
         </div>

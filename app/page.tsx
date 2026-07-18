@@ -63,91 +63,63 @@ export default function LandingPage() {
       <Navbar />
 
       {/* ── HERO ── */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-[#0f0f0f]">
-        <div className="absolute inset-0 bg-cover bg-center opacity-25" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=2070')` }} />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0f0f0f] via-[#0f0f0f]/90 to-transparent" />
-
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
         <div className="relative z-10 w-full max-w-7xl mx-auto px-8 md:px-16 py-24 grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 bg-[#FF4747]/15 border border-[#FF4747]/30 rounded-full px-4 py-1.5 text-xs font-semibold text-[#FF4747] mb-8">
+            <div className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs font-semibold text-[#FF4747] mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" />
               {avgRatingVal.toFixed(1)} Rated · Trusted by {organizerText}
             </div>
-            <h1 className="font-display text-6xl md:text-7xl font-black leading-[1.02] tracking-[-2px] text-white mb-6">
+            <h1 className="font-display text-6xl md:text-7xl font-black leading-[1.02] tracking-[-2px] text-[#1a1a1a] mb-6">
               Events,<br />
-              <span className="text-[#F7E998]">Effortlessly</span><br />
+              <span className="text-[#FF4747]">Effortlessly</span><br />
               Managed
             </h1>
-            <p className="text-[#aaa] text-base leading-relaxed max-w-md mb-10">
+            <p className="text-[#666] text-base leading-relaxed max-w-md mb-10">
               The all-in-one platform for creating, selling, and managing events across Africa — from intimate workshops to sold-out concerts.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link href={isLoggedIn ? "/admin" : "/register"}>
-                <button className="px-8 py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-bold hover:bg-[#e03e3e] hover:-translate-y-0.5 transition-all cursor-pointer shadow-lg shadow-[#FF4747]/30 flex items-center gap-2">
+                <button className="px-8 py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-bold hover:bg-[#e03e3e] hover:-translate-y-0.5 transition-all cursor-pointer shadow-lg shadow-[#FF4747]/25 flex items-center gap-2">
                   {isLoggedIn ? "Go to Dashboard" : "Start for Free"} <ArrowRight size={16} />
                 </button>
               </Link>
               <Link href="/events">
-                <button className="px-8 py-3.5 bg-white/10 backdrop-blur text-white border border-white/20 rounded-full text-sm font-medium hover:bg-white/20 transition-all cursor-pointer">
+                <button className="px-8 py-3.5 bg-white text-[#1a1a1a] border border-[#e5e7eb] rounded-full text-sm font-medium hover:border-[#1a1a1a] hover:-translate-y-0.5 transition-all cursor-pointer shadow-sm">
                   Browse Events
                 </button>
               </Link>
             </div>
-            <div className="flex gap-10 mt-12 pt-10 border-t border-white/10">
+            <div className="flex gap-10 mt-12 pt-10 border-t border-[#f0f0f0]">
               {[[eventCount, "Events hosted"], ["99.9%", "Uptime SLA"], [avgRating, "Avg. rating"]].map(([val, label]) => (
                 <div key={label}>
-                  <div className="font-display text-2xl font-bold text-white">{val}</div>
-                  <div className="text-xs text-[#666] mt-0.5">{label}</div>
+                  <div className="font-display text-2xl font-bold text-[#1a1a1a]">{val}</div>
+                  <div className="text-xs text-[#999] mt-0.5">{label}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Dashboard preview card */}
-          <div className="hidden md:block">
-            <div className="bg-white rounded-3xl p-6 shadow-2xl shadow-black/40 max-w-sm mx-auto">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <div className="font-bold text-sm text-[#1a1a1a]">Event Overview</div>
-                  <div className="text-xs text-[#888] mt-0.5">2 active events</div>
-                </div>
-                <div className="w-9 h-9 rounded-full bg-[#FF4747] flex items-center justify-center text-white text-xs font-bold">YE</div>
-              </div>
-              {[
-                { name: "Tech Summit 2026", date: "Jun 14", fill: "600/500", pct: 96, badge: "Live", color: "bg-green-100 text-green-700" },
-                { name: "Design Workshop", date: "Jul 3", fill: "120/300", pct: 40, badge: "Upcoming", color: "bg-[#F7E998] text-[#7a6a00]" },
-              ].map(ev => (
-                <div key={ev.name} className="bg-[#fafafa] border border-[#f0f0f0] rounded-2xl p-4 mb-3">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="font-semibold text-sm text-[#1a1a1a]">{ev.name}</div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ev.color}`}>{ev.badge}</span>
-                  </div>
-                  <div className="flex gap-4 text-[10px] text-[#888] mb-2.5">
-                    <span>📅 {ev.date}</span><span>👥 {ev.fill}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-[#aaa] mb-1"><span>Fill rate</span><span className="font-bold text-[#1a1a1a]">{ev.pct}%</span></div>
-                  <div className="h-1.5 bg-[#f0f0f0] rounded-full overflow-hidden">
-                    <div className="h-full bg-[#FF4747] rounded-full" style={{ width: `${ev.pct}%` }} />
-                  </div>
-                </div>
-              ))}
-              <div className="flex gap-2 mt-4">
-                <div className="flex-1 bg-[#FF4747]/10 rounded-xl p-3 text-center">
-                  <div className="text-lg font-black text-[#FF4747]">+21%</div>
-                  <div className="text-[9px] text-[#888] font-medium">Engagement</div>
-                </div>
-                <div className="flex-1 bg-[#F7E998]/40 rounded-xl p-3 text-center">
-                  <div className="text-lg font-black text-[#7a6a00]">100%</div>
-                  <div className="text-[9px] text-[#888] font-medium">Satisfaction</div>
-                </div>
-              </div>
-            </div>
+          {/* Hero illustration */}
+          <div className="hidden md:flex justify-center">
+            <img
+              src="/celebrating-team.png"
+              alt="People celebrating at an event"
+              className="w-full max-w-md animate-[float_4s_ease-in-out_infinite]"
+            />
           </div>
         </div>
+
+        <style>{`
+          @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-16px); }
+          }
+        `}</style>
       </section>
 
       {/* ── FEATURED EVENTS ── */}
-      <section className="px-8 md:px-16 py-24 bg-[#fafafa]">
+      <section className="px-8 md:px-16 py-24 bg-white">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-end justify-between flex-wrap gap-4 mb-12">
             <div>
@@ -215,8 +187,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="px-8 md:px-16 py-24 bg-[#fafafa]">
-        <div className="max-w-5xl mx-auto text-center">
+      <section className="px-8 md:px-16 py-24 bg-white">
+        <div className="relative z-10 max-w-5xl mx-auto text-center">
           <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">How It Works</span>
           <h2 className="font-display text-4xl font-black tracking-tight mb-4">Up and running in minutes</h2>
           <p className="text-[#666] text-sm max-w-md mx-auto mb-16 leading-relaxed">No sales calls. No setup fees. Sign up and start building your event right away.</p>
@@ -229,7 +201,7 @@ export default function LandingPage() {
               ["04", "Analyse & Grow", "Review live analytics, traffic reports and attendee feedback in real time."],
             ].map(([num, title, desc], i) => (
               <div key={num} className="relative">
-                {i < 3 && <div className="hidden md:block absolute top-6 left-[calc(50%+24px)] right-[-calc(50%-24px)] h-px bg-[#f0f0f0] z-0" />}
+                {i < 3 && <div className="hidden md:block absolute top-6 left-[calc(50%+24px)] right-[-calc(50%-24px)] h-px bg-[#f5f5f5] z-0" />}
                 <div className="relative z-10 flex flex-col items-center p-6">
                   <div className="w-12 h-12 bg-[#FF4747] text-white rounded-full flex items-center justify-center font-display font-black text-sm mb-5 shadow-lg shadow-[#FF4747]/20">{num}</div>
                   <h3 className="font-display text-sm font-bold mb-2 text-[#1a1a1a]">{title}</h3>
@@ -248,22 +220,22 @@ export default function LandingPage() {
       </section>
 
       {/* ── OFFLINE PROMO ── */}
-      <section className="px-8 md:px-16 py-24 bg-[#111] text-white">
+      <section className="px-8 md:px-16 py-24 bg-white">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-14 items-center">
           <div>
-            <div className="inline-flex items-center gap-2 bg-[#FF4747]/20 border border-[#FF4747]/30 rounded-full px-3 py-1 text-xs font-semibold text-[#F7E998] mb-7">
+            <div className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-3 py-1 text-xs font-semibold text-[#FF4747] mb-7">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" /> Offline Mode Active
             </div>
-            <h2 className="font-display text-4xl font-black tracking-tight mb-5 leading-tight">
-              No internet? <br /><span className="text-[#F7E998]">Keep scanning.</span>
+            <h2 className="font-display text-4xl font-black tracking-tight mb-5 leading-tight text-[#1a1a1a]">
+              No internet? <br /><span className="text-[#FF4747]">Keep scanning.</span>
             </h2>
-            <p className="text-[#aaa] text-sm leading-relaxed mb-8">
+            <p className="text-[#666] text-sm leading-relaxed mb-8">
               YowEvent is built to work offline. All guest lists and ticket data are saved locally so you can check in attendees in remote venues with zero Wi-Fi or cell service.
             </p>
-            <ul className="space-y-3 text-sm text-[#ccc]">
+            <ul className="space-y-3 text-sm text-[#444]">
               {["Automatic sync when internet returns", "Scan & verify tickets offline instantly", "Search guest lists without page reloads"].map(item => (
                 <li key={item} className="flex items-center gap-3">
-                  <span className="w-5 h-5 rounded-full bg-[#FF4747]/20 flex items-center justify-center text-[#FF4747] text-xs font-bold shrink-0">✓</span>
+                  <span className="w-5 h-5 rounded-full bg-[#FF4747]/10 flex items-center justify-center text-[#FF4747] text-xs font-bold shrink-0">✓</span>
                   {item}
                 </li>
               ))}
@@ -275,7 +247,8 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-3xl p-7 shadow-2xl font-mono text-xs">
+          {/* Contained dark "device" mockup — intentional product-screenshot styling, not a full dark section */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-3xl p-7 shadow-xl shadow-black/10 font-mono text-xs">
             <div className="flex items-center gap-2 mb-5">
               <span className="w-3 h-3 rounded-full bg-red-500" />
               <span className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -344,12 +317,12 @@ function FaqSection() {
           {faqs.map((faq, i) => (
             <div key={i} className="border border-[#f0f0f0] rounded-2xl overflow-hidden">
               <button onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full px-6 py-5 flex items-center justify-between text-left font-semibold text-sm text-[#1a1a1a] hover:bg-[#fafafa] transition-colors cursor-pointer">
+                className="w-full px-6 py-5 flex items-center justify-between text-left font-semibold text-sm text-[#1a1a1a] hover:bg-white transition-colors cursor-pointer">
                 <span>{faq.q}</span>
                 <span className={`text-xl font-bold transition-colors ${openIndex === i ? "text-[#FF4747]" : "text-[#bbb]"}`}>{openIndex === i ? "−" : "+"}</span>
               </button>
               {openIndex === i && (
-                <div className="px-6 pb-5 pt-2 text-sm text-[#666] leading-relaxed border-t border-[#f0f0f0] bg-[#fafafa]">{faq.a}</div>
+                <div className="px-6 pb-5 pt-2 text-sm text-[#666] leading-relaxed border-t border-[#f0f0f0] bg-white">{faq.a}</div>
               )}
             </div>
           ))}
