@@ -1,8 +1,105 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { api, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
+
+// ── Transactions : agrégation & sparkline (100% frontend, pas de nouvel endpoint backend) ──
+
+type TxWindow = "24h" | "week" | "month";
+
+const TX_WINDOW_CONFIG: Record<TxWindow, { buckets: number; bucketMs: number; label: string }> = {
+  "24h": { buckets: 24, bucketMs: 60 * 60 * 1000, label: "24 dernières heures" },
+  week: { buckets: 7, bucketMs: 24 * 60 * 60 * 1000, label: "7 derniers jours" },
+  month: { buckets: 30, bucketMs: 24 * 60 * 60 * 1000, label: "30 derniers jours" },
+};
+
+interface CurrencyStats {
+  currentTotal: number;
+  previousTotal: number;
+  currentSeries: number[];
+  previousSeries: number[];
+}
+
+/**
+ * Agrège les paiements SUCCESSFUL par devise sur la fenêtre choisie, avec une
+ * fenêtre de comparaison équivalente immédiatement précédente.
+ * NOTE : /api/v1/payments ne propose ni pagination ni filtre de date côté
+ * serveur — on charge tout l'historique et on filtre ici. Peut devenir coûteux
+ * si le volume de paiements grossit fortement (dette technique backend signalée,
+ * non corrigée ici — hors périmètre).
+ */
+function aggregateTransactionsByCurrency(payments: any[], txWindow: TxWindow): Record<string, CurrencyStats> {
+  const { buckets, bucketMs } = TX_WINDOW_CONFIG[txWindow];
+  const now = Date.now();
+  const periodMs = buckets * bucketMs;
+  const currentStart = now - periodMs;
+  const previousStart = now - 2 * periodMs;
+
+  const byCurrency: Record<string, CurrencyStats> = {};
+
+  const ensure = (currency: string) => {
+    if (!byCurrency[currency]) {
+      byCurrency[currency] = {
+        currentTotal: 0,
+        previousTotal: 0,
+        currentSeries: new Array(buckets).fill(0),
+        previousSeries: new Array(buckets).fill(0),
+      };
+    }
+    return byCurrency[currency];
+  };
+
+  for (const p of payments) {
+    if (p?.status !== "SUCCESSFUL") continue;
+    const rawTs = p.paidAt || p.createdAt;
+    if (!rawTs) continue;
+    const t = new Date(rawTs).getTime();
+    if (Number.isNaN(t)) continue;
+    const amount = Number(p.amount) || 0;
+    const currency = p.currency || "N/A";
+    const stats = ensure(currency);
+
+    if (t >= currentStart && t <= now) {
+      stats.currentTotal += amount;
+      const idx = Math.min(buckets - 1, Math.max(0, Math.floor((t - currentStart) / bucketMs)));
+      stats.currentSeries[idx] += amount;
+    } else if (t >= previousStart && t < currentStart) {
+      stats.previousTotal += amount;
+      const idx = Math.min(buckets - 1, Math.max(0, Math.floor((t - previousStart) / bucketMs)));
+      stats.previousSeries[idx] += amount;
+    }
+  }
+
+  return byCurrency;
+}
+
+function formatAmount(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return "—";
+  return Number(value).toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+}
+
+/** Sparkline SVG fait main — pas de dépendance graphique ajoutée au projet. */
+function Sparkline({ current, previous }: { current: number[]; previous: number[] }) {
+  const width = 100;
+  const height = 40;
+  const max = Math.max(1, ...current, ...previous);
+  const toPoints = (arr: number[]) =>
+    arr
+      .map((v, i) => {
+        const x = arr.length > 1 ? (i / (arr.length - 1)) * width : 0;
+        const y = height - (v / max) * (height - 4) - 2;
+        return `${x},${y}`;
+      })
+      .join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={56} preserveAspectRatio="none">
+      <polyline points={toPoints(previous)} fill="none" stroke="#9ca3af" strokeWidth="2" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
+      <polyline points={toPoints(current)} fill="none" stroke="#EB4203" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
 
 export default function SuperAdminPage() {
   const router = useRouter();
@@ -33,18 +130,19 @@ export default function SuperAdminPage() {
   const [tenantSearch, setTenantSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
 
+  // Pagination — Tenants Directory
+  const TENANTS_PER_PAGE = 10;
+  const [tenantPage, setTenantPage] = useState(1);
+
   // Tenant attendees modal
   const [viewingTenant, setViewingTenant] = useState<any | null>(null);
   const [tenantRegistrations, setTenantRegistrations] = useState<any[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
 
-  // Simulated system logs
-  const [systemLogs, setSystemLogs] = useState<string[]>([
-    "[System] Gateway routing initialized successfully.",
-    "[Auth] SUPER_ADMIN account authenticated successfully.",
-    "[Payment] Syncing pending transactions with Stripe webhook listener...",
-    "[System] Kafka brokers are fully operational."
-  ]);
+  // Platform finance (vraies données)
+  const [platformRevenue, setPlatformRevenue] = useState<{ totalCollected: number; totalWithdrawn: number; availableBalance: number } | null>(null);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [txWindow, setTxWindow] = useState<TxWindow>("24h");
 
   useEffect(() => {
     // 1. Authorize role
@@ -71,34 +169,43 @@ export default function SuperAdminPage() {
     // 2. Fetch all management data
     setLoadingData(true);
     Promise.all([
-      api.get<any[]>("/api/v1/subscriptionplans"),
-      api.get<any[]>("/api/v1/tenants"),
-      api.get<any[]>("/api/v1/users")
-    ]).then(([plansData, tenantsData, usersData]) => {
+      api.get<any[]>("/api/v1/subscriptionplans").catch((err) => {
+        console.error("Failed to load subscription plans:", err);
+        return [];
+      }),
+      api.get<any[]>("/api/v1/tenants").catch((err) => {
+        console.error("Failed to load tenants:", err);
+        return [];
+      }),
+      api.get<any[]>("/api/v1/users").catch((err) => {
+        console.error("Failed to load users:", err);
+        return [];
+      }),
+      api.get<any>("/api/v1/platform/revenue").catch((err) => {
+        console.error("Failed to load platform revenue:", err);
+        return null;
+      }),
+      api.get<any[]>("/api/v1/payments").catch((err) => {
+        console.error("Failed to load payments:", err);
+        return [];
+      }),
+    ]).then(([plansData, tenantsData, usersData, revenueData, paymentsData]) => {
       setPlans(plansData || []);
       setTenants(tenantsData || []);
       setUsers(usersData || []);
-    }).catch((err) => {
-      console.error("Failed to load platform administration data:", err);
+      setPlatformRevenue(revenueData);
+      setPayments(paymentsData || []);
     }).finally(() => {
       setLoadingData(false);
     });
-
-    // 3. Log simulator interval
-    const interval = setInterval(() => {
-      const msgs = [
-        "[Gateway] Routed request /api/v1/subscriptionplans GET successfully.",
-        "[Database] Connection pool stats: active=3, idle=12, max=20",
-        "[Metrics] Platform CPU usage: 14% | RAM usage: 42%",
-        "[Auth] User login request completed on tenant_db.",
-        "[Payment] Stripe PaymentIntent generated pi_" + Math.random().toString(36).substr(2, 9),
-        "[System] Audit logger successfully appended event to secure log stream."
-      ];
-      setSystemLogs((prev) => [msgs[Math.floor(Math.random() * msgs.length)], ...prev.slice(0, 10)]);
-    }, 8000);
-
-    return () => clearInterval(interval);
   }, [authorized]);
+
+  // Doit rester avant tout "return" conditionnel (règle des hooks)
+  const txStatsByCurrency = useMemo(() => aggregateTransactionsByCurrency(payments, txWindow), [payments, txWindow]);
+  const sortedCurrencies = useMemo(
+    () => Object.keys(txStatsByCurrency).sort((a, b) => txStatsByCurrency[b].currentTotal - txStatsByCurrency[a].currentTotal),
+    [txStatsByCurrency]
+  );
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -240,10 +347,13 @@ export default function SuperAdminPage() {
     u.email?.toLowerCase().includes(userSearch.toLowerCase())
   );
 
-  const totalRevenue = tenants.reduce((acc, t) => {
-    const planObj = plans.find((p) => p.planId === t.planId);
-    return acc + (planObj ? planObj.price : 0);
-  }, 0);
+  // Pagination — Tenants Directory (10 par page)
+  const tenantTotalPages = Math.max(1, Math.ceil(filteredTenants.length / TENANTS_PER_PAGE));
+  const tenantPageSafe = Math.min(tenantPage, tenantTotalPages);
+  const paginatedTenants = filteredTenants.slice(
+    (tenantPageSafe - 1) * TENANTS_PER_PAGE,
+    tenantPageSafe * TENANTS_PER_PAGE
+  );
 
   return (
     <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
@@ -326,7 +436,14 @@ export default function SuperAdminPage() {
                       { label: "Total Active Tenants", value: tenants.length, desc: "Provisioned Workspaces", icon: Building },
                       { label: "Active Subscriptions", value: tenants.filter(t => t.planId).length, desc: "Paid + Free Plans", icon: Layers },
                       { label: "Global Platform Users", value: users.length, desc: "Registered Profiles", icon: Users },
-                      { label: "Monthly Platform Revenue", value: `$${totalRevenue.toFixed(2)}`, desc: "Simulated MRR", icon: ShieldCheck },
+                      {
+                        label: "Solde Disponible Plateforme",
+                        value: platformRevenue ? formatAmount(platformRevenue.availableBalance) : "—",
+                        desc: platformRevenue
+                          ? `Collecté : ${formatAmount(platformRevenue.totalCollected)} · Retiré : ${formatAmount(platformRevenue.totalWithdrawn)}`
+                          : "Chargement...",
+                        icon: ShieldCheck,
+                      },
                     ].map((m) => (
                       <div key={m.label} className="bg-white border border-[#e5e7eb] shadow-sm border border-[#e5e7eb] rounded-2xl p-6">
                         <div className="flex items-start justify-between mb-4">
@@ -340,21 +457,92 @@ export default function SuperAdminPage() {
                   </div>
 
                   <div className="grid grid-cols-[2fr_1.2fr] gap-6">
-                    {/* LIVE SIMULATED SYSTEM LOGS */}
+                    {/* TRANSACTIONS PLATEFORME */}
                     <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-display font-bold text-[#EB4203] text-sm">Real-time Platform Logs</h3>
-                        <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded font-mono font-bold animate-pulse">LIVE STREAM</span>
+                        <h3 className="font-display font-bold text-[#EB4203] text-sm">Transactions Plateforme</h3>
+                        <div className="flex items-center gap-1 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg p-0.5">
+                          {(["24h", "week", "month"] as TxWindow[]).map((w) => (
+                            <button
+                              key={w}
+                              onClick={() => setTxWindow(w)}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
+                                txWindow === w ? "bg-[#EB4203] text-white" : "text-zinc-500 hover:text-[#1a1a1a]"
+                              }`}
+                            >
+                              {w === "24h" ? "24h" : w === "week" ? "Semaine" : "Mois"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div className="bg-stone-50 rounded-xl p-4 font-mono text-xs text-zinc-400 h-64 overflow-y-auto space-y-2.5 border border-[#e5e7eb]">
-                        {systemLogs.map((log, index) => (
-                          <div key={index} className="flex gap-2">
-                            <span className="text-zinc-600">[{new Date().toLocaleTimeString()}]</span>
-                            <span className={log.includes("ERROR") ? "text-red-400" : log.includes("WARN") ? "text-amber-400 font-semibold" : "text-[#222]"}>
-                              {log}
-                            </span>
+
+                      <p className="text-[10px] text-zinc-500 mb-4">
+                        {TX_WINDOW_CONFIG[txWindow].label} · comparé à la période équivalente précédente
+                      </p>
+
+                      <div className="h-64 overflow-y-auto space-y-6 pr-1">
+                        {sortedCurrencies.length === 0 ? (
+                          <div className="h-full flex items-center justify-center text-zinc-500 text-xs text-center">
+                            Aucune transaction réussie sur la période sélectionnée.
                           </div>
-                        ))}
+                        ) : (
+                          sortedCurrencies.map((currency) => {
+                            const stats = txStatsByCurrency[currency];
+                            const hasPrevious = stats.previousTotal > 0;
+                            const changePercent = hasPrevious
+                              ? ((stats.currentTotal - stats.previousTotal) / stats.previousTotal) * 100
+                              : null;
+                            const isNew = !hasPrevious && stats.currentTotal > 0;
+                            const isFlat = stats.currentTotal === 0 && stats.previousTotal === 0;
+
+                            return (
+                              <div key={currency} className="space-y-2">
+                                <div className="flex items-end justify-between gap-3">
+                                  <div>
+                                    <div className="text-2xl font-bold text-[#1a1a1a] font-display leading-tight">
+                                      {formatAmount(stats.currentTotal)}{" "}
+                                      <span className="text-xs font-medium text-zinc-500">{currency}</span>
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 mt-0.5">
+                                      Période précédente : {formatAmount(stats.previousTotal)} {currency}
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${
+                                      isFlat
+                                        ? "bg-zinc-100 text-zinc-500"
+                                        : isNew
+                                        ? "bg-blue-50 text-blue-600"
+                                        : changePercent !== null && changePercent >= 0
+                                        ? "bg-green-50 text-green-700"
+                                        : "bg-red-50 text-red-600"
+                                    }`}
+                                  >
+                                    {isFlat ? (
+                                      <Minus size={11} />
+                                    ) : isNew ? (
+                                      <TrendingUp size={11} />
+                                    ) : changePercent !== null && changePercent >= 0 ? (
+                                      <TrendingUp size={11} />
+                                    ) : (
+                                      <TrendingDown size={11} />
+                                    )}
+                                    {isFlat ? "—" : isNew ? "Nouveau" : `${changePercent!.toFixed(1)}%`}
+                                  </span>
+                                </div>
+                                <Sparkline current={stats.currentSeries} previous={stats.previousSeries} />
+                                <div className="flex items-center gap-4 text-[9px] text-zinc-500">
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-3 h-[2px] bg-[#EB4203] inline-block" /> Période actuelle
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-3 h-[2px] inline-block" style={{ borderTop: "2px dashed #9ca3af" }} /> Période précédente
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
 
@@ -464,7 +652,7 @@ export default function SuperAdminPage() {
                                 value={planForm.name} 
                                 onChange={(e) => setPlanForm({...planForm, name: e.target.value})}
                                 placeholder="ENTERPRISE"
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -473,7 +661,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="0" step="0.01"
                                 value={planForm.price} 
                                 onChange={(e) => setPlanForm({...planForm, price: parseFloat(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -484,7 +672,7 @@ export default function SuperAdminPage() {
                               <select 
                                 value={planForm.billingCycle} 
                                 onChange={(e) => setPlanForm({...planForm, billingCycle: e.target.value})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               >
                                 <option value="MONTHLY">Monthly</option>
                                 <option value="ANNUALLY">Annually</option>
@@ -497,7 +685,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={planForm.maxEvents} 
                                 onChange={(e) => setPlanForm({...planForm, maxEvents: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -509,7 +697,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={planForm.maxUsers} 
                                 onChange={(e) => setPlanForm({...planForm, maxUsers: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -518,7 +706,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={planForm.maxAttendeesPerEvent} 
                                 onChange={(e) => setPlanForm({...planForm, maxAttendeesPerEvent: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -530,7 +718,7 @@ export default function SuperAdminPage() {
                               value={planForm.featuresEnabled} 
                               onChange={(e) => setPlanForm({...planForm, featuresEnabled: e.target.value})}
                               placeholder="BASIC_EVENT,TICKET_SALES,ANALYTICS"
-                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                             />
                           </div>
 
@@ -570,7 +758,7 @@ export default function SuperAdminPage() {
                                 type="text" required
                                 value={editingPlan.name} 
                                 onChange={(e) => setEditingPlan({...editingPlan, name: e.target.value})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -579,7 +767,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="0" step="0.01"
                                 value={editingPlan.price} 
                                 onChange={(e) => setEditingPlan({...editingPlan, price: parseFloat(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -590,7 +778,7 @@ export default function SuperAdminPage() {
                               <select 
                                 value={editingPlan.billingCycle} 
                                 onChange={(e) => setEditingPlan({...editingPlan, billingCycle: e.target.value})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               >
                                 <option value="MONTHLY">Monthly</option>
                                 <option value="ANNUALLY">Annually</option>
@@ -603,7 +791,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={editingPlan.maxEvents} 
                                 onChange={(e) => setEditingPlan({...editingPlan, maxEvents: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -615,7 +803,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={editingPlan.maxUsers} 
                                 onChange={(e) => setEditingPlan({...editingPlan, maxUsers: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
@@ -624,7 +812,7 @@ export default function SuperAdminPage() {
                                 type="number" required min="-1"
                                 value={editingPlan.maxAttendeesPerEvent} 
                                 onChange={(e) => setEditingPlan({...editingPlan, maxAttendeesPerEvent: parseInt(e.target.value)})}
-                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
@@ -635,7 +823,7 @@ export default function SuperAdminPage() {
                               type="text" required
                               value={editingPlan.featuresEnabled} 
                               onChange={(e) => setEditingPlan({...editingPlan, featuresEnabled: e.target.value})}
-                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                             />
                           </div>
 
@@ -671,8 +859,8 @@ export default function SuperAdminPage() {
                       <input 
                         placeholder="Search tenants by name or slug..." 
                         value={tenantSearch}
-                        onChange={(e) => setTenantSearch(e.target.value)}
-                        className="bg-transparent text-white placeholder:text-zinc-600 outline-none w-full"
+                        onChange={(e) => { setTenantSearch(e.target.value); setTenantPage(1); }}
+                        className="bg-transparent text-[#1a1a1a] placeholder:text-zinc-600 outline-none w-full"
                       />
                     </div>
                     <span className="text-xs text-zinc-500">Showing {filteredTenants.length} of {tenants.length} tenants</span>
@@ -693,7 +881,7 @@ export default function SuperAdminPage() {
                         </tr>
                       </thead>
                       <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
-                        {filteredTenants.map((tenant) => {
+                        {paginatedTenants.map((tenant) => {
                           const planObj = plans.find((p) => p.planId === tenant.planId);
                           return (
                             <tr key={tenant.tenantId} className="hover:bg-zinc-800/10 transition-colors">
@@ -739,6 +927,31 @@ export default function SuperAdminPage() {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* PAGINATION — Tenants Directory */}
+                  {filteredTenants.length > 0 && (
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs text-zinc-500">
+                        Page {tenantPageSafe} sur {tenantTotalPages}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setTenantPage((p) => Math.max(1, p - 1))}
+                          disabled={tenantPageSafe <= 1}
+                          className="px-3 py-1.5 bg-white border border-[#e5e7eb] hover:bg-[#f9fafb] text-[#1a1a1a] rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Précédent
+                        </button>
+                        <button
+                          onClick={() => setTenantPage((p) => Math.min(tenantTotalPages, p + 1))}
+                          disabled={tenantPageSafe >= tenantTotalPages}
+                          className="px-3 py-1.5 bg-white border border-[#e5e7eb] hover:bg-[#f9fafb] text-[#1a1a1a] rounded-lg text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Suivant
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -753,7 +966,7 @@ export default function SuperAdminPage() {
                         placeholder="Search profiles by name or email..." 
                         value={userSearch}
                         onChange={(e) => setUserSearch(e.target.value)}
-                        className="bg-transparent text-white placeholder:text-zinc-600 outline-none w-full"
+                        className="bg-transparent text-[#1a1a1a] placeholder:text-zinc-600 outline-none w-full"
                       />
                     </div>
                     <span className="text-xs text-zinc-500">Showing {filteredUsers.length} of {users.length} accounts</span>
