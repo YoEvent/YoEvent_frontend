@@ -4,8 +4,10 @@ import Sidebar from "@/components/Sidebar";
 import { DollarSign, Send, Landmark, RefreshCw, Clock, ArrowUpRight, HelpCircle, AlertTriangle, Trash2 } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { paymentService } from "@/app/utils/services/paymentService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 export default function PayoutsPage() {
+  const { t } = useLanguage();
   const [balance, setBalance] = useState<number>(0);
   const [currency, setCurrency] = useState<string>("XAF");
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -40,7 +42,7 @@ export default function PayoutsPage() {
       setWithdrawals(wList || []);
     } catch (err: any) {
       console.error("Failed to load payout details:", err);
-      showToast("error", err.message || "Failed to load balance details.");
+      showToast("error", err.message || t("adminPayouts.errors.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -58,14 +60,14 @@ export default function PayoutsPage() {
     setFormError(null);
     const withdrawAmount = parseFloat(amount);
     if (isNaN(withdrawAmount) || withdrawAmount <= 0) {
-      const msg = "Please enter a valid amount greater than 0";
+      const msg = t("adminPayouts.errors.invalidAmount");
       setFormError(msg);
       showToast("error", msg);
       return;
     }
 
     if (withdrawAmount > balance) {
-      const msg = `Insufficient balance. Available is ${balance} ${currency}`;
+      const msg = t("adminPayouts.errors.insufficientBalance", { balance, currency });
       setFormError(msg);
       showToast("error", msg);
       return;
@@ -78,13 +80,13 @@ export default function PayoutsPage() {
         provider: provider,
         currency: currency
       });
-      showToast("success", `Withdrawal request of ${withdrawAmount} ${currency} submitted successfully!`);
+      showToast("success", t("adminPayouts.toast.withdrawalSubmitted", { amount: withdrawAmount, currency }));
       setAmount("");
       // Refresh balance & list
       fetchPayoutDetails();
     } catch (err: any) {
       console.error("Withdrawal error:", err);
-      let errMsg = err.message || "Withdrawal failed.";
+      let errMsg = err.message || t("adminPayouts.errors.withdrawFailed");
       // Clean up Stripe/Api error message prefixes
       if (errMsg.includes("Stripe payout error:")) {
         errMsg = errMsg.replace(/^ApiError:\s*/i, "").replace(/^Stripe\s+payout\s+error:\s*/i, "");
@@ -105,15 +107,15 @@ export default function PayoutsPage() {
   };
 
   const handleDeleteWithdrawal = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this withdrawal record from your history?")) return;
+    if (!confirm(t("adminPayouts.history.deleteConfirm"))) return;
     try {
       setLoading(true);
       await paymentService.deleteWithdrawal(id);
-      showToast("success", "Withdrawal record deleted successfully.");
+      showToast("success", t("adminPayouts.toast.withdrawalDeleted"));
       fetchPayoutDetails();
     } catch (err: any) {
       console.error(err);
-      showToast("error", err.message || "Failed to delete withdrawal record.");
+      showToast("error", err.message || t("adminPayouts.errors.deleteFailed"));
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,7 @@ export default function PayoutsPage() {
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Organizer Balance & Payouts</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminPayouts.header.title")}</h1>
           <button
             onClick={fetchPayoutDetails}
             className="w-8 h-8 bg-white border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#2a2a2a] transition-colors cursor-pointer"
@@ -140,13 +142,13 @@ export default function PayoutsPage() {
             {/* Balance Card */}
             <div className="bg-white border border-[#e5e7eb] shadow-sm rounded-2xl p-8 flex flex-col justify-between">
               <div>
-                <span className="text-[#666] text-xs font-semibold uppercase tracking-wider block mb-2">Available Balance</span>
+                <span className="text-[#666] text-xs font-semibold uppercase tracking-wider block mb-2">{t("adminPayouts.balanceCard.label")}</span>
                 <div className="text-4xl font-bold text-[#1a1a1a] font-display flex items-baseline gap-2">
                   <span>{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   <span className="text-sm font-semibold text-[#EB4203]">{currency}</span>
                 </div>
                 <p className="text-[10px] text-[#555] mt-2 leading-relaxed">
-                  Calculated from gross ticket sales minus refunded orders and previous payouts.
+                  {t("adminPayouts.balanceCard.desc")}
                 </p>
               </div>
 
@@ -155,7 +157,7 @@ export default function PayoutsPage() {
                   href="/admin/seo"
                   className="inline-flex items-center gap-1.5 text-xs text-[#EB4203] hover:text-[#efe084] transition-colors"
                 >
-                  <Landmark size={14} /> Configure payout destination settings →
+                  <Landmark size={14} /> {t("adminPayouts.balanceCard.configureLink")} →
                 </a>
               </div>
             </div>
@@ -163,10 +165,10 @@ export default function PayoutsPage() {
             {/* Payout Request Panel */}
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 shadow-sm">
               <h2 className="font-display font-bold text-[#EB4203] mb-2 flex items-center gap-2">
-                <Send size={18} className="text-[#EB4203]" /> Request Payout
+                <Send size={18} className="text-[#EB4203]" /> {t("adminPayouts.requestPanel.title")}
               </h2>
               <p className="text-xs text-[#666] mb-5">
-                Transfer your funds to your configured Mobile Money account or Bank Card.
+                {t("adminPayouts.requestPanel.subtitle")}
               </p>
 
               {formError && (
@@ -179,18 +181,18 @@ export default function PayoutsPage() {
               <form onSubmit={handleWithdrawalRequest} className="space-y-4 text-xs">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Payout Method</label>
+                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminPayouts.requestPanel.methodLabel")}</label>
                     <select
                       value={provider}
                       onChange={(e) => setProvider(e.target.value)}
                       className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#F7E998] transition-colors"
                     >
-                      <option value="momo">MTN / Orange Mobile Money</option>
-                      <option value="stripe">Stripe Payout (Connected Card)</option>
+                      <option value="momo">{t("adminPayouts.requestPanel.methodMomo")}</option>
+                      <option value="stripe">{t("adminPayouts.requestPanel.methodStripe")}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Amount to Withdraw ({currency})</label>
+                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminPayouts.requestPanel.amountLabel", { currency })}</label>
                     <input
                       type="number"
                       required
@@ -210,7 +212,7 @@ export default function PayoutsPage() {
                   className="w-full py-3 bg-[#F7E998] hover:bg-[#EB4203] hover:text-white disabled:opacity-50 text-[#1a1a1a] text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <ArrowUpRight size={14} />
-                  {submitting ? "Processing Request..." : balance <= 0 ? "No Funds Available" : "Trigger Withdrawal"}
+                  {submitting ? t("adminPayouts.requestPanel.processing") : balance <= 0 ? t("adminPayouts.requestPanel.noFunds") : t("adminPayouts.requestPanel.submit")}
                 </button>
               </form>
             </div>
@@ -219,19 +221,19 @@ export default function PayoutsPage() {
           {/* HISTORY TABLE */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
             <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <Clock size={18} className="text-[#EB4203]" /> Withdrawal History
+              <Clock size={18} className="text-[#EB4203]" /> {t("adminPayouts.history.title")}
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-[#1a1a1a]">
                 <thead className="bg-white text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
-                    <th className="p-4 rounded-l-xl">Withdrawal ID</th>
-                    <th className="p-4">Requested Date</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Provider</th>
-                    <th className="p-4">Reference</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 rounded-r-xl">Actions</th>
+                    <th className="p-4 rounded-l-xl">{t("adminPayouts.history.colId")}</th>
+                    <th className="p-4">{t("adminPayouts.history.colDate")}</th>
+                    <th className="p-4">{t("adminPayouts.history.colAmount")}</th>
+                    <th className="p-4">{t("adminPayouts.history.colProvider")}</th>
+                    <th className="p-4">{t("adminPayouts.history.colReference")}</th>
+                    <th className="p-4">{t("adminPayouts.history.colStatus")}</th>
+                    <th className="p-4 rounded-r-xl">{t("adminPayouts.history.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#222]">
@@ -242,7 +244,7 @@ export default function PayoutsPage() {
                         <td className="p-4 font-mono text-[10px] text-[#999]">{w.withdrawalId?.substring(0, 8)}...</td>
                         <td className="p-4 text-[#555]">{w.createdAt ? new Date(w.createdAt).toLocaleDateString() : "—"}</td>
                         <td className="p-4 text-[#1a1a1a] font-medium">{amt.toFixed(2)} {w.currency}</td>
-                        <td className="p-4 text-zinc-400 capitalize">{w.provider === "momo" ? "Mobile Money" : w.provider}</td>
+                        <td className="p-4 text-zinc-400 capitalize">{w.provider === "momo" ? t("adminPayouts.history.mobileMoney") : w.provider}</td>
                         <td className="p-4 font-mono text-[10px] text-[#555]">{w.providerReference || "—"}</td>
                         <td className="p-4">
                           <span
@@ -259,7 +261,7 @@ export default function PayoutsPage() {
                           <button
                             onClick={() => handleDeleteWithdrawal(w.withdrawalId)}
                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all cursor-pointer flex items-center justify-center"
-                            title="Delete Log"
+                            title={t("adminPayouts.history.deleteTitle")}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -270,7 +272,7 @@ export default function PayoutsPage() {
                   {withdrawals.length === 0 && (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-[#555]">
-                        No previous withdrawals recorded.
+                        {t("adminPayouts.history.empty")}
                       </td>
                     </tr>
                   )}

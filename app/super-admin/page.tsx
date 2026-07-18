@@ -3,8 +3,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck } from "lucide-react";
 import { api, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 export default function SuperAdminPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [loadingClaims, setLoadingClaims] = useState(true);
@@ -40,10 +42,10 @@ export default function SuperAdminPage() {
 
   // Simulated system logs
   const [systemLogs, setSystemLogs] = useState<string[]>([
-    "[System] Gateway routing initialized successfully.",
-    "[Auth] SUPER_ADMIN account authenticated successfully.",
-    "[Payment] Syncing pending transactions with Stripe webhook listener...",
-    "[System] Kafka brokers are fully operational."
+    t("superAdmin.overview.logGatewayInit"),
+    t("superAdmin.overview.logAuthInit"),
+    t("superAdmin.overview.logPaymentSync"),
+    t("superAdmin.overview.logKafkaOk"),
   ]);
 
   useEffect(() => {
@@ -87,12 +89,12 @@ export default function SuperAdminPage() {
     // 3. Log simulator interval
     const interval = setInterval(() => {
       const msgs = [
-        "[Gateway] Routed request /api/v1/subscriptionplans GET successfully.",
-        "[Database] Connection pool stats: active=3, idle=12, max=20",
-        "[Metrics] Platform CPU usage: 14% | RAM usage: 42%",
-        "[Auth] User login request completed on tenant_db.",
-        "[Payment] Stripe PaymentIntent generated pi_" + Math.random().toString(36).substr(2, 9),
-        "[System] Audit logger successfully appended event to secure log stream."
+        t("superAdmin.overview.logGatewayRouted"),
+        t("superAdmin.overview.logDbStats"),
+        t("superAdmin.overview.logMetrics"),
+        t("superAdmin.overview.logAuthLogin"),
+        t("superAdmin.overview.logPaymentIntent") + Math.random().toString(36).substr(2, 9),
+        t("superAdmin.overview.logAuditLog"),
       ];
       setSystemLogs((prev) => [msgs[Math.floor(Math.random() * msgs.length)], ...prev.slice(0, 10)]);
     }, 8000);
@@ -148,7 +150,7 @@ export default function SuperAdminPage() {
   };
 
   const deletePlan = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this subscription plan?")) return;
+    if (!confirm(t("superAdmin.plans.confirmDelete"))) return;
     try {
       await api.delete(`/api/v1/subscriptionplans/${id}`);
       setPlans((prev) => prev.filter((p) => p.planId !== id));
@@ -206,7 +208,7 @@ export default function SuperAdminPage() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user? This action is permanent!")) return;
+    if (!confirm(t("superAdmin.users.confirmDelete"))) return;
     try {
       await api.delete(`/api/v1/users/${userId}`);
       setUsers((prev) => prev.filter((u) => u.userId !== userId));
@@ -219,7 +221,7 @@ export default function SuperAdminPage() {
     return (
       <div className="min-h-screen bg-[#f9fafb] flex flex-col items-center justify-center text-[#374151]">
         <div className="w-12 h-12 rounded-full border-4 border-[#e5e7eb] border-t-[#EB4203] animate-spin mb-4" />
-        <span className="text-sm font-semibold tracking-wide text-zinc-500">Checking credentials...</span>
+        <span className="text-sm font-semibold tracking-wide text-zinc-500">{t("superAdmin.loading.checkingCredentials")}</span>
       </div>
     );
   }
@@ -252,15 +254,15 @@ export default function SuperAdminPage() {
         <div className="px-6 py-7 border-b border-[#e5e7eb]">
           <div className="font-display text-lg font-black text-white tracking-tight flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-            YowEvent <span className="text-xs bg-zinc-800 text-amber-400 font-normal px-2 py-0.5 rounded">Platform Admin</span>
+            YowEvent <span className="text-xs bg-zinc-800 text-amber-400 font-normal px-2 py-0.5 rounded">{t("superAdmin.sidebar.badge")}</span>
           </div>
         </div>
         <nav className="flex-1 py-5">
           {[
-            { id: "overview", label: "Overview", icon: LayoutDashboard },
-            { id: "plans", label: "Subscription Plans", icon: Layers },
-            { id: "tenants", label: "Tenants Directory", icon: Building },
-            { id: "users", label: "Users Directory", icon: Users },
+            { id: "overview", label: t("superAdmin.sidebar.navOverview"), icon: LayoutDashboard },
+            { id: "plans", label: t("superAdmin.sidebar.navPlans"), icon: Layers },
+            { id: "tenants", label: t("superAdmin.sidebar.navTenants"), icon: Building },
+            { id: "users", label: t("superAdmin.sidebar.navUsers"), icon: Users },
           ].map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
             return (
@@ -268,8 +270,8 @@ export default function SuperAdminPage() {
                 key={id}
                 onClick={() => setActiveTab(id as any)}
                 className={`w-full flex items-center gap-3 px-6 py-3 text-sm transition-all border-none text-left cursor-pointer ${
-                  active 
-                    ? "bg-[#f9fafb] text-[#EB4203] border-r-2 border-[#EB4203] font-semibold" 
+                  active
+                    ? "bg-[#f9fafb] text-[#EB4203] border-r-2 border-[#EB4203] font-semibold"
                     : "text-[#666] hover:bg-stone-50 hover:text-[#1a1a1a]"
                 }`}
               >
@@ -285,12 +287,12 @@ export default function SuperAdminPage() {
               SA
             </div>
             <div>
-              <div className="text-xs font-semibold text-[#1a1a1a]">Super Administrator</div>
-              <div className="text-[9px] text-zinc-500">Platform Level</div>
+              <div className="text-xs font-semibold text-[#1a1a1a]">{t("superAdmin.sidebar.role")}</div>
+              <div className="text-[9px] text-zinc-500">{t("superAdmin.sidebar.roleLevel")}</div>
             </div>
           </div>
           <a href="#" onClick={handleLogout} className="flex items-center gap-3 px-0 py-1 text-xs text-zinc-500 hover:text-[#222] transition-colors">
-            <LogOut size={14} /> Log Out
+            <LogOut size={14} /> {t("superAdmin.sidebar.logout")}
           </a>
         </div>
       </aside>
@@ -299,11 +301,16 @@ export default function SuperAdminPage() {
       <div className="ml-[230px] flex-1 flex flex-col">
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-lg font-bold text-[#EB4203] capitalize">{activeTab} Administration</h1>
+          <h1 className="font-display text-lg font-bold text-[#EB4203] capitalize">
+            {(activeTab === "overview" ? t("superAdmin.sidebar.navOverview")
+              : activeTab === "plans" ? t("superAdmin.sidebar.navPlans")
+              : activeTab === "tenants" ? t("superAdmin.sidebar.navTenants")
+              : t("superAdmin.sidebar.navUsers"))} {t("superAdmin.header.administration")}
+          </h1>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-medium">
               <span className="w-2 h-2 rounded-full bg-green-500" />
-              All Services Live
+              {t("superAdmin.header.allServicesLive")}
             </div>
           </div>
         </header>
@@ -313,7 +320,7 @@ export default function SuperAdminPage() {
           {loadingData ? (
             <div className="h-64 flex flex-col items-center justify-center text-zinc-500">
               <div className="w-8 h-8 rounded-full border-2 border-[#e5e7eb] border-t-[#EB4203] animate-spin mb-3" />
-              <span>Fetching platform data...</span>
+              <span>{t("superAdmin.loading.fetchingPlatformData")}</span>
             </div>
           ) : (
             <>
@@ -323,10 +330,10 @@ export default function SuperAdminPage() {
                   {/* METRIC BOXES */}
                   <div className="grid grid-cols-4 gap-5">
                     {[
-                      { label: "Total Active Tenants", value: tenants.length, desc: "Provisioned Workspaces", icon: Building },
-                      { label: "Active Subscriptions", value: tenants.filter(t => t.planId).length, desc: "Paid + Free Plans", icon: Layers },
-                      { label: "Global Platform Users", value: users.length, desc: "Registered Profiles", icon: Users },
-                      { label: "Monthly Platform Revenue", value: `$${totalRevenue.toFixed(2)}`, desc: "Simulated MRR", icon: ShieldCheck },
+                      { label: t("superAdmin.overview.totalTenants"), value: tenants.length, desc: t("superAdmin.overview.totalTenantsDesc"), icon: Building },
+                      { label: t("superAdmin.overview.activeSubscriptions"), value: tenants.filter(tn => tn.planId).length, desc: t("superAdmin.overview.activeSubscriptionsDesc"), icon: Layers },
+                      { label: t("superAdmin.overview.platformUsers"), value: users.length, desc: t("superAdmin.overview.platformUsersDesc"), icon: Users },
+                      { label: t("superAdmin.overview.monthlyRevenue"), value: `$${totalRevenue.toFixed(2)}`, desc: t("superAdmin.overview.monthlyRevenueDesc"), icon: ShieldCheck },
                     ].map((m) => (
                       <div key={m.label} className="bg-white border border-[#e5e7eb] shadow-sm border border-[#e5e7eb] rounded-2xl p-6">
                         <div className="flex items-start justify-between mb-4">
@@ -343,8 +350,8 @@ export default function SuperAdminPage() {
                     {/* LIVE SIMULATED SYSTEM LOGS */}
                     <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-display font-bold text-[#EB4203] text-sm">Real-time Platform Logs</h3>
-                        <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded font-mono font-bold animate-pulse">LIVE STREAM</span>
+                        <h3 className="font-display font-bold text-[#EB4203] text-sm">{t("superAdmin.overview.logsHeading")}</h3>
+                        <span className="text-[10px] text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded font-mono font-bold animate-pulse">{t("superAdmin.overview.liveStream")}</span>
                       </div>
                       <div className="bg-stone-50 rounded-xl p-4 font-mono text-xs text-zinc-400 h-64 overflow-y-auto space-y-2.5 border border-[#e5e7eb]">
                         {systemLogs.map((log, index) => (
@@ -360,20 +367,20 @@ export default function SuperAdminPage() {
 
                     {/* MICROSERVICES HEALTH */}
                     <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                      <h3 className="font-display font-bold text-[#EB4203] text-sm mb-4">Platform Services Health</h3>
+                      <h3 className="font-display font-bold text-[#EB4203] text-sm mb-4">{t("superAdmin.overview.servicesHealthHeading")}</h3>
                       <div className="space-y-4">
                         {[
-                          { name: "YowEvent Gateway", port: 8080, status: "Healthy" },
-                          { name: "Auth Service", port: 8081, status: "Healthy" },
-                          { name: "Event Service", port: 8082, status: "Healthy" },
-                          { name: "Ticketing Service", port: 8083, status: "Healthy" },
-                          { name: "Payment Service", port: 8084, status: "Healthy" },
-                          { name: "Notification Service", port: 8085, status: "Healthy" }
+                          { name: "YowEvent Gateway", port: 8080, status: t("superAdmin.overview.healthy") },
+                          { name: "Auth Service", port: 8081, status: t("superAdmin.overview.healthy") },
+                          { name: "Event Service", port: 8082, status: t("superAdmin.overview.healthy") },
+                          { name: "Ticketing Service", port: 8083, status: t("superAdmin.overview.healthy") },
+                          { name: "Payment Service", port: 8084, status: t("superAdmin.overview.healthy") },
+                          { name: "Notification Service", port: 8085, status: t("superAdmin.overview.healthy") }
                         ].map((srv) => (
                           <div key={srv.name} className="flex justify-between items-center py-2.5 border-b border-[#e5e7eb]/40 text-xs">
                             <div>
                               <span className="text-[#1a1a1a] font-medium block">{srv.name}</span>
-                              <span className="text-zinc-500 text-[10px]">Port: {srv.port}</span>
+                              <span className="text-zinc-500 text-[10px]">{t("superAdmin.overview.portLabel", { port: srv.port })}</span>
                             </div>
                             <span className="flex items-center gap-1.5 text-xs text-green-400 font-bold bg-green-500/10 px-2.5 py-0.5 rounded-full">
                               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
@@ -391,12 +398,12 @@ export default function SuperAdminPage() {
               {activeTab === "plans" && (
                 <div className="space-y-6">
                   <div className="flex justify-between items-center">
-                    <p className="text-xs text-zinc-500">Configure core product tiers, restrictions, pricing scales, and feature authorizations.</p>
-                    <button 
+                    <p className="text-xs text-zinc-500">{t("superAdmin.plans.description")}</p>
+                    <button
                       onClick={() => setCreatingPlan(true)}
                       className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs rounded-lg flex items-center gap-2 cursor-pointer transition-all"
                     >
-                      <Plus size={14} /> Create Subscription Plan
+                      <Plus size={14} /> {t("superAdmin.plans.createButton")}
                     </button>
                   </div>
 
@@ -405,14 +412,14 @@ export default function SuperAdminPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
-                          <th className="p-4 pl-6">Plan Name</th>
-                          <th className="p-4">Monthly Price</th>
-                          <th className="p-4">Billing Cycle</th>
-                          <th className="p-4 text-center">Max Events</th>
-                          <th className="p-4 text-center">Max Users</th>
-                          <th className="p-4 text-center">Max Attendees</th>
-                          <th className="p-4">Authorized Features</th>
-                          <th className="p-4 pr-6 text-right">Actions</th>
+                          <th className="p-4 pl-6">{t("superAdmin.plans.colPlanName")}</th>
+                          <th className="p-4">{t("superAdmin.plans.colMonthlyPrice")}</th>
+                          <th className="p-4">{t("superAdmin.plans.colBillingCycle")}</th>
+                          <th className="p-4 text-center">{t("superAdmin.plans.colMaxEvents")}</th>
+                          <th className="p-4 text-center">{t("superAdmin.plans.colMaxUsers")}</th>
+                          <th className="p-4 text-center">{t("superAdmin.plans.colMaxAttendees")}</th>
+                          <th className="p-4">{t("superAdmin.plans.colAuthorizedFeatures")}</th>
+                          <th className="p-4 pr-6 text-right">{t("superAdmin.plans.colActions")}</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
@@ -421,22 +428,22 @@ export default function SuperAdminPage() {
                             <td className="p-4 pl-6 font-bold text-[#1a1a1a]">{plan.name}</td>
                             <td className="p-4">${plan.price.toFixed(2)}</td>
                             <td className="p-4"><span className="bg-stone-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-stone-600">{plan.billingCycle}</span></td>
-                            <td className="p-4 text-center">{plan.maxEvents === -1 ? "Unlimited" : plan.maxEvents}</td>
-                            <td className="p-4 text-center">{plan.maxUsers === -1 ? "Unlimited" : plan.maxUsers}</td>
-                            <td className="p-4 text-center">{plan.maxAttendeesPerEvent === -1 ? "Unlimited" : plan.maxAttendeesPerEvent}</td>
+                            <td className="p-4 text-center">{plan.maxEvents === -1 ? t("superAdmin.plans.unlimited") : plan.maxEvents}</td>
+                            <td className="p-4 text-center">{plan.maxUsers === -1 ? t("superAdmin.plans.unlimited") : plan.maxUsers}</td>
+                            <td className="p-4 text-center">{plan.maxAttendeesPerEvent === -1 ? t("superAdmin.plans.unlimited") : plan.maxAttendeesPerEvent}</td>
                             <td className="p-4 truncate max-w-[200px]" title={plan.featuresEnabled}>{plan.featuresEnabled}</td>
                             <td className="p-4 pr-6 text-right space-x-2">
-                              <button 
+                              <button
                                 onClick={() => setEditingPlan(plan)}
                                 className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-[#1a1a1a] rounded transition-colors cursor-pointer"
-                                title="Edit Plan"
+                                title={t("superAdmin.plans.editPlanTitle")}
                               >
                                 <Edit3 size={12} />
                               </button>
-                              <button 
+                              <button
                                 onClick={() => deletePlan(plan.planId)}
                                 className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded transition-colors cursor-pointer"
-                                title="Delete Plan"
+                                title={t("superAdmin.plans.deletePlanTitle")}
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -452,26 +459,26 @@ export default function SuperAdminPage() {
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
                       <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
                         <div>
-                          <h3 className="font-display text-lg font-bold text-[#EB4203]">Create Subscription Plan</h3>
-                          <p className="text-xs text-zinc-500">Configure details for the new pricing tier.</p>
+                          <h3 className="font-display text-lg font-bold text-[#EB4203]">{t("superAdmin.plans.createDialogHeading")}</h3>
+                          <p className="text-xs text-zinc-500">{t("superAdmin.plans.createDialogSubtitle")}</p>
                         </div>
                         <form onSubmit={createPlan} className="space-y-4 text-xs">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Plan Name</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPlanName")}</label>
+                              <input
                                 type="text" required
-                                value={planForm.name} 
+                                value={planForm.name}
                                 onChange={(e) => setPlanForm({...planForm, name: e.target.value})}
                                 placeholder="ENTERPRISE"
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Price ($)</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPrice")}</label>
+                              <input
                                 type="number" required min="0" step="0.01"
-                                value={planForm.price} 
+                                value={planForm.price}
                                 onChange={(e) => setPlanForm({...planForm, price: parseFloat(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
@@ -480,22 +487,22 @@ export default function SuperAdminPage() {
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Billing Cycle</label>
-                              <select 
-                                value={planForm.billingCycle} 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formBillingCycle")}</label>
+                              <select
+                                value={planForm.billingCycle}
                                 onChange={(e) => setPlanForm({...planForm, billingCycle: e.target.value})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               >
-                                <option value="MONTHLY">Monthly</option>
-                                <option value="ANNUALLY">Annually</option>
-                                <option value="NONE">None</option>
+                                <option value="MONTHLY">{t("superAdmin.plans.billingMonthly")}</option>
+                                <option value="ANNUALLY">{t("superAdmin.plans.billingAnnually")}</option>
+                                <option value="NONE">{t("superAdmin.plans.billingNone")}</option>
                               </select>
                             </div>
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max Events (-1=Unlimited)</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxEvents")}</label>
+                              <input
                                 type="number" required min="-1"
-                                value={planForm.maxEvents} 
+                                value={planForm.maxEvents}
                                 onChange={(e) => setPlanForm({...planForm, maxEvents: parseInt(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
@@ -504,19 +511,19 @@ export default function SuperAdminPage() {
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max Users (-1=Unlimited)</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxUsers")}</label>
+                              <input
                                 type="number" required min="-1"
-                                value={planForm.maxUsers} 
+                                value={planForm.maxUsers}
                                 onChange={(e) => setPlanForm({...planForm, maxUsers: parseInt(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max Attendees/Event</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxAttendees")}</label>
+                              <input
                                 type="number" required min="-1"
-                                value={planForm.maxAttendeesPerEvent} 
+                                value={planForm.maxAttendeesPerEvent}
                                 onChange={(e) => setPlanForm({...planForm, maxAttendeesPerEvent: parseInt(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
@@ -524,10 +531,10 @@ export default function SuperAdminPage() {
                           </div>
 
                           <div>
-                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Authorized Features (Comma Separated)</label>
-                            <input 
+                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formAuthorizedFeaturesCreate")}</label>
+                            <input
                               type="text" required
-                              value={planForm.featuresEnabled} 
+                              value={planForm.featuresEnabled}
                               onChange={(e) => setPlanForm({...planForm, featuresEnabled: e.target.value})}
                               placeholder="BASIC_EVENT,TICKET_SALES,ANALYTICS"
                               className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
@@ -535,18 +542,18 @@ export default function SuperAdminPage() {
                           </div>
 
                           <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => setCreatingPlan(false)}
                               className="px-4 py-2 border border-[#e5e7eb] hover:bg-zinc-800 text-[#222] rounded-lg cursor-pointer"
                             >
-                              Cancel
+                              {t("superAdmin.plans.cancel")}
                             </button>
-                            <button 
-                              type="submit" 
+                            <button
+                              type="submit"
                               className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold rounded-lg cursor-pointer"
                             >
-                              Create Plan
+                              {t("superAdmin.plans.createPlanButton")}
                             </button>
                           </div>
                         </form>
@@ -559,25 +566,25 @@ export default function SuperAdminPage() {
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
                       <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
                         <div>
-                          <h3 className="font-display text-lg font-bold text-[#EB4203]">Modify Plan: {editingPlan.name}</h3>
-                          <p className="text-xs text-zinc-500">Edit billing rates and platform limits.</p>
+                          <h3 className="font-display text-lg font-bold text-[#EB4203]">{t("superAdmin.plans.editDialogHeading", { name: editingPlan.name })}</h3>
+                          <p className="text-xs text-zinc-500">{t("superAdmin.plans.editDialogSubtitle")}</p>
                         </div>
                         <form onSubmit={savePlanEdit} className="space-y-4 text-xs">
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Plan Name</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPlanName")}</label>
+                              <input
                                 type="text" required
-                                value={editingPlan.name} 
+                                value={editingPlan.name}
                                 onChange={(e) => setEditingPlan({...editingPlan, name: e.target.value})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Price ($)</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPrice")}</label>
+                              <input
                                 type="number" required min="0" step="0.01"
-                                value={editingPlan.price} 
+                                value={editingPlan.price}
                                 onChange={(e) => setEditingPlan({...editingPlan, price: parseFloat(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
@@ -586,22 +593,22 @@ export default function SuperAdminPage() {
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Billing Cycle</label>
-                              <select 
-                                value={editingPlan.billingCycle} 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formBillingCycle")}</label>
+                              <select
+                                value={editingPlan.billingCycle}
                                 onChange={(e) => setEditingPlan({...editingPlan, billingCycle: e.target.value})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               >
-                                <option value="MONTHLY">Monthly</option>
-                                <option value="ANNUALLY">Annually</option>
-                                <option value="NONE">None</option>
+                                <option value="MONTHLY">{t("superAdmin.plans.billingMonthly")}</option>
+                                <option value="ANNUALLY">{t("superAdmin.plans.billingAnnually")}</option>
+                                <option value="NONE">{t("superAdmin.plans.billingNone")}</option>
                               </select>
                             </div>
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max Events (-1=Unlimited)</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxEvents")}</label>
+                              <input
                                 type="number" required min="-1"
-                                value={editingPlan.maxEvents} 
+                                value={editingPlan.maxEvents}
                                 onChange={(e) => setEditingPlan({...editingPlan, maxEvents: parseInt(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
@@ -610,19 +617,19 @@ export default function SuperAdminPage() {
 
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max Users (-1=Unlimited)</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxUsers")}</label>
+                              <input
                                 type="number" required min="-1"
-                                value={editingPlan.maxUsers} 
+                                value={editingPlan.maxUsers}
                                 onChange={(e) => setEditingPlan({...editingPlan, maxUsers: parseInt(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
                             </div>
                             <div>
-                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max Attendees/Event</label>
-                              <input 
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxAttendees")}</label>
+                              <input
                                 type="number" required min="-1"
-                                value={editingPlan.maxAttendeesPerEvent} 
+                                value={editingPlan.maxAttendeesPerEvent}
                                 onChange={(e) => setEditingPlan({...editingPlan, maxAttendeesPerEvent: parseInt(e.target.value)})}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                               />
@@ -630,28 +637,28 @@ export default function SuperAdminPage() {
                           </div>
 
                           <div>
-                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Authorized Features</label>
-                            <input 
+                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formAuthorizedFeaturesEdit")}</label>
+                            <input
                               type="text" required
-                              value={editingPlan.featuresEnabled} 
+                              value={editingPlan.featuresEnabled}
                               onChange={(e) => setEditingPlan({...editingPlan, featuresEnabled: e.target.value})}
                               className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-white outline-none focus:border-amber-400"
                             />
                           </div>
 
                           <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={() => setEditingPlan(null)}
                               className="px-4 py-2 border border-[#e5e7eb] hover:bg-zinc-800 text-[#222] rounded-lg cursor-pointer"
                             >
-                              Cancel
+                              {t("superAdmin.plans.cancel")}
                             </button>
-                            <button 
-                              type="submit" 
+                            <button
+                              type="submit"
                               className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold rounded-lg cursor-pointer"
                             >
-                              Save Changes
+                              {t("superAdmin.plans.saveChanges")}
                             </button>
                           </div>
                         </form>
@@ -668,14 +675,14 @@ export default function SuperAdminPage() {
                   <div className="flex justify-between items-center gap-4">
                     <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-lg px-3 py-2 w-72 text-xs">
                       <Search size={14} className="text-zinc-500" />
-                      <input 
-                        placeholder="Search tenants by name or slug..." 
+                      <input
+                        placeholder={t("superAdmin.tenants.searchPlaceholder")}
                         value={tenantSearch}
                         onChange={(e) => setTenantSearch(e.target.value)}
                         className="bg-transparent text-white placeholder:text-zinc-600 outline-none w-full"
                       />
                     </div>
-                    <span className="text-xs text-zinc-500">Showing {filteredTenants.length} of {tenants.length} tenants</span>
+                    <span className="text-xs text-zinc-500">{t("superAdmin.tenants.showing", { shown: filteredTenants.length, total: tenants.length })}</span>
                   </div>
 
                   {/* TENANTS TABLE */}
@@ -683,13 +690,13 @@ export default function SuperAdminPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
-                          <th className="p-4 pl-6">Tenant Name</th>
-                          <th className="p-4">Slug</th>
-                          <th className="p-4">Active Plan</th>
-                          <th className="p-4">Account Type</th>
-                          <th className="p-4">Created Date</th>
-                          <th className="p-4">Status</th>
-                          <th className="p-4 pr-6 text-right">Actions</th>
+                          <th className="p-4 pl-6">{t("superAdmin.tenants.colName")}</th>
+                          <th className="p-4">{t("superAdmin.tenants.colSlug")}</th>
+                          <th className="p-4">{t("superAdmin.tenants.colActivePlan")}</th>
+                          <th className="p-4">{t("superAdmin.tenants.colAccountType")}</th>
+                          <th className="p-4">{t("superAdmin.tenants.colCreatedDate")}</th>
+                          <th className="p-4">{t("superAdmin.tenants.colStatus")}</th>
+                          <th className="p-4 pr-6 text-right">{t("superAdmin.tenants.colActions")}</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
@@ -704,7 +711,7 @@ export default function SuperAdminPage() {
                                   planObj?.name === "PREMIUM" ? "bg-amber-400/10 text-amber-400" :
                                   planObj?.name === "BASIC" ? "bg-blue-400/10 text-blue-400" : "bg-zinc-800 text-zinc-400"
                                 }`}>
-                                  {planObj ? planObj.name : "None / Free"}
+                                  {planObj ? planObj.name : t("superAdmin.tenants.noneFree")}
                                 </span>
                               </td>
                               <td className="p-4">{tenant.type}</td>
@@ -724,13 +731,13 @@ export default function SuperAdminPage() {
                                   onClick={() => viewTenantAttendees(tenant)}
                                   className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-[10px] font-semibold transition-colors cursor-pointer"
                                 >
-                                  View Attendees
+                                  {t("superAdmin.tenants.viewAttendees")}
                                 </button>
                                 <button
                                   onClick={() => toggleTenantType(tenant)}
                                   className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-[#1a1a1a] rounded text-[10px] font-semibold transition-colors cursor-pointer"
                                 >
-                                  Toggle to {tenant.type === "ORGANIZATION" ? "Individual" : "Organization"}
+                                  {t("superAdmin.tenants.toggleTo", { type: tenant.type === "ORGANIZATION" ? t("superAdmin.tenants.typeIndividual") : t("superAdmin.tenants.typeOrganization") })}
                                 </button>
                               </td>
                             </tr>
@@ -749,14 +756,14 @@ export default function SuperAdminPage() {
                   <div className="flex justify-between items-center gap-4">
                     <div className="flex items-center gap-2 bg-white border border-[#e5e7eb] rounded-lg px-3 py-2 w-72 text-xs">
                       <Search size={14} className="text-zinc-500" />
-                      <input 
-                        placeholder="Search profiles by name or email..." 
+                      <input
+                        placeholder={t("superAdmin.users.searchPlaceholder")}
                         value={userSearch}
                         onChange={(e) => setUserSearch(e.target.value)}
                         className="bg-transparent text-white placeholder:text-zinc-600 outline-none w-full"
                       />
                     </div>
-                    <span className="text-xs text-zinc-500">Showing {filteredUsers.length} of {users.length} accounts</span>
+                    <span className="text-xs text-zinc-500">{t("superAdmin.users.showing", { shown: filteredUsers.length, total: users.length })}</span>
                   </div>
 
                   {/* USERS TABLE */}
@@ -764,13 +771,13 @@ export default function SuperAdminPage() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
-                          <th className="p-4 pl-6">Profile Name</th>
-                          <th className="p-4">Email Address</th>
-                          <th className="p-4">Associated Workspace ID</th>
-                          <th className="p-4">Verified</th>
-                          <th className="p-4">Created Date</th>
-                          <th className="p-4">Status</th>
-                          <th className="p-4 pr-6 text-right">Actions</th>
+                          <th className="p-4 pl-6">{t("superAdmin.users.colName")}</th>
+                          <th className="p-4">{t("superAdmin.users.colEmail")}</th>
+                          <th className="p-4">{t("superAdmin.users.colWorkspaceId")}</th>
+                          <th className="p-4">{t("superAdmin.users.colVerified")}</th>
+                          <th className="p-4">{t("superAdmin.users.colCreatedDate")}</th>
+                          <th className="p-4">{t("superAdmin.users.colStatus")}</th>
+                          <th className="p-4 pr-6 text-right">{t("superAdmin.users.colActions")}</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
@@ -783,7 +790,7 @@ export default function SuperAdminPage() {
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                                 user.emailVerified ? "bg-green-50 text-green-700 border border-green-100" : "bg-zinc-800 text-zinc-500"
                               }`}>
-                                {user.emailVerified ? "Verified" : "Pending"}
+                                {user.emailVerified ? t("superAdmin.users.verified") : t("superAdmin.users.pending")}
                               </span>
                             </td>
                             <td className="p-4 text-zinc-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</td>
@@ -803,21 +810,21 @@ export default function SuperAdminPage() {
                                   onClick={() => handleUnblockUser(user.userId)}
                                   className="px-2.5 py-1 bg-green-950/40 hover:bg-green-900/60 text-green-450 rounded text-[10px] font-bold transition-colors cursor-pointer border-none"
                                 >
-                                  Unblock
+                                  {t("superAdmin.users.unblock")}
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => handleBlockUser(user.userId)}
                                   className="px-2.5 py-1 bg-amber-950/40 hover:bg-amber-900/60 text-amber-400 rounded text-[10px] font-bold transition-colors cursor-pointer border-none"
                                 >
-                                  Block
+                                  {t("superAdmin.users.block")}
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDeleteUser(user.userId)}
                                 className="px-2.5 py-1 bg-red-955/40 hover:bg-red-900/60 text-red-400 rounded text-[10px] font-bold transition-colors cursor-pointer border-none"
                               >
-                                Delete
+                                {t("superAdmin.users.delete")}
                               </button>
                             </td>
                           </tr>
@@ -839,10 +846,10 @@ export default function SuperAdminPage() {
             <div className="px-8 py-5 border-b border-[#e5e7eb] flex items-center justify-between">
               <div>
                 <h3 className="font-display text-base font-bold text-[#1a1a1a]">
-                  Attendees — {viewingTenant.name}
+                  {t("superAdmin.attendeesModal.heading", { name: viewingTenant.name })}
                 </h3>
                 <p className="text-[11px] text-zinc-500 mt-0.5">
-                  Users registered for events under this tenant
+                  {t("superAdmin.attendeesModal.subtitle")}
                 </p>
               </div>
               <button
@@ -859,19 +866,19 @@ export default function SuperAdminPage() {
                   <div className="w-7 h-7 rounded-full border-2 border-[#e5e7eb] border-t-amber-400 animate-spin" />
                 </div>
               ) : tenantRegistrations.length === 0 ? (
-                <div className="text-center py-16 text-zinc-500 text-sm">No registrations found for this tenant.</div>
+                <div className="text-center py-16 text-zinc-500 text-sm">{t("superAdmin.attendeesModal.empty")}</div>
               ) : (
                 <>
-                  <p className="text-xs text-zinc-500 mb-4">{tenantRegistrations.length} registration{tenantRegistrations.length !== 1 ? "s" : ""} found</p>
+                  <p className="text-xs text-zinc-500 mb-4">{t("superAdmin.attendeesModal.registrationsFound", { count: tenantRegistrations.length, plural: tenantRegistrations.length !== 1 ? "s" : "" })}</p>
                   <div className="bg-[#f9fafb] border border-[#e5e7eb] rounded-2xl overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
-                          <th className="p-3 pl-5">User</th>
-                          <th className="p-3">Email</th>
-                          <th className="p-3">Event ID</th>
-                          <th className="p-3">Registered</th>
-                          <th className="p-3 pr-5">Status</th>
+                          <th className="p-3 pl-5">{t("superAdmin.attendeesModal.colUser")}</th>
+                          <th className="p-3">{t("superAdmin.attendeesModal.colEmail")}</th>
+                          <th className="p-3">{t("superAdmin.attendeesModal.colEventId")}</th>
+                          <th className="p-3">{t("superAdmin.attendeesModal.colRegistered")}</th>
+                          <th className="p-3 pr-5">{t("superAdmin.attendeesModal.colStatus")}</th>
                         </tr>
                       </thead>
                       <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">

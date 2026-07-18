@@ -4,19 +4,41 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
-import { Calendar, MapPin, ArrowRight, Zap, BarChart2, ShieldCheck, Mic2, Globe2, Smartphone } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Zap, BarChart2, ShieldCheck, Mic2, Globe2, Smartphone, Check, X, Minus, Star } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useLanguage } from "@/app/context/LanguageContext";
+
+const trustedOrgs = [
+  "Nairobi Tech Hub", "Kigali Innovation City", "Lagos Creative Week",
+  "Accra Business Forum", "Cape Town Summit Group", "Dakar Startup Circle",
+];
+
+type Flag = true | false | "partial";
+
+const comparisonFlags: { yow: Flag; eventbrite: Flag; eventgate: Flag }[] = [
+  { yow: true, eventbrite: false, eventgate: false },
+  { yow: true, eventbrite: "partial", eventgate: "partial" },
+  { yow: true, eventbrite: "partial", eventgate: "partial" },
+  { yow: true, eventbrite: "partial", eventgate: "partial" },
+  { yow: true, eventbrite: true, eventgate: "partial" },
+  { yow: true, eventbrite: false, eventgate: "partial" },
+  { yow: true, eventbrite: true, eventgate: "partial" },
+  { yow: true, eventbrite: false, eventgate: false },
+];
+
+const featureIcons = [Zap, BarChart2, ShieldCheck, Mic2, Globe2, Smartphone];
 
 export default function LandingPage() {
   const router = useRouter();
+  const { language, t, tl } = useLanguage();
   const [auth, setAuth] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
   const [eventCount, setEventCount] = useState<string>("10K+");
   const [avgRating, setAvgRating] = useState<string>("4.9★");
   const [avgRatingVal, setAvgRatingVal] = useState<number>(5.0);
-  const [organizerText, setOrganizerText] = useState<string>("10,000+ organizers");
+  const [organizerCount, setOrganizerCount] = useState<number | null>(null);
 
   useEffect(() => {
     setAuth(getStoredAuth());
@@ -29,11 +51,11 @@ export default function LandingPage() {
           setEventCount(String(list.length));
           const uniqueTenants = new Set(list.map(e => e.tenantId).filter(Boolean));
           if (uniqueTenants.size > 0) {
-            setOrganizerText(`${uniqueTenants.size.toLocaleString()} organizer${uniqueTenants.size !== 1 ? "s" : ""}`);
+            setOrganizerCount(uniqueTenants.size);
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     eventService.getFeedbacks()
       .then((data: any) => {
@@ -45,10 +67,14 @@ export default function LandingPage() {
           setAvgRatingVal(avg);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const isLoggedIn = mounted && auth !== null;
+
+  const organizersLabel = organizerCount !== null
+    ? t("home.hero.organizersCount", { count: organizerCount.toLocaleString(), plural: organizerCount !== 1 ? "s" : "" })
+    : t("home.hero.organizersDefault");
 
   const mockEvents = [
     { eventId: "e1", title: "Nairobi Tech Summit 2026", description: "Join tech leaders across East Africa discussing microservices, cloud scaling, and AI ecosystems.", startDate: "2026-07-12T09:00:00Z", format: "IN_PERSON", isPaid: true, coverImage: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=600" },
@@ -57,6 +83,12 @@ export default function LandingPage() {
   ];
 
   const displayEvents = featuredEvents.length > 0 ? featuredEvents : mockEvents;
+  const dateLocale = language === "fr" ? "fr-FR" : "en-US";
+
+  const featureItems: { title: string; desc: string }[] = tl("home.features.items");
+  const stepItems: { title: string; desc: string }[] = tl("home.howItWorks.steps");
+  const offlineBullets: string[] = tl("home.offline.bullets");
+  const comparisonLabels: string[] = tl("home.comparison.rows");
 
   return (
     <div className="min-h-screen bg-white text-[#1a1a1a] overflow-x-hidden">
@@ -64,49 +96,80 @@ export default function LandingPage() {
 
       {/* ── HERO ── */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-8 md:px-16 py-24 grid md:grid-cols-2 gap-16 items-center">
+        <div className="relative z-10 w-full max-w-[90rem] mx-auto px-8 md:px-16 py-24 grid md:grid-cols-2 gap-16 items-center">
           <div>
             <div className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs font-semibold text-[#FF4747] mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" />
-              {avgRatingVal.toFixed(1)} Rated · Trusted by {organizerText}
+              {t("home.hero.badge", { rating: avgRatingVal.toFixed(1), organizers: organizersLabel })}
             </div>
-            <h1 className="font-display text-6xl md:text-7xl font-black leading-[1.02] tracking-[-2px] text-[#1a1a1a] mb-6">
-              Events,<br />
-              <span className="text-[#FF4747]">Effortlessly</span><br />
-              Managed
+            <h1 className="font-display text-7xl md:text-8xl font-black leading-[1.02] tracking-[-2px] text-[#1a1a1a] mb-6">
+              {t("home.hero.headlinePart1")}<br />
+              <span className="relative inline-block text-[#FF4747]">
+                {t("home.hero.headlineHighlight")}
+                <svg className="absolute left-0 -bottom-1.5 w-full" height="10" viewBox="0 0 120 10" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M2 7 Q 30 1 60 6 T 118 5" fill="none" stroke="#FF4747" strokeWidth="3" strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1} style={{ animation: "draw-underline 1s ease-out 0.5s forwards" }} />
+                </svg>
+              </span><br />
+              {t("home.hero.headlinePart2")}
             </h1>
-            <p className="text-[#666] text-base leading-relaxed max-w-md mb-10">
-              The all-in-one platform for creating, selling, and managing events across Africa — from intimate workshops to sold-out concerts.
+            <p className="text-[#666] text-lg leading-relaxed max-w-lg mb-10">
+              {t("home.hero.subtitle")}
             </p>
             <div className="flex flex-wrap gap-4">
               <Link href={isLoggedIn ? "/admin" : "/register"}>
-                <button className="px-8 py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-bold hover:bg-[#e03e3e] hover:-translate-y-0.5 transition-all cursor-pointer shadow-lg shadow-[#FF4747]/25 flex items-center gap-2">
-                  {isLoggedIn ? "Go to Dashboard" : "Start for Free"} <ArrowRight size={16} />
+                <button className="px-9 py-4 bg-[#FF4747] text-white rounded-full text-base font-bold hover:bg-[#e03e3e] hover:-translate-y-0.5 transition-all cursor-pointer flex items-center gap-2">
+                  {isLoggedIn ? t("home.hero.ctaPrimaryLoggedIn") : t("home.hero.ctaPrimaryGuest")} <ArrowRight size={18} />
                 </button>
               </Link>
               <Link href="/events">
-                <button className="px-8 py-3.5 bg-white text-[#1a1a1a] border border-[#e5e7eb] rounded-full text-sm font-medium hover:border-[#1a1a1a] hover:-translate-y-0.5 transition-all cursor-pointer shadow-sm">
-                  Browse Events
+                <button className="px-9 py-4 bg-white text-[#1a1a1a] border border-[#e5e7eb] rounded-full text-base font-medium hover:border-[#1a1a1a] hover:-translate-y-0.5 transition-all cursor-pointer">
+                  {t("home.hero.ctaSecondary")}
                 </button>
               </Link>
             </div>
-            <div className="flex gap-10 mt-12 pt-10 border-t border-[#f0f0f0]">
-              {[[eventCount, "Events hosted"], ["99.9%", "Uptime SLA"], [avgRating, "Avg. rating"]].map(([val, label]) => (
-                <div key={label}>
-                  <div className="font-display text-2xl font-bold text-[#1a1a1a]">{val}</div>
-                  <div className="text-xs text-[#999] mt-0.5">{label}</div>
+            <div className="flex items-center gap-10 mt-14">
+              {[[eventCount, t("home.hero.statEventsHosted")], ["99.9%", t("home.hero.statUptime")], [avgRating, t("home.hero.statAvgRating")]].map(([val, label], i) => (
+                <div key={label} className={i > 0 ? "pl-10 border-l border-[#eee]" : ""}>
+                  <div className="font-display text-3xl font-bold text-[#1a1a1a]">{val}</div>
+                  <div className="text-sm text-[#999] mt-0.5">{label}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Hero illustration */}
-          <div className="hidden md:flex justify-center">
+          <div className="hidden md:flex justify-center relative">
+            {/* Soft color glow behind the illustration */}
+            <div className="absolute w-96 h-96 rounded-full bg-gradient-to-br from-[#FF4747]/15 via-[#F7E998]/20 to-transparent blur-3xl" />
+
+            {/* Minimalist motion accents — a little "event spirit" */}
+            <span className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-[#FF4747]/70 animate-[drift_3s_ease-in-out_infinite]" />
+            <span className="absolute bottom-16 -left-6 w-2 h-2 rounded-full bg-[#1a1a1a]/15 animate-[drift_4.2s_ease-in-out_infinite_1s]" />
+            <span className="absolute -bottom-2 right-6 w-16 h-16 rounded-full border-2 border-dashed border-[#FF4747]/25 animate-[spin-slow_16s_linear_infinite]" />
+
             <img
               src="/celebrating-team.png"
               alt="People celebrating at an event"
-              className="w-full max-w-md animate-[float_4s_ease-in-out_infinite]"
+              className="relative z-10 w-full max-w-xl animate-[float_4s_ease-in-out_infinite]"
             />
+
+            {/* Floating live-activity card */}
+            <div className="absolute top-8 -left-8 z-20 bg-white border border-[#f0f0f0] rounded-2xl px-4 py-2.5 flex items-center gap-2 animate-[float_5s_ease-in-out_infinite_0.3s]">
+              <span className="relative flex w-2 h-2">
+                <span className="animate-ping absolute inline-flex w-full h-full rounded-full bg-green-400 opacity-75" />
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-green-500" />
+              </span>
+              <span className="text-xs font-semibold text-[#1a1a1a] whitespace-nowrap">{t("home.hero.liveBadge")}</span>
+            </div>
+
+            {/* Floating rating card */}
+            <div className="absolute bottom-10 -right-6 z-20 bg-white border border-[#f0f0f0] rounded-2xl px-4 py-3 flex items-center gap-2.5 animate-[float_4.5s_ease-in-out_infinite_0.6s]">
+              <Star size={16} className="text-[#F7E998] fill-[#F7E998] shrink-0" />
+              <div>
+                <div className="text-sm font-bold text-[#1a1a1a] leading-none">{avgRating}</div>
+                <div className="text-[10px] text-[#999] mt-0.5 whitespace-nowrap">{t("home.hero.ratingCardLabel")}</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -115,39 +178,74 @@ export default function LandingPage() {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-16px); }
           }
+          @keyframes drift {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.9; }
+            50% { transform: translateY(-10px) scale(1.15); opacity: 1; }
+          }
+          @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes draw-underline {
+            to { stroke-dashoffset: 0; }
+          }
+          @keyframes marquee {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+          }
         `}</style>
       </section>
 
+      {/* ── TRUSTED BY ── */}
+      <section className="px-8 md:px-16 py-14 bg-white border-y border-[#f5f5f5]">
+        <div className="max-w-[90rem] mx-auto">
+          <p className="text-center text-xs font-semibold tracking-[3px] text-[#FF4747] uppercase mb-8">
+            {t("home.trusted.label")}
+          </p>
+          <div className="relative overflow-hidden">
+            <div className="flex gap-16 items-center w-max animate-[marquee_26s_linear_infinite]">
+              {[...trustedOrgs, ...trustedOrgs].map((name, i) => (
+                <span key={i} className="font-display text-2xl font-bold text-[#ccc] tracking-tight whitespace-nowrap hover:text-[#FF4747] transition-colors">
+                  {name}
+                </span>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent" />
+          </div>
+        </div>
+      </section>
+
       {/* ── FEATURED EVENTS ── */}
-      <section className="px-8 md:px-16 py-24 bg-white">
-        <div className="max-w-6xl mx-auto">
+      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+        <div className="max-w-[90rem] mx-auto">
           <div className="flex items-end justify-between flex-wrap gap-4 mb-12">
             <div>
-              <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4 uppercase shadow-md shadow-[#FF4747]/20">Explore</span>
-              <h2 className="font-display text-4xl font-black tracking-tight">Featured Events</h2>
+              <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4 uppercase">{t("home.featured.eyebrow")}</span>
+              <h2 className="font-display text-5xl font-black tracking-tight">{t("home.featured.title")}</h2>
             </div>
             <Link href="/events" className="text-sm font-semibold text-[#FF4747] hover:underline flex items-center gap-1.5">
-              Browse all <ArrowRight size={14} />
+              {t("home.featured.browseAll")} <ArrowRight size={14} />
             </Link>
           </div>
 
           <div className="grid md:grid-cols-3 gap-7">
             {displayEvents.map((ev: any) => (
-              <Link key={ev.eventId} href={`/events/${ev.eventId}`} className="group block bg-white rounded-3xl overflow-hidden border border-[#f0f0f0] hover:border-[#FF4747]/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                <div className="relative h-48 bg-stone-100 overflow-hidden">
+              <Link key={ev.eventId} href={`/events/${ev.eventId}`} className="group block bg-white rounded-3xl overflow-hidden border border-[#f0f0f0] hover:border-[#FF4747]/40 hover:-translate-y-1 transition-all duration-300">
+                <div className="relative h-56 bg-stone-100 overflow-hidden">
                   <img src={ev.coverImage || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=600"} alt={ev.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                   <div className="absolute top-3 left-3 flex gap-2">
-                    <span className="bg-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">{ev.format === "VIRTUAL" ? "Online" : "In Person"}</span>
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${ev.isPaid ? "bg-[#F7E998] text-[#7a6a00]" : "bg-green-100 text-green-700"}`}>{ev.isPaid ? "Paid" : "Free"}</span>
+                    <span className="bg-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide">{ev.format === "VIRTUAL" ? t("home.featured.badgeOnline") : t("home.featured.badgeInPerson")}</span>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${ev.isPaid ? "bg-[#F7E998] text-[#7a6a00]" : "bg-green-100 text-green-700"}`}>{ev.isPaid ? t("home.featured.badgePaid") : t("home.featured.badgeFree")}</span>
                   </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-2 group-hover:text-[#FF4747] transition-colors leading-snug">{ev.title}</h3>
-                  <p className="text-sm text-[#666] line-clamp-2 leading-relaxed mb-5">{ev.description}</p>
-                  <div className="flex items-center gap-2 text-xs text-[#FF4747] font-semibold">
-                    <Calendar size={13} />
-                    {new Date(ev.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                <div className="p-7">
+                  <h3 className="font-display text-xl font-bold text-[#1a1a1a] mb-2 group-hover:text-[#FF4747] transition-colors leading-snug">{ev.title}</h3>
+                  <p className="text-base text-[#666] line-clamp-2 leading-relaxed mb-5">{ev.description}</p>
+                  <div className="flex items-center gap-2 text-sm text-[#FF4747] font-semibold">
+                    <Calendar size={15} />
+                    {new Date(ev.startDate).toLocaleDateString(dateLocale, { month: "short", day: "numeric", year: "numeric" })}
                   </div>
                 </div>
               </Link>
@@ -157,114 +255,133 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section className="px-8 md:px-16 py-24 bg-white">
-        <div className="max-w-6xl mx-auto">
+      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+        <div className="max-w-[90rem] mx-auto">
           <div className="mb-16 max-w-xl">
-            <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">Why YowEvent</span>
-            <h2 className="font-display text-4xl font-black tracking-tight mb-4 leading-snug">Everything you need,<br />nothing you don&apos;t</h2>
-            <p className="text-[#666] text-sm leading-relaxed">A unified platform covering the entire event lifecycle — from creation to ticket sales and analytics — with smart protection built in.</p>
+            <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.features.eyebrow")}</span>
+            <h2 className="font-display text-5xl font-black tracking-tight mb-4 leading-snug">{t("home.features.titleLine1")}<br />{t("home.features.titleLine2")}</h2>
+            <p className="text-[#666] text-base leading-relaxed">{t("home.features.subtitle")}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {[
-              { icon: Zap, title: "Smart Ticketing", desc: "Free and paid tickets, discount coupons, easy attendee lists, and mobile ticket check-in.", accent: "#FF4747" },
-              { icon: BarChart2, title: "Real-Time Analytics", desc: "Live dashboards showing registrations, check-ins, sales revenue and arrivals as they happen.", accent: "#FF4747" },
-              { icon: ShieldCheck, title: "Crowd Control", desc: "Virtual waiting room keeps the site fast and live even during high-demand ticket releases.", accent: "#FF4747" },
-              { icon: Mic2, title: "Guest Engagement", desc: "Live Q&A, audience polls, and direct feedback collection — no extra tools required.", accent: "#FF4747" },
-              { icon: Globe2, title: "Branded Portfolios", desc: "Your own custom webpage with logo, colors, fonts, and a custom web address.", accent: "#FF4747" },
-              { icon: Smartphone, title: "Safe Payments", desc: "MTN MoMo, Orange Money, and card payments — all secured with industry-grade protection.", accent: "#FF4747" },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="group p-7 border border-[#f0f0f0] rounded-2xl hover:border-[#FF4747]/30 hover:shadow-md hover:-translate-y-0.5 transition-all cursor-default bg-white">
-                <div className="w-11 h-11 bg-[#F7E998] rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#FF4747] group-hover:text-white transition-colors">
-                  <Icon size={20} className="text-[#1a1a1a] group-hover:text-white transition-colors" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {featureItems.map((item, i) => {
+              const Icon = featureIcons[i];
+              return (
+                <div key={item.title} className="group p-8 border border-[#f0f0f0] rounded-2xl hover:border-[#FF4747]/30 hover:-translate-y-0.5 transition-all cursor-default bg-white">
+                  <div className="w-14 h-14 bg-[#1a1a1a] rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#FF4747] transition-colors">
+                    <Icon size={24} className="text-white transition-colors" />
+                  </div>
+                  <h3 className="font-display text-lg font-bold mb-2 text-[#1a1a1a]">{item.title}</h3>
+                  <p className="text-base text-[#666] leading-relaxed">{item.desc}</p>
                 </div>
-                <h3 className="font-display text-base font-bold mb-2 text-[#1a1a1a]">{title}</h3>
-                <p className="text-sm text-[#666] leading-relaxed">{desc}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="px-8 md:px-16 py-24 bg-white">
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
-          <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">How It Works</span>
-          <h2 className="font-display text-4xl font-black tracking-tight mb-4">Up and running in minutes</h2>
-          <p className="text-[#666] text-sm max-w-md mx-auto mb-16 leading-relaxed">No sales calls. No setup fees. Sign up and start building your event right away.</p>
+      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+        <div className="relative z-10 max-w-7xl mx-auto text-center">
+          <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.howItWorks.eyebrow")}</span>
+          <h2 className="font-display text-5xl font-black tracking-tight mb-4">{t("home.howItWorks.title")}</h2>
+          <p className="text-[#666] text-base max-w-lg mx-auto mb-16 leading-relaxed">{t("home.howItWorks.subtitle")}</p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 relative">
-            {[
-              ["01", "Create Account", "Sign up free and set up your branded event space in seconds."],
-              ["02", "Build Your Event", "Set schedule, tickets, sessions and agenda using our guided builder."],
-              ["03", "Publish & Invite", "Go live with one click. Share and send invitations to your audience."],
-              ["04", "Analyse & Grow", "Review live analytics, traffic reports and attendee feedback in real time."],
-            ].map(([num, title, desc], i) => (
-              <div key={num} className="relative">
-                {i < 3 && <div className="hidden md:block absolute top-6 left-[calc(50%+24px)] right-[-calc(50%-24px)] h-px bg-[#f5f5f5] z-0" />}
+            {stepItems.map((step, i) => (
+              <div key={step.title} className="relative">
+                {i < 3 && <div className="hidden md:block absolute top-8 left-[calc(50%+32px)] right-[-calc(50%-32px)] h-px bg-[#f5f5f5] z-0" />}
                 <div className="relative z-10 flex flex-col items-center p-6">
-                  <div className="w-12 h-12 bg-[#FF4747] text-white rounded-full flex items-center justify-center font-display font-black text-sm mb-5 shadow-lg shadow-[#FF4747]/20">{num}</div>
-                  <h3 className="font-display text-sm font-bold mb-2 text-[#1a1a1a]">{title}</h3>
-                  <p className="text-xs text-[#666] leading-relaxed text-center">{desc}</p>
+                  <div className="w-16 h-16 bg-[#FF4747] text-white rounded-full flex items-center justify-center font-display font-black text-base mb-5">{String(i + 1).padStart(2, "0")}</div>
+                  <h3 className="font-display text-base font-bold mb-2 text-[#1a1a1a]">{step.title}</h3>
+                  <p className="text-sm text-[#666] leading-relaxed text-center">{step.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
           <Link href="/register" className="inline-block mt-10">
-            <button className="px-8 py-3.5 bg-[#1a1a1a] text-white rounded-full text-sm font-semibold hover:bg-[#333] transition-all cursor-pointer flex items-center gap-2 mx-auto">
-              Get started free <ArrowRight size={15} />
+            <button className="px-9 py-4 bg-[#1a1a1a] text-white rounded-full text-base font-semibold hover:bg-[#333] transition-all cursor-pointer flex items-center gap-2 mx-auto">
+              {t("home.howItWorks.cta")} <ArrowRight size={17} />
             </button>
           </Link>
         </div>
       </section>
 
       {/* ── OFFLINE PROMO ── */}
-      <section className="px-8 md:px-16 py-24 bg-white">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-14 items-center">
+      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+        <div className="max-w-[90rem] mx-auto grid md:grid-cols-2 gap-14 items-center">
           <div>
             <div className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-3 py-1 text-xs font-semibold text-[#FF4747] mb-7">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" /> Offline Mode Active
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" /> {t("home.offline.pillLabel")}
             </div>
-            <h2 className="font-display text-4xl font-black tracking-tight mb-5 leading-tight text-[#1a1a1a]">
-              No internet? <br /><span className="text-[#FF4747]">Keep scanning.</span>
+            <h2 className="font-display text-5xl font-black tracking-tight mb-5 leading-tight text-[#1a1a1a]">
+              {t("home.offline.titleLine1")} <br /><span className="text-[#FF4747]">{t("home.offline.titleHighlight")}</span>
             </h2>
-            <p className="text-[#666] text-sm leading-relaxed mb-8">
-              YowEvent is built to work offline. All guest lists and ticket data are saved locally so you can check in attendees in remote venues with zero Wi-Fi or cell service.
+            <p className="text-[#666] text-base leading-relaxed mb-8">
+              {t("home.offline.desc")}
             </p>
-            <ul className="space-y-3 text-sm text-[#444]">
-              {["Automatic sync when internet returns", "Scan & verify tickets offline instantly", "Search guest lists without page reloads"].map(item => (
+            <ul className="space-y-3.5 text-base text-[#444]">
+              {offlineBullets.map(item => (
                 <li key={item} className="flex items-center gap-3">
-                  <span className="w-5 h-5 rounded-full bg-[#FF4747]/10 flex items-center justify-center text-[#FF4747] text-xs font-bold shrink-0">✓</span>
+                  <span className="w-6 h-6 rounded-full bg-[#FF4747]/10 flex items-center justify-center text-[#FF4747] text-sm font-bold shrink-0">✓</span>
                   {item}
                 </li>
               ))}
             </ul>
             <Link href="/register" className="inline-block mt-8">
-              <button className="px-7 py-3 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all cursor-pointer">
-                Start for Free
+              <button className="px-8 py-3.5 bg-[#FF4747] text-white rounded-full text-base font-semibold hover:bg-[#e03e3e] transition-all cursor-pointer">
+                {t("home.offline.cta")}
               </button>
             </Link>
           </div>
 
-          {/* Contained dark "device" mockup — intentional product-screenshot styling, not a full dark section */}
-          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-3xl p-7 shadow-xl shadow-black/10 font-mono text-xs">
-            <div className="flex items-center gap-2 mb-5">
-              <span className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="w-3 h-3 rounded-full bg-yellow-500" />
-              <span className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="ml-2 text-[#555] uppercase tracking-widest text-[9px]">Offline Console</span>
-            </div>
-            <div className="space-y-2">
-              <p className="text-[#555]">// Loading ticket scanner...</p>
-              <p className="text-white">Scanner ready: <span className="text-green-400">Active</span></p>
-              <p className="text-white">Ticket list: <span className="text-[#F7E998]">Saved to device</span></p>
-              <p className="text-green-400">✓ 240 guest tickets synced</p>
-              <p className="text-[#555]">// Status: OFFLINE MODE</p>
-              <p className="text-[#FF4747]">→ Ticket verified in 0.01s</p>
-              <p className="text-amber-400">ℹ Check-ins queued. Will sync on reconnect.</p>
-            </div>
+          {/* No-connectivity visual — large WiFi-off mark, minimal and clean */}
+          <div className="relative flex items-center justify-center py-8">
+            <div className="absolute w-full max-w-[42rem] aspect-square rounded-full bg-gradient-to-br from-[#FF4747]/10 via-[#F7E998]/15 to-transparent blur-3xl" />
+            <img
+              src="/nowifi.png"
+              alt="No WiFi connection"
+              className="relative w-full max-w-[36rem] h-auto object-contain animate-[float_4s_ease-in-out_infinite]"
+            />
           </div>
+        </div>
+      </section>
+
+      {/* ── COMPARISON ── */}
+      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.comparison.eyebrow")}</span>
+            <h2 className="font-display text-5xl font-black tracking-tight mb-4">{t("home.comparison.title")}</h2>
+            <p className="text-[#666] text-base max-w-lg mx-auto leading-relaxed">{t("home.comparison.subtitle")}</p>
+          </div>
+
+          <div className="border border-[#f0f0f0] rounded-3xl overflow-x-auto">
+            <table className="w-full border-collapse text-base min-w-[600px]">
+              <thead>
+                <tr className="bg-[#faf9f7]">
+                  <th className="text-left font-semibold text-[#1a1a1a] px-7 py-5">{t("home.comparison.colFeature")}</th>
+                  <th className="px-5 py-5 text-[#FF4747] font-display font-bold">{t("home.comparison.colYow")}</th>
+                  <th className="px-5 py-5 text-[#999] font-medium">{t("home.comparison.colEventbrite")}</th>
+                  <th className="px-5 py-5 text-[#999] font-medium">{t("home.comparison.colEventgate")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisonFlags.map((flags, i) => (
+                  <tr key={comparisonLabels[i]} className={i % 2 === 0 ? "bg-white" : "bg-[#faf9f7]/60"}>
+                    <td className="px-7 py-5 text-[#444] border-t border-[#f0f0f0]">{comparisonLabels[i]}</td>
+                    <td className="px-5 py-5 text-center border-t border-[#f0f0f0]">{renderComparisonCell(flags.yow)}</td>
+                    <td className="px-5 py-5 text-center border-t border-[#f0f0f0]">{renderComparisonCell(flags.eventbrite)}</td>
+                    <td className="px-5 py-5 text-center border-t border-[#f0f0f0]">{renderComparisonCell(flags.eventgate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-[#aaa] mt-4 text-center leading-relaxed">
+            {t("home.comparison.footnote")}
+          </p>
         </div>
       </section>
 
@@ -273,19 +390,19 @@ export default function LandingPage() {
 
       {/* ── CTA ── */}
       <section className="px-8 md:px-16 py-24 bg-[#FF4747] text-white text-center">
-        <h2 className="font-display text-5xl font-black mb-4 tracking-tight">Ready to run better events?</h2>
-        <p className="text-white/80 text-sm max-w-md mx-auto mb-10 leading-relaxed">
-          Join thousands of organisers who trust YowEvent to manage every detail — from first ticket to final report.
+        <h2 className="font-display text-6xl font-black mb-4 tracking-tight">{t("home.cta.title")}</h2>
+        <p className="text-white/80 text-lg max-w-lg mx-auto mb-10 leading-relaxed">
+          {t("home.cta.subtitle")}
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
           <Link href={isLoggedIn ? "/admin" : "/register"}>
-            <button className="px-10 py-4 bg-white text-[#FF4747] rounded-full text-sm font-bold hover:-translate-y-0.5 transition-all cursor-pointer shadow-xl">
-              {isLoggedIn ? "Go to Dashboard" : "Get Started for Free"}
+            <button className="px-11 py-4.5 bg-white text-[#FF4747] rounded-full text-base font-bold hover:-translate-y-0.5 transition-all cursor-pointer">
+              {isLoggedIn ? t("home.cta.primaryLoggedIn") : t("home.cta.primaryGuest")}
             </button>
           </Link>
           <Link href="/pricing">
-            <button className="px-10 py-4 bg-white/20 backdrop-blur text-white border border-white/30 rounded-full text-sm font-semibold hover:bg-white/30 transition-all cursor-pointer">
-              View Pricing
+            <button className="px-11 py-4.5 bg-white/20 backdrop-blur text-white border border-white/30 rounded-full text-base font-semibold hover:bg-white/30 transition-all cursor-pointer">
+              {t("home.cta.secondary")}
             </button>
           </Link>
         </div>
@@ -296,33 +413,37 @@ export default function LandingPage() {
   );
 }
 
+function renderComparisonCell(value: true | false | "partial") {
+  if (value === true) return <Check size={19} strokeWidth={2.5} className="text-green-600 mx-auto" />;
+  if (value === "partial") return <Minus size={19} strokeWidth={2.5} className="text-amber-500 mx-auto" />;
+  return <X size={19} strokeWidth={2.5} className="text-[#ccc] mx-auto" />;
+}
+
 function FaqSection() {
+  const { t, tl } = useLanguage();
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  const faqs = [
-    { q: "How do ticket sales and payouts work?", a: "You can create both free and paid tickets. Guests pay via MTN MoMo, Orange Money, or card. Payouts are transferred directly to your bank or mobile money wallet." },
-    { q: "Can I use my own custom domain?", a: "Yes! Premium account owners can connect their own domain (like events.mycompany.com) in the website settings to give event pages a fully branded feel." },
-    { q: "How does the crowd control waiting room work?", a: "When too many people rush for tickets at once, our smart queuing system puts buyers in a fair virtual line — protecting the site from crashes and ensuring everyone gets a chance." },
-    { q: "Does YowEvent work without internet?", a: "Yes! All attendee information is saved locally on your device so you can scan tickets and run check-ins in remote venues with zero connectivity." },
-  ];
+  const faqs: { q: string; a: string }[] = tl("home.faq.items");
 
   return (
-    <section className="px-8 md:px-16 py-24 bg-white">
-      <div className="max-w-3xl mx-auto">
+    <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+      <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
-          <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase shadow-md shadow-[#FF4747]/20">FAQ</span>
-          <h2 className="font-display text-4xl font-black tracking-tight">Common questions</h2>
+          <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.faq.eyebrow")}</span>
+          <h2 className="font-display text-5xl font-black tracking-tight">{t("home.faq.title")}</h2>
+
+
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3.5">
           {faqs.map((faq, i) => (
             <div key={i} className="border border-[#f0f0f0] rounded-2xl overflow-hidden">
               <button onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                className="w-full px-6 py-5 flex items-center justify-between text-left font-semibold text-sm text-[#1a1a1a] hover:bg-white transition-colors cursor-pointer">
+                className="w-full px-7 py-6 flex items-center justify-between text-left font-semibold text-base text-[#1a1a1a] hover:bg-white transition-colors cursor-pointer">
                 <span>{faq.q}</span>
-                <span className={`text-xl font-bold transition-colors ${openIndex === i ? "text-[#FF4747]" : "text-[#bbb]"}`}>{openIndex === i ? "−" : "+"}</span>
+                <span className={`text-2xl font-bold transition-colors ${openIndex === i ? "text-[#FF4747]" : "text-[#bbb]"}`}>{openIndex === i ? "−" : "+"}</span>
               </button>
               {openIndex === i && (
-                <div className="px-6 pb-5 pt-2 text-sm text-[#666] leading-relaxed border-t border-[#f0f0f0] bg-white">{faq.a}</div>
+                <div className="px-7 pb-6 pt-2 text-base text-[#666] leading-relaxed border-t border-[#f0f0f0] bg-white">{faq.a}</div>
               )}
             </div>
           ))}

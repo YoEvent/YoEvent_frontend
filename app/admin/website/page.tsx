@@ -5,8 +5,10 @@ import { Upload, Save, Globe, Link2, Mail, Building, Layout, Palette, Plus, Tras
 import { getStoredAuth } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 export default function WebsitePage() {
+  const { t } = useLanguage();
   const [tenant, setTenant] = useState<any>(null);
   const [brandingLoading, setBrandingLoading] = useState<"logo" | "banner" | null>(null);
   const [brandingMsg, setBrandingMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -106,9 +108,9 @@ export default function WebsitePage() {
         : await authService.uploadTenantBanner(auth.tenantId, file);
       const url = res?.url || res?.logoUrl || res?.bannerUrl || Object.values(res || {})[0] as string;
       setTenant((prev: any) => ({ ...prev, [type === "logo" ? "logo" : "bannerUrl"]: url }));
-      setBrandingMsg({ type: "success", text: `${type === "logo" ? "Logo" : "Banner"} uploaded successfully. Click 'Save Changes' to commit.` });
+      setBrandingMsg({ type: "success", text: type === "logo" ? t("adminWebsite.messages.logoUploaded") : t("adminWebsite.messages.bannerUploaded") });
     } catch {
-      setBrandingMsg({ type: "error", text: `Failed to upload ${type}. Please try again.` });
+      setBrandingMsg({ type: "error", text: type === "logo" ? t("adminWebsite.messages.logoUploadFailed") : t("adminWebsite.messages.bannerUploadFailed") });
     } finally {
       setBrandingLoading(null);
     }
@@ -149,10 +151,10 @@ export default function WebsitePage() {
           faqsJson: updated.faqsJson || "[]",
         });
       }
-      setBrandingMsg({ type: "success", text: "Customization settings saved successfully!" });
+      setBrandingMsg({ type: "success", text: t("adminWebsite.messages.saveSuccess") });
     } catch (err) {
       console.error(err);
-      setBrandingMsg({ type: "error", text: "Failed to save customization settings. Ensure slug/subdomain is unique." });
+      setBrandingMsg({ type: "error", text: t("adminWebsite.messages.saveFailed") });
     } finally {
       setSaving(false);
     }
@@ -168,14 +170,14 @@ export default function WebsitePage() {
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Event Customization</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminWebsite.header.title")}</h1>
           <button
             onClick={handleSaveSettings}
             disabled={saving}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
           >
             <Save size={14} />
-            {saving ? "Saving..." : "Save Changes"}
+            {saving ? t("adminWebsite.header.saving") : t("adminWebsite.header.save")}
           </button>
         </header>
 
@@ -195,15 +197,15 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-2">
                   <Building size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Organization Profile</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.orgProfile.title")}</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">Organization Name</label>
+                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.orgProfile.nameLabel")}</label>
                     <input
                       type="text"
-                      placeholder="e.g., YowEvent Inc."
+                      placeholder={t("adminWebsite.orgProfile.namePlaceholder")}
                       value={form.name}
                       onChange={e => setForm({ ...form, name: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -212,10 +214,10 @@ export default function WebsitePage() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">Industry / Field</label>
+                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.orgProfile.industryLabel")}</label>
                     <input
                       type="text"
-                      placeholder="e.g., Technology, Music, Education"
+                      placeholder={t("adminWebsite.orgProfile.industryPlaceholder")}
                       value={form.industryType}
                       onChange={e => setForm({ ...form, industryType: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -225,22 +227,22 @@ export default function WebsitePage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">Organizer Type</label>
+                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.orgProfile.typeLabel")}</label>
                     <select
                       value={form.type}
                       onChange={e => setForm({ ...form, type: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#EB4203] transition-colors"
                     >
-                      <option value="INDIVIDUAL">Individual Planner</option>
-                      <option value="ORGANIZATION">Company / Organization</option>
+                      <option value="INDIVIDUAL">{t("adminWebsite.orgProfile.typeIndividual")}</option>
+                      <option value="ORGANIZATION">{t("adminWebsite.orgProfile.typeOrganization")}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">Contact Support Email</label>
+                    <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.orgProfile.contactEmailLabel")}</label>
                     <input
                       type="email"
-                      placeholder="support@organization.com"
+                      placeholder={t("adminWebsite.orgProfile.contactEmailPlaceholder")}
                       value={form.contactEmail}
                       onChange={e => setForm({ ...form, contactEmail: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -249,10 +251,10 @@ export default function WebsitePage() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">Organizer Biography / Description</label>
+                  <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.orgProfile.descriptionLabel")}</label>
                   <textarea
                     rows={4}
-                    placeholder="Describe your organization, values, and past events to build attendee trust."
+                    placeholder={t("adminWebsite.orgProfile.descriptionPlaceholder")}
                     value={form.description}
                     onChange={e => setForm({ ...form, description: e.target.value })}
                     className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors resize-none"
@@ -264,17 +266,17 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-2">
                   <Globe size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Social & Online Presence</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.social.title")}</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="flex items-center gap-1.5 text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">
-                      <Globe size={12} className="text-blue-500" /> Official Website
+                      <Globe size={12} className="text-blue-500" /> {t("adminWebsite.social.websiteLabel")}
                     </label>
                     <input
                       type="url"
-                      placeholder="https://yourwebsite.com"
+                      placeholder={t("adminWebsite.social.websitePlaceholder")}
                       value={form.websiteUrl}
                       onChange={e => setForm({ ...form, websiteUrl: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -283,11 +285,11 @@ export default function WebsitePage() {
 
                   <div>
                     <label className="flex items-center gap-1.5 text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">
-                      <Link2 size={12} className="text-[#555]" /> X (formerly Twitter)
+                      <Link2 size={12} className="text-[#555]" /> {t("adminWebsite.social.twitterLabel")}
                     </label>
                     <input
                       type="url"
-                      placeholder="https://x.com/profile"
+                      placeholder={t("adminWebsite.social.twitterPlaceholder")}
                       value={form.twitterUrl}
                       onChange={e => setForm({ ...form, twitterUrl: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -298,11 +300,11 @@ export default function WebsitePage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="flex items-center gap-1.5 text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">
-                      <Link2 size={12} className="text-[#0a66c2]" /> LinkedIn
+                      <Link2 size={12} className="text-[#0a66c2]" /> {t("adminWebsite.social.linkedinLabel")}
                     </label>
                     <input
                       type="url"
-                      placeholder="https://linkedin.com/company/profile"
+                      placeholder={t("adminWebsite.social.linkedinPlaceholder")}
                       value={form.linkedinUrl}
                       onChange={e => setForm({ ...form, linkedinUrl: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -311,11 +313,11 @@ export default function WebsitePage() {
 
                   <div>
                     <label className="flex items-center gap-1.5 text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">
-                      <Link2 size={12} className="text-[#1877f2]" /> Facebook
+                      <Link2 size={12} className="text-[#1877f2]" /> {t("adminWebsite.social.facebookLabel")}
                     </label>
                     <input
                       type="url"
-                      placeholder="https://facebook.com/page"
+                      placeholder={t("adminWebsite.social.facebookPlaceholder")}
                       value={form.facebookUrl}
                       onChange={e => setForm({ ...form, facebookUrl: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -324,11 +326,11 @@ export default function WebsitePage() {
 
                   <div>
                     <label className="flex items-center gap-1.5 text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">
-                      <Link2 size={12} className="text-[#e1306c]" /> Instagram
+                      <Link2 size={12} className="text-[#e1306c]" /> {t("adminWebsite.social.instagramLabel")}
                     </label>
                     <input
                       type="url"
-                      placeholder="https://instagram.com/handle"
+                      placeholder={t("adminWebsite.social.instagramPlaceholder")}
                       value={form.instagramUrl}
                       onChange={e => setForm({ ...form, instagramUrl: e.target.value })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -341,7 +343,7 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-2">
                   <HelpCircle size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Frequently Asked Questions (FAQ)</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.faq.title")}</h2>
                 </div>
 
                 {/* List of current FAQs */}
@@ -349,8 +351,8 @@ export default function WebsitePage() {
                   {faqList.map((faq, index) => (
                     <div key={index} className="p-3 bg-gray-50 rounded-xl border border-[#e5e7eb] flex items-start justify-between gap-4">
                       <div className="text-xs space-y-1">
-                        <p className="font-bold text-[#1a1a1a]">Q: {faq.q}</p>
-                        <p className="text-[#555]">A: {faq.a}</p>
+                        <p className="font-bold text-[#1a1a1a]">{t("adminWebsite.faq.qPrefix")} {faq.q}</p>
+                        <p className="text-[#555]">{t("adminWebsite.faq.aPrefix")} {faq.a}</p>
                       </div>
                       <button
                         type="button"
@@ -365,27 +367,27 @@ export default function WebsitePage() {
                     </div>
                   ))}
                   {faqList.length === 0 && (
-                    <p className="text-xs text-[#888] italic text-center py-2">No FAQs added yet. Add some below.</p>
+                    <p className="text-xs text-[#888] italic text-center py-2">{t("adminWebsite.faq.empty")}</p>
                   )}
                 </div>
 
                 {/* Add new FAQ inputs */}
                 <div className="pt-4 border-t border-[#f3f4f6] space-y-3">
                   <div>
-                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">New Question</label>
+                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.faq.newQuestionLabel")}</label>
                     <input
                       type="text"
-                      placeholder="e.g. Can I get a refund?"
+                      placeholder={t("adminWebsite.faq.newQuestionPlaceholder")}
                       value={newQ}
                       onChange={e => setNewQ(e.target.value)}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
                     />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">New Answer</label>
+                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.faq.newAnswerLabel")}</label>
                     <textarea
                       rows={2}
-                      placeholder="e.g. Yes, up to 7 days before the event."
+                      placeholder={t("adminWebsite.faq.newAnswerPlaceholder")}
                       value={newA}
                       onChange={e => setNewA(e.target.value)}
                       className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors resize-none"
@@ -401,7 +403,7 @@ export default function WebsitePage() {
                     }}
                     className="w-full py-2 bg-gray-100 hover:bg-[#EB4203]/10 text-gray-700 hover:text-[#EB4203] text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Plus size={14} /> Add FAQ Item
+                    <Plus size={14} /> {t("adminWebsite.faq.addButton")}
                   </button>
                 </div>
               </div>
@@ -415,12 +417,12 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-5">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-1">
                   <Layout size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Brand Media Assets</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.brandAssets.title")}</h2>
                 </div>
 
                 {/* LOGO */}
                 <div>
-                  <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Organizer Logo</p>
+                  <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">{t("adminWebsite.brandAssets.logoLabel")}</p>
                   <label className="flex flex-col items-center justify-center border border-[#e5e7eb] hover:border-[#EB4203] rounded-xl p-4 cursor-pointer transition-colors group bg-[#fdfdfd]">
                     {tenant?.logo ? (
                       <img src={tenant.logo} alt="Logo" className="h-14 max-w-[140px] object-contain rounded-lg mb-2" />
@@ -430,7 +432,7 @@ export default function WebsitePage() {
                       </div>
                     )}
                     <span className="text-[10px] text-[#555] group-hover:text-[#EB4203] transition-colors font-medium">
-                      {brandingLoading === "logo" ? "Uploading…" : tenant?.logo ? "Replace logo" : "Upload logo"}
+                      {brandingLoading === "logo" ? t("adminWebsite.brandAssets.logoUploading") : tenant?.logo ? t("adminWebsite.brandAssets.logoReplace") : t("adminWebsite.brandAssets.logoUpload")}
                     </span>
                     <input type="file" accept="image/*" className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingUpload("logo", f); }} />
@@ -439,7 +441,7 @@ export default function WebsitePage() {
 
                 {/* BANNER */}
                 <div>
-                  <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">Public Banner (Hero Image)</p>
+                  <p className="text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-2">{t("adminWebsite.brandAssets.bannerLabel")}</p>
                   <label className="flex flex-col items-center justify-center border border-[#e5e7eb] hover:border-[#EB4203] rounded-xl p-4 cursor-pointer transition-colors group bg-[#fdfdfd] overflow-hidden">
                     {tenant?.bannerUrl ? (
                       <img src={tenant.bannerUrl} alt="Banner" className="w-full h-16 object-cover rounded-lg mb-2" />
@@ -449,7 +451,7 @@ export default function WebsitePage() {
                       </div>
                     )}
                     <span className="text-[10px] text-[#555] group-hover:text-[#EB4203] transition-colors font-medium font-display">
-                      {brandingLoading === "banner" ? "Uploading…" : tenant?.bannerUrl ? "Replace banner" : "Upload banner"}
+                      {brandingLoading === "banner" ? t("adminWebsite.brandAssets.bannerUploading") : tenant?.bannerUrl ? t("adminWebsite.brandAssets.bannerReplace") : t("adminWebsite.brandAssets.bannerUpload")}
                     </span>
                     <input type="file" accept="image/*" className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingUpload("banner", f); }} />
@@ -461,12 +463,12 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-1">
                   <Palette size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Color Customization</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.colors.title")}</h2>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                   <div className="flex flex-col items-center p-2.5 border border-[#e5e7eb] rounded-xl bg-gray-50">
-                    <label className="text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1">Primary</label>
+                    <label className="text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1">{t("adminWebsite.colors.primary")}</label>
                     <input
                       type="color"
                       value={form.primaryColor}
@@ -476,7 +478,7 @@ export default function WebsitePage() {
                   </div>
 
                   <div className="flex flex-col items-center p-2.5 border border-[#e5e7eb] rounded-xl bg-gray-50">
-                    <label className="text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1">Secondary</label>
+                    <label className="text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1">{t("adminWebsite.colors.secondary")}</label>
                     <input
                       type="color"
                       value={form.secondaryColor}
@@ -486,7 +488,7 @@ export default function WebsitePage() {
                   </div>
 
                   <div className="flex flex-col items-center p-2.5 border border-[#e5e7eb] rounded-xl bg-gray-50">
-                    <label className="text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1">Accent</label>
+                    <label className="text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1">{t("adminWebsite.colors.accent")}</label>
                     <input
                       type="color"
                       value={form.accentColor}
@@ -501,15 +503,15 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-1">
                   <Globe size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Subdomain Settings</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.subdomain.title")}</h2>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">yowEvent Subdomain Slug</label>
+                  <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.subdomain.label")}</label>
                   <div className="flex items-center">
                     <input
                       type="text"
-                      placeholder="mysubdomain"
+                      placeholder={t("adminWebsite.subdomain.placeholder")}
                       value={form.slug}
                       onChange={e => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, "") })}
                       className="w-full bg-white border border-[#e5e7eb] rounded-l-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
@@ -520,7 +522,7 @@ export default function WebsitePage() {
                     </span>
                   </div>
                   <p className="text-[10px] text-[#888] mt-1.5 leading-relaxed">
-                    This sets your direct portal URL (e.g., <span className="font-semibold">http://{form.slug || "yours"}.yowevent.com</span>) to view events.
+                    {t("adminWebsite.subdomain.helpText", { slug: form.slug || "yours" })}
                   </p>
                 </div>
               </div>
@@ -529,12 +531,12 @@ export default function WebsitePage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 border-b border-[#f3f4f6] pb-3 mb-1">
                   <BarChart3 size={16} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Organizer Statistics</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminWebsite.stats.title")}</h2>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">Attendees</label>
+                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.stats.attendees")}</label>
                     <input
                       type="number"
                       value={form.attendeeCountStat}
@@ -543,7 +545,7 @@ export default function WebsitePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">Events</label>
+                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.stats.events")}</label>
                     <input
                       type="number"
                       value={form.eventCountStat}
@@ -552,7 +554,7 @@ export default function WebsitePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">Partners</label>
+                    <label className="block text-[9px] font-bold text-[#666] uppercase tracking-wider mb-1.5">{t("adminWebsite.stats.partners")}</label>
                     <input
                       type="number"
                       value={form.partnerCountStat}

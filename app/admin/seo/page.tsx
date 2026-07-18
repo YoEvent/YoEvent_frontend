@@ -5,6 +5,7 @@ import { Settings, Globe, Shield, RefreshCw, Lock, Sparkles, ExternalLink, Check
 import { api, getStoredAuth, clearStoredAuth } from "@/app/utils/api";
 import { useRouter } from "next/navigation";
 import { authService } from "@/app/utils/services/authService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const FONT_OPTIONS = [
   { value: "Inter", label: "Inter (Default)" },
@@ -26,6 +27,7 @@ function PlanBadge({ required }: { required: "BASIC" | "PREMIUM" }) {
 
 export default function SeoPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [settingsId, setSettingsId] = useState<string>("");
   const [planTier, setPlanTier] = useState<string>("FREE");
 
@@ -124,9 +126,9 @@ export default function SeoPage() {
       const res: any = await authService.uploadTenantLogo(auth.tenantId, file);
       const newLogo = res.logoUrl || res.url || res.logo || (typeof res === "string" ? res : "");
       setTenant((prev: any) => ({ ...prev, logo: newLogo }));
-      setLogoMsg({ type: "success", text: "Logo uploaded successfully!" });
+      setLogoMsg({ type: "success", text: t("adminSeo.toast.logoUploaded") });
     } catch (err: any) {
-      setLogoMsg({ type: "error", text: err.message || "Failed to upload logo" });
+      setLogoMsg({ type: "error", text: err.message || t("adminSeo.toast.logoUploadFailed") });
     }
   };
 
@@ -146,13 +148,13 @@ export default function SeoPage() {
     try {
       const result = await authService.stripeConnect(auth.tenantId);
       if (result.mode === "mock") {
-        showToast("success", "Mock mode: Stripe account created. Set STRIPE_API_KEY to go live.");
+        showToast("success", t("adminSeo.toast.stripeMockCreated"));
         loadStripeStatus();
       } else if (result.onboardingUrl) {
         window.location.href = result.onboardingUrl;
       }
     } catch (err: any) {
-      showToast("error", err.message || "Failed to connect Stripe account");
+      showToast("error", err.message || t("adminSeo.toast.stripeConnectFailed"));
     } finally {
       setStripeConnecting(false);
     }
@@ -166,10 +168,10 @@ export default function SeoPage() {
       const params = new URLSearchParams(window.location.search);
       const ret = params.get("stripe_return");
       if (ret === "success" || ret === "mock_success") {
-        showToast("success", "Stripe onboarding complete! Checking account status…");
+        showToast("success", t("adminSeo.toast.stripeOnboardingComplete"));
         setTimeout(loadStripeStatus, 1500);
       } else if (ret === "refresh") {
-        showToast("error", "Stripe onboarding link expired. Please connect again.");
+        showToast("error", t("adminSeo.toast.stripeLinkExpired"));
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -205,23 +207,23 @@ export default function SeoPage() {
       if (tenant) {
         await authService.updateTenant(auth.tenantId, { ...tenant, ...tenantForm });
       }
-      showToast("success", "Settings saved successfully!");
+      showToast("success", t("adminSeo.toast.settingsSaved"));
     } catch (err: any) {
-      showToast("error", err.message || "Failed to save settings");
+      showToast("error", err.message || t("adminSeo.toast.settingsSaveFailed"));
     }
   };
 
   const handleDowngradeToIndividual = async () => {
-    if (!confirm("⚠️ WARNING: Downgrading to an individual profile will delete your tenant workspace, branding settings, and remove your organizer status. This action is irreversible! Are you sure?")) return;
+    if (!confirm("⚠️ " + t("adminSeo.danger.downgradeConfirm"))) return;
     try {
       await api.post("/api/v1/auth/downgrade-to-individual");
-      showToast("success", "Successfully downgraded to Individual profile! Logging out...");
+      showToast("success", t("adminSeo.toast.downgradeSuccess"));
       setTimeout(() => {
         clearStoredAuth();
         router.push("/login");
       }, 2000);
     } catch (err: any) {
-      showToast("error", err.message || "Failed to downgrade profile");
+      showToast("error", err.message || t("adminSeo.toast.downgradeFailed"));
     }
   };
 
@@ -236,13 +238,13 @@ export default function SeoPage() {
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
           <div className="flex items-center gap-3">
-            <h1 className="font-display text-xl font-bold text-[#FF4747]">Workspace Settings</h1>
+            <h1 className="font-display text-xl font-bold text-[#FF4747]">{t("adminSeo.header.title")}</h1>
             <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
               isPremium ? "text-amber-400 bg-amber-400/10 border-amber-400/20" :
               isBasicOrAbove ? "text-sky-400 bg-sky-400/10 border-sky-400/20" :
               "text-[#888] bg-[#f5f5f5] border-[#e5e7eb]"
             }`}>
-              {planTier || "FREE"} plan
+              {t("adminSeo.header.planBadge", { tier: planTier || "FREE" })}
             </span>
           </div>
           <button
@@ -259,22 +261,22 @@ export default function SeoPage() {
           {/* METADATA & DOMAIN */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-8 space-y-6">
             <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
-              <Globe size={18} className="text-[#FF4747]" /> Metadata & Domain
+              <Globe size={18} className="text-[#FF4747]" /> {t("adminSeo.metadata.title")}
             </h2>
             <p className="text-xs text-[#666] leading-relaxed">
-              Configure routing, search indexing, and email sender context.
+              {t("adminSeo.metadata.subtitle")}
             </p>
 
             <form onSubmit={handleSave} className="space-y-5">
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5 flex items-center gap-2">
-                    Custom Domain {!isPremium && <PlanBadge required="PREMIUM" />}
+                    {t("adminSeo.metadata.customDomainLabel")} {!isPremium && <PlanBadge required="PREMIUM" />}
                   </label>
                   <div className="relative">
                     <Globe size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#555]" />
                     <input
-                      placeholder={isPremium ? "events.yourbrand.com" : "Requires PREMIUM plan"}
+                      placeholder={isPremium ? t("adminSeo.metadata.customDomainPlaceholder") : t("adminSeo.metadata.customDomainLocked")}
                       value={isPremium ? form.customDomain : ""}
                       disabled={!isPremium}
                       onChange={(e) => setForm({ ...form, customDomain: e.target.value })}
@@ -283,8 +285,8 @@ export default function SeoPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Sender Mask Name</label>
-                  <input placeholder="YowEvent Alerts" value={form.emailSenderName}
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminSeo.metadata.senderNameLabel")}</label>
+                  <input placeholder={t("adminSeo.metadata.senderNamePlaceholder")} value={form.emailSenderName}
                     onChange={(e) => setForm({ ...form, emailSenderName: e.target.value })}
                     className={inputClass} />
                 </div>
@@ -292,55 +294,55 @@ export default function SeoPage() {
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Timezone</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminSeo.metadata.timezoneLabel")}</label>
                   <select value={form.timezone}
                     onChange={(e) => setForm({ ...form, timezone: e.target.value })}
                     className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
-                    <option value="UTC">UTC (GMT+0)</option>
-                    <option value="Europe/Paris">Central Europe (GMT+1)</option>
-                    <option value="America/New_York">Eastern Standard (GMT-5)</option>
-                    <option value="Asia/Tokyo">Japan Standard (GMT+9)</option>
+                    <option value="UTC">{t("adminSeo.metadata.timezoneUtc")}</option>
+                    <option value="Europe/Paris">{t("adminSeo.metadata.timezoneParis")}</option>
+                    <option value="America/New_York">{t("adminSeo.metadata.timezoneNewYork")}</option>
+                    <option value="Asia/Tokyo">{t("adminSeo.metadata.timezoneTokyo")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Currency</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminSeo.metadata.currencyLabel")}</label>
                   <select value={form.currency}
                     onChange={(e) => setForm({ ...form, currency: e.target.value })}
                     className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="JPY">JPY (¥)</option>
+                    <option value="USD">{t("adminSeo.metadata.currencyUsd")}</option>
+                    <option value="EUR">{t("adminSeo.metadata.currencyEur")}</option>
+                    <option value="GBP">{t("adminSeo.metadata.currencyGbp")}</option>
+                    <option value="JPY">{t("adminSeo.metadata.currencyJpy")}</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Language</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminSeo.metadata.languageLabel")}</label>
                   <select value={form.language}
                     onChange={(e) => setForm({ ...form, language: e.target.value })}
                     className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
-                    <option value="en">English (US)</option>
-                    <option value="fr">Français (FR)</option>
-                    <option value="es">Español (ES)</option>
-                    <option value="de">Deutsch (DE)</option>
+                    <option value="en">{t("adminSeo.metadata.languageEn")}</option>
+                    <option value="fr">{t("adminSeo.metadata.languageFr")}</option>
+                    <option value="es">{t("adminSeo.metadata.languageEs")}</option>
+                    <option value="de">{t("adminSeo.metadata.languageDe")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Theme</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("adminSeo.metadata.themeLabel")}</label>
                   <select value={form.theme}
                     onChange={(e) => setForm({ ...form, theme: e.target.value })}
                     className="w-full px-4 py-2.5 bg-[#ffffff] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
-                    <option value="DARK">Dark</option>
-                    <option value="LIGHT">Light</option>
+                    <option value="DARK">{t("adminSeo.metadata.themeDark")}</option>
+                    <option value="LIGHT">{t("adminSeo.metadata.themeLight")}</option>
                   </select>
                 </div>
               </div>
 
               <button type="submit"
                 className="w-full py-3 bg-[#FF4747] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
-                <Shield size={14} /> Save All Settings
+                <Shield size={14} /> {t("adminSeo.metadata.saveButton")}
               </button>
             </form>
           </div>

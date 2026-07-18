@@ -1,0 +1,86 @@
+export const adminCheckin = {
+  en: {
+    header: {
+      eyebrow: "Admin",
+      title: "Check-in Scanner",
+      subtitle: "Scan QR codes or enter confirmation codes to check attendees in.",
+    },
+    eventSelector: {
+      label: "Select Event",
+      noEvents: "No events found",
+    },
+    stats: {
+      totalRegistrations: "Total Registrations",
+      checkedIn: "Checked In",
+      pending: "Pending",
+    },
+    manual: {
+      title: "Manual / QR Check-in",
+      subtitle: "Enter a confirmation code or paste QR data, then press Enter or click Check In.",
+      placeholder: "Confirmation code or scan QR...",
+      checkingIn: "Checking In...",
+      checkIn: "Check In",
+    },
+    result: {
+      success: "Check-in Successful!",
+      failure: "Check-in Failed",
+      checkInSuccessMessage: "Check-in successful!",
+      checkInFailedDefault: "Check-in failed. Registration may already be checked in or not found.",
+      notFound: "No registration found matching \"{code}\". Check the confirmation code and try again.",
+      alreadyCheckedInAt: "Already checked in at {time}.",
+      earlier: "earlier",
+    },
+    attendees: {
+      title: "Attendees",
+      searchPlaceholder: "Search by confirmation code...",
+      emptyForEvent: "No registrations for this event yet.",
+      emptyForSearch: "No results match your search.",
+      checkedInBadge: "In",
+      registeredBadge: "Reg.",
+      checkInAction: "In",
+      checkedInAt: "Checked in",
+    },
+  },
+  fr: {
+    header: {
+      eyebrow: "Admin",
+      title: "Scanner d'enregistrement",
+      subtitle: "Scannez les codes QR ou saisissez les codes de confirmation pour enregistrer les participants.",
+    },
+    eventSelector: {
+      label: "Sélectionner un événement",
+      noEvents: "Aucun événement trouvé",
+    },
+    stats: {
+      totalRegistrations: "Total des inscriptions",
+      checkedIn: "Enregistrés",
+      pending: "En attente",
+    },
+    manual: {
+      title: "Enregistrement manuel / QR",
+      subtitle: "Saisissez un code de confirmation ou collez les données du QR code, puis appuyez sur Entrée ou cliquez sur Enregistrer.",
+      placeholder: "Code de confirmation ou scan QR...",
+      checkingIn: "Enregistrement en cours...",
+      checkIn: "Enregistrer",
+    },
+    result: {
+      success: "Enregistrement réussi !",
+      failure: "Échec de l'enregistrement",
+      checkInSuccessMessage: "Enregistrement réussi !",
+      checkInFailedDefault: "Échec de l'enregistrement. L'inscription est peut-être déjà enregistrée ou introuvable.",
+      notFound: "Aucune inscription ne correspond à \"{code}\". Vérifiez le code de confirmation et réessayez.",
+      alreadyCheckedInAt: "Déjà enregistré à {time}.",
+      earlier: "plus tôt",
+    },
+    attendees: {
+      title: "Participants",
+      searchPlaceholder: "Rechercher par code de confirmation...",
+      emptyForEvent: "Aucune inscription pour cet événement pour le moment.",
+      emptyForSearch: "Aucun résultat ne correspond à votre recherche.",
+      checkedInBadge: "Présent",
+      registeredBadge: "Inscrit",
+      checkInAction: "Enreg.",
+      checkedInAt: "Enregistré",
+    },
+  },
+};

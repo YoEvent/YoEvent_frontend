@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { api, setStoredAuth, getAuthClaims, AuthData } from "@/app/utils/api";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 function LoginForm() {
   const router = useRouter();
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const from = searchParams.get("from"); // e.g. /t/acme-events or /events/[id]
   const reason = searchParams.get("reason");
@@ -19,8 +21,8 @@ function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) errs.email = "Valid email required";
-    if (!form.password) errs.password = "Password required";
+    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) errs.email = t("loginPage.errorValidEmail");
+    if (!form.password) errs.password = t("loginPage.errorPasswordRequired");
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setLoading(true);
@@ -32,7 +34,7 @@ function LoginForm() {
       });
 
       const token = response?.token;
-      if (!token) throw new Error("No token in login response");
+      if (!token) throw new Error(t("loginPage.errorNoToken"));
 
       // Decode token claims locally
       const base64Url = token.split(".")[1];
@@ -86,7 +88,7 @@ function LoginForm() {
         router.push("/admin");
       }
     } catch (err: any) {
-      setErrors((prev) => ({ ...prev, submit: err.message || "Invalid credentials" }));
+      setErrors((prev) => ({ ...prev, submit: err.message || t("loginPage.errorInvalidCredentials") }));
     } finally {
       setLoading(false);
     }
@@ -103,8 +105,8 @@ function LoginForm() {
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
           Yow<span className="text-[#EB4203]">Event</span>
         </Link>
-        <span className="text-sm text-[#888]">No account?{" "}
-          <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">Sign up free</Link>
+        <span className="text-sm text-[#888]">{t("loginPage.noAccount")}{" "}
+          <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">{t("loginPage.signUpFree")}</Link>
         </span>
       </nav>
 
@@ -113,11 +115,11 @@ function LoginForm() {
           <div className="bg-white rounded-3xl shadow-xl border border-[#e5e7eb] p-10">
             <div className="text-center mb-8">
               <div className="w-14 h-14 bg-gradient-to-br from-[#FF4747]/10 to-[#EB4203]/20 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">🎟</div>
-              <h1 className="font-display text-3xl font-bold tracking-tight mb-1 text-[#EB4203]">Welcome back</h1>
+              <h1 className="font-display text-3xl font-bold tracking-tight mb-1 text-[#EB4203]">{t("loginPage.welcomeBack")}</h1>
               {from ? (
-                <p className="text-sm text-[#888]">Sign in to continue to <span className="font-semibold text-[#1a1a1a]">{from}</span></p>
+                <p className="text-sm text-[#888]">{t("loginPage.signInToContinue")} <span className="font-semibold text-[#1a1a1a]">{from}</span></p>
               ) : (
-                <p className="text-sm text-[#888]">Sign in to your YowEvent account</p>
+                <p className="text-sm text-[#888]">{t("loginPage.signInToAccount")}</p>
               )}
             </div>
 
@@ -125,7 +127,7 @@ function LoginForm() {
 
             {sessionExpired && (
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-sm text-amber-800">
-                🔄 Your session has expired or your role has changed. Please log in again to get a fresh token.
+                🔄 {t("loginPage.sessionExpired")}
               </div>
             )}
 
@@ -137,19 +139,19 @@ function LoginForm() {
 
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Email Address</label>
-                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@company.com"
+                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("loginPage.emailLabel")}</label>
+                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("loginPage.emailPlaceholder")}
                   className={`w-full px-4 py-3 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
               </div>
 
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <label className="text-[10px] font-medium text-[#555] uppercase tracking-wider">Password</label>
-                  <a href="#" className="text-xs text-[#EB4203] hover:underline">Forgot password?</a>
+                  <label className="text-[10px] font-medium text-[#555] uppercase tracking-wider">{t("loginPage.passwordLabel")}</label>
+                  <a href="#" className="text-xs text-[#EB4203] hover:underline">{t("loginPage.forgotPassword")}</a>
                 </div>
                 <div className="relative">
-                  <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Your password"
+                  <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={t("loginPage.passwordPlaceholder")}
                     className={`w-full px-4 py-3 pr-11 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(235, 66, 3,.1)] ${errors.password ? "border-red-400" : "border-[#e5e7eb] focus:border-[#EB4203]"}`} />
                   <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#1a1a1a]">
                     {show ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -160,18 +162,18 @@ function LoginForm() {
 
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="remember" className="accent-[#1a1a1a]" />
-                <label htmlFor="remember" className="text-xs text-[#666]">Remember me for 30 days</label>
+                <label htmlFor="remember" className="text-xs text-[#666]">{t("loginPage.rememberMe")}</label>
               </div>
 
               <button type="submit" disabled={loading}
                 className="w-full py-3.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] hover:-translate-y-0.5 transition-all disabled:opacity-60 cursor-pointer">
-                {loading ? "Signing in…" : "Sign In"}
+                {loading ? t("loginPage.signingIn") : t("loginPage.signIn")}
               </button>
             </form>
 
             <p className="text-center text-xs text-[#888] mt-6">
-              Don&apos;t have an account?{" "}
-              <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">Create one free</Link>
+              {t("loginPage.noAccountFooter")}{" "}
+              <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">{t("loginPage.createOneFree")}</Link>
             </p>
           </div>
         </div>

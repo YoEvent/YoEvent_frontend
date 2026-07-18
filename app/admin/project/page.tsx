@@ -5,6 +5,7 @@ import { Plus, Tag, Ticket, DollarSign, Calendar as CalIcon, Pencil, Trash2, Sav
 import { getStoredAuth, api } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { paymentService } from "@/app/utils/services/paymentService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
@@ -19,6 +20,7 @@ const toLocalISOString = (dateInput?: string | Date) => {
 };
 
 export default function ProjectPage() {
+  const { t } = useLanguage();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
@@ -134,19 +136,19 @@ export default function ProjectPage() {
       const usedByOthers = allocatedTicketQty - (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0);
       const allowed = maxCapacity - usedByOthers;
       if (qty > allowed) {
-        showToast(`Quantity exceeds remaining capacity. Max you can add: ${allowed} (event max: ${maxCapacity}).`);
+        showToast(t("adminProject.toast.quantityExceeds", { allowed, max: maxCapacity }));
         return;
       }
     }
 
     // ── Max Per Order ──
-    if (mpo < 1) { showToast("Max per order must be at least 1."); return; }
+    if (mpo < 1) { showToast(t("adminProject.toast.maxPerOrderMin")); return; }
     if (maxCapacity > 0 && mpo > maxCapacity) {
-      showToast(`Max per order (${mpo}) cannot exceed the event's max capacity (${maxCapacity}).`);
+      showToast(t("adminProject.toast.maxPerOrderExceedsCapacity", { mpo, max: maxCapacity }));
       return;
     }
     if (mpo > qty) {
-      showToast(`Max per order (${mpo}) cannot exceed the ticket quantity (${qty}).`);
+      showToast(t("adminProject.toast.maxPerOrderExceedsQuantity", { mpo, qty }));
       return;
     }
 
@@ -158,27 +160,27 @@ export default function ProjectPage() {
 
     if (ticketForm.saleStart) {
       const saleStart = new Date(ticketForm.saleStart);
-      if (isSaleStartChanged && saleStart < now) { showToast("Sale start date cannot be in the past."); return; }
+      if (isSaleStartChanged && saleStart < now) { showToast(t("adminProject.toast.saleStartPast")); return; }
       if (eventEnd && saleStart >= eventEnd) {
-        showToast(`Sale start must be before the event ends.`);
+        showToast(t("adminProject.toast.saleStartAfterEvent"));
         return;
       }
       if (ticketForm.saleEnd) {
         const saleEnd = new Date(ticketForm.saleEnd);
-        if (saleEnd <= saleStart) { showToast("Sale end must be after sale start."); return; }
+        if (saleEnd <= saleStart) { showToast(t("adminProject.toast.saleEndBeforeStart")); return; }
         if (saleEnd.getTime() - saleStart.getTime() < 2 * 3600 * 1000) {
-          showToast("Sale window must be at least 2 hours long."); return;
+          showToast(t("adminProject.toast.saleWindowTooShort")); return;
         }
         if (eventEnd && saleEnd > eventEnd) {
-          showToast(`Sale end cannot be after the event ends.`);
+          showToast(t("adminProject.toast.saleEndAfterEvent"));
           return;
         }
       }
     } else if (ticketForm.saleEnd) {
       const saleEnd = new Date(ticketForm.saleEnd);
-      if (isSaleEndChanged && saleEnd < now) { showToast("Sale end date cannot be in the past."); return; }
+      if (isSaleEndChanged && saleEnd < now) { showToast(t("adminProject.toast.saleEndPast")); return; }
       if (eventEnd && saleEnd > eventEnd) {
-        showToast(`Sale end cannot be after the event ends.`);
+        showToast(t("adminProject.toast.saleEndAfterEvent"));
         return;
       }
     }
@@ -201,10 +203,10 @@ export default function ProjectPage() {
       if (editingTicket) {
         await eventService.updateTicketType(editingTicket.ticketId || editingTicket.id, payload);
         setEditingTicket(null);
-        showToast("Ticket tier updated!");
+        showToast(t("adminProject.toast.ticketUpdated"));
       } else {
         await eventService.createTicketType(payload);
-        showToast("Ticket tier added!");
+        showToast(t("adminProject.toast.ticketAdded"));
       }
 
       setTicketForm({ 
@@ -219,14 +221,14 @@ export default function ProjectPage() {
       await fetchEventDetails(selectedEventId);
     } catch (err) {
       console.error(err);
-      showToast("Failed to save ticket tier.");
+      showToast(t("adminProject.toast.ticketSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteTicket = async (id: string) => {
-    if (!confirm("Delete this ticket tier?")) return;
+    if (!confirm(t("adminProject.tickets.confirmDelete"))) return;
     try {
       await eventService.deleteTicketType(id);
       if (editingTicket?.ticketId === id || editingTicket?.id === id) {
@@ -242,10 +244,10 @@ export default function ProjectPage() {
         });
       }
       await fetchEventDetails(selectedEventId);
-      showToast("Ticket tier deleted.");
+      showToast(t("adminProject.toast.ticketDeleted"));
     } catch (err) {
       console.error(err);
-      showToast("Failed to delete ticket tier.");
+      showToast(t("adminProject.toast.ticketDeleteFailed"));
     }
   };
 
@@ -269,24 +271,24 @@ export default function ProjectPage() {
       if (editingCoupon) {
         await eventService.updateCoupon(editingCoupon.couponId || editingCoupon.id, payload);
         setEditingCoupon(null);
-        showToast("Coupon updated!");
+        showToast(t("adminProject.toast.couponUpdated"));
       } else {
         await eventService.createCoupon(payload);
-        showToast("Coupon added!");
+        showToast(t("adminProject.toast.couponAdded"));
       }
 
       setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
       await fetchEventDetails(selectedEventId);
     } catch (err) {
       console.error(err);
-      showToast("Failed to save coupon.");
+      showToast(t("adminProject.toast.couponSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteCoupon = async (id: string) => {
-    if (!confirm("Delete this coupon code?")) return;
+    if (!confirm(t("adminProject.coupons.confirmDelete"))) return;
     try {
       await eventService.deleteCoupon(id);
       if (editingCoupon?.couponId === id || editingCoupon?.id === id) {
@@ -294,10 +296,10 @@ export default function ProjectPage() {
         setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
       }
       await fetchEventDetails(selectedEventId);
-      showToast("Coupon code deleted.");
+      showToast(t("adminProject.toast.couponDeleted"));
     } catch (err) {
       console.error(err);
-      showToast("Failed to delete coupon.");
+      showToast(t("adminProject.toast.couponDeleteFailed"));
     }
   };
 
@@ -319,7 +321,7 @@ export default function ProjectPage() {
 
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Ticketing & Coupons</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminProject.header.title")}</h1>
           {events.length > 0 && (
             <div className="relative">
               <select
@@ -343,14 +345,14 @@ export default function ProjectPage() {
           <div className="grid grid-cols-2 gap-8">
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
               <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-                <Ticket size={18} className="text-[#EB4203]" /> Ticket Tiers <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+                <Ticket size={18} className="text-[#EB4203]" /> {t("adminProject.tickets.title")} <span className="text-xs font-normal text-[#666] ml-2 mt-1">{t("adminProject.tickets.forEvent", { eventTitle: activeEvent?.title || t("adminProject.tickets.forSelectedEvent") })}</span>
               </h2>
               <form ref={ticketFormRef} onSubmit={handleSaveTicket} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>Tier Name *</label>
+                    <label className={label}>{t("adminProject.tickets.nameLabel")}</label>
                     <input
-                      placeholder="e.g. VIP Pass"
+                      placeholder={t("adminProject.tickets.namePlaceholder")}
                       value={ticketForm.name}
                       onChange={(e) => setTicketForm({ ...ticketForm, name: e.target.value })}
                       className={inp}
@@ -358,10 +360,10 @@ export default function ProjectPage() {
                     />
                   </div>
                   <div>
-                    <label className={label}>Price (FCFA) *</label>
+                    <label className={label}>{t("adminProject.tickets.priceLabel")}</label>
                     <input
                       type="number"
-                      placeholder="e.g. 5000"
+                      placeholder={t("adminProject.tickets.pricePlaceholder")}
                       value={ticketForm.price || ""}
                       onChange={(e) => setTicketForm({ ...ticketForm, price: Number(e.target.value) })}
                       className={inp}
@@ -371,19 +373,19 @@ export default function ProjectPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>Description</label>
+                    <label className={label}>{t("adminProject.tickets.descriptionLabel")}</label>
                     <input
-                      placeholder="Special access..."
+                      placeholder={t("adminProject.tickets.descriptionPlaceholder")}
                       value={ticketForm.description}
                       onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })}
                       className={inp}
                     />
                   </div>
                   <div>
-                    <label className={label}>Capacity Available *</label>
+                    <label className={label}>{t("adminProject.tickets.capacityLabel")}</label>
                     <input
                       type="number"
-                      placeholder="e.g. 100"
+                      placeholder={t("adminProject.tickets.capacityPlaceholder")}
                       min={1}
                       max={maxCapacity > 0 ? maxCapacity - allocatedTicketQty + (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0) : undefined}
                       value={ticketForm.quantityAvailable || ""}
@@ -393,14 +395,14 @@ export default function ProjectPage() {
                     />
                     {maxCapacity > 0 && (
                       <p className="text-[10px] mt-1 text-[#888]">
-                        {maxCapacity - allocatedTicketQty + (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0)} slots available (event max: {maxCapacity})
+                        {t("adminProject.tickets.slotsAvailable", { count: maxCapacity - allocatedTicketQty + (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0), max: maxCapacity })}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>Sale Start *</label>
+                    <label className={label}>{t("adminProject.tickets.saleStartLabel")}</label>
                     <input
                       type="datetime-local"
                       value={ticketForm.saleStart}
@@ -418,7 +420,7 @@ export default function ProjectPage() {
                     />
                   </div>
                   <div>
-                    <label className={label}>Sale End *</label>
+                    <label className={label}>{t("adminProject.tickets.saleEndLabel")}</label>
                     <input
                       type="datetime-local"
                       value={ticketForm.saleEnd}
@@ -432,7 +434,7 @@ export default function ProjectPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>Max Per Order *</label>
+                    <label className={label}>{t("adminProject.tickets.maxPerOrderLabel")}</label>
                     <input
                       type="number"
                       placeholder="e.g. 5"
@@ -443,7 +445,7 @@ export default function ProjectPage() {
                       className={inp}
                       required
                     />
-                    <p className="text-[10px] mt-1 text-[#888]">Maximum tickets one person can buy in a single order.</p>
+                    <p className="text-[10px] mt-1 text-[#888]">{t("adminProject.tickets.maxPerOrderHelp")}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -452,7 +454,7 @@ export default function ProjectPage() {
                     disabled={saving}
                     className={saveBtn}
                   >
-                    <Save size={13} /> {editingTicket ? (saving ? "Saving..." : "Save Changes") : (saving ? "Adding..." : "Add Ticket Tier")}
+                    <Save size={13} /> {editingTicket ? (saving ? t("adminProject.tickets.saving") : t("adminProject.tickets.saveChanges")) : (saving ? t("adminProject.tickets.adding") : t("adminProject.tickets.addButton"))}
                   </button>
                   {editingTicket && (
                     <button
@@ -471,7 +473,7 @@ export default function ProjectPage() {
                       }}
                       className="px-4 py-2.5 bg-stone-100 text-[#555] hover:bg-stone-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                     >
-                      Cancel Edit
+                      {t("adminProject.tickets.cancelEdit")}
                     </button>
                   )}
                 </div>
@@ -479,30 +481,30 @@ export default function ProjectPage() {
 
               {/* LIST */}
               <div className="space-y-3">
-                {ticketTypes.map((t, idx) => {
-                  const id = t.ticketId || t.id;
+                {ticketTypes.map((tk, idx) => {
+                  const id = tk.ticketId || tk.id;
                   return (
                     <div key={`${id || idx}-${idx}`} className={`flex justify-between items-center p-3.5 bg-white border rounded-xl hover:border-[#FF4747]/20 transition-all ${editingTicket?.ticketId === id ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
                       <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-[#1a1a1a] truncate">{t.name}</div>
-                        <div className="text-[10px] text-[#555] mt-0.5 truncate">{t.description || "No description"}</div>
+                        <div className="text-xs font-bold text-[#1a1a1a] truncate">{tk.name}</div>
+                        <div className="text-[10px] text-[#555] mt-0.5 truncate">{tk.description || t("adminProject.tickets.noDescription")}</div>
                       </div>
                       <div className="text-right shrink-0 flex items-center gap-4">
                         <div>
-                          <div className="text-xs font-bold text-[#EB4203]">{Number(t.price).toLocaleString()} FCFA</div>
-                          <div className="text-[9px] text-[#555] mt-0.5">{t.quantitySold || 0}/{t.quantityAvailable} sold</div>
+                          <div className="text-xs font-bold text-[#EB4203]">{Number(tk.price).toLocaleString()} FCFA</div>
+                          <div className="text-[9px] text-[#555] mt-0.5">{t("adminProject.tickets.sold", { sold: tk.quantitySold || 0, available: tk.quantityAvailable })}</div>
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <button onClick={() => {
-                            setEditingTicket(t);
+                            setEditingTicket(tk);
                             setTicketForm({
-                              name: t.name || "",
-                              description: t.description || "",
-                              price: t.price || 0,
-                              quantityAvailable: t.quantityAvailable || 100,
-                              saleStart: t.saleStart ? toLocalISOString(t.saleStart) : toLocalISOString(new Date()),
-                              saleEnd: t.saleEnd ? toLocalISOString(t.saleEnd) : toLocalISOString(new Date()),
-                              maxPerOrder: t.maxPerOrder || 5,
+                              name: tk.name || "",
+                              description: tk.description || "",
+                              price: tk.price || 0,
+                              quantityAvailable: tk.quantityAvailable || 100,
+                              saleStart: tk.saleStart ? toLocalISOString(tk.saleStart) : toLocalISOString(new Date()),
+                              saleEnd: tk.saleEnd ? toLocalISOString(tk.saleEnd) : toLocalISOString(new Date()),
+                              maxPerOrder: tk.maxPerOrder || 5,
                             });
                             ticketFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                           }} className="p-1 text-[#555] hover:bg-stone-100 rounded-md transition-colors cursor-pointer">
@@ -517,7 +519,7 @@ export default function ProjectPage() {
                   );
                 })}
                 {ticketTypes.length === 0 && (
-                  <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">No ticket tiers created yet.</div>
+                  <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">{t("adminProject.tickets.empty")}</div>
                 )}
               </div>
             </div>
@@ -525,14 +527,14 @@ export default function ProjectPage() {
             {/* COUPONS */}
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
               <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-                <Tag size={18} className="text-[#EB4203]" /> Coupon Codes <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+                <Tag size={18} className="text-[#EB4203]" /> {t("adminProject.coupons.title")} <span className="text-xs font-normal text-[#666] ml-2 mt-1">{t("adminProject.coupons.forEvent", { eventTitle: activeEvent?.title || t("adminProject.coupons.forSelectedEvent") })}</span>
               </h2>
               <form ref={couponFormRef} onSubmit={handleSaveCoupon} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>Promo Code *</label>
+                    <label className={label}>{t("adminProject.coupons.codeLabel")}</label>
                     <input
-                      placeholder="e.g. DISCOUNT20"
+                      placeholder={t("adminProject.coupons.codePlaceholder")}
                       value={couponForm.code}
                       onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value })}
                       className={inp}
@@ -540,23 +542,23 @@ export default function ProjectPage() {
                     />
                   </div>
                   <div>
-                    <label className={label}>Discount Type *</label>
+                    <label className={label}>{t("adminProject.coupons.typeLabel")}</label>
                     <select
                       value={couponForm.type}
                       onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
                       className={inp}
                     >
-                      <option value="PERCENTAGE">Percentage (%)</option>
-                      <option value="FIXED">Fixed Amount (FCFA)</option>
+                      <option value="PERCENTAGE">{t("adminProject.coupons.typePercentage")}</option>
+                      <option value="FIXED">{t("adminProject.coupons.typeFixed")}</option>
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>Discount Value *</label>
+                    <label className={label}>{t("adminProject.coupons.valueLabel")}</label>
                     <input
                       type="number"
-                      placeholder="e.g. 10"
+                      placeholder={t("adminProject.coupons.valuePlaceholder")}
                       value={couponForm.value || ""}
                       onChange={(e) => setCouponForm({ ...couponForm, value: Number(e.target.value) })}
                       className={inp}
@@ -564,10 +566,10 @@ export default function ProjectPage() {
                     />
                   </div>
                   <div>
-                    <label className={label}>Max Uses *</label>
+                    <label className={label}>{t("adminProject.coupons.maxUsesLabel")}</label>
                     <input
                       type="number"
-                      placeholder="e.g. 100"
+                      placeholder={t("adminProject.coupons.maxUsesPlaceholder")}
                       value={couponForm.maxUses || ""}
                       onChange={(e) => setCouponForm({ ...couponForm, maxUses: Number(e.target.value) })}
                       className={inp}
@@ -581,7 +583,7 @@ export default function ProjectPage() {
                     disabled={saving}
                     className={saveBtn}
                   >
-                    <Save size={13} /> {editingCoupon ? (saving ? "Saving..." : "Save Changes") : (saving ? "Adding..." : "Add Coupon")}
+                    <Save size={13} /> {editingCoupon ? (saving ? t("adminProject.coupons.saving") : t("adminProject.coupons.saveChanges")) : (saving ? t("adminProject.coupons.adding") : t("adminProject.coupons.addButton"))}
                   </button>
                   {editingCoupon && (
                     <button
@@ -592,7 +594,7 @@ export default function ProjectPage() {
                       }}
                       className="px-4 py-2.5 bg-stone-100 text-[#555] hover:bg-stone-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
                     >
-                      Cancel Edit
+                      {t("adminProject.coupons.cancelEdit")}
                     </button>
                   )}
                 </div>
@@ -606,14 +608,14 @@ export default function ProjectPage() {
                     <div key={`${id || idx}-${idx}`} className={`flex justify-between items-center p-3.5 bg-white border rounded-xl hover:border-[#FF4747]/20 transition-all ${editingCoupon?.couponId === id ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-bold text-[#1a1a1a] tracking-wider font-mono uppercase">{c.code}</div>
-                        <div className="text-[10px] text-[#555] mt-0.5">Expires in 30 days</div>
+                        <div className="text-[10px] text-[#555] mt-0.5">{t("adminProject.coupons.expiresIn")}</div>
                       </div>
                       <div className="text-right shrink-0 flex items-center gap-4">
                         <div>
                           <div className="text-xs font-bold text-orange-500">
-                            {c.type === "PERCENTAGE" ? `${c.value}% Off` : `${Number(c.value).toLocaleString()} FCFA Off`}
+                            {c.type === "PERCENTAGE" ? t("adminProject.coupons.percentOff", { value: c.value }) : t("adminProject.coupons.amountOff", { value: Number(c.value).toLocaleString() })}
                           </div>
-                          <div className="text-[9px] text-[#555] mt-0.5">{c.usedCount || 0}/{c.maxUses} uses</div>
+                          <div className="text-[9px] text-[#555] mt-0.5">{t("adminProject.coupons.uses", { used: c.usedCount || 0, max: c.maxUses })}</div>
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <button onClick={() => {
@@ -637,7 +639,7 @@ export default function ProjectPage() {
                   );
                 })}
                 {coupons.length === 0 && (
-                  <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">No coupons created yet.</div>
+                  <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">{t("adminProject.coupons.empty")}</div>
                 )}
               </div>
             </div>
@@ -646,19 +648,19 @@ export default function ProjectPage() {
           {/* ORDERS */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
             <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <DollarSign size={18} className="text-[#EB4203]" /> Recent Orders
+              <DollarSign size={18} className="text-[#EB4203]" /> {t("adminProject.orders.title")}
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-[#1a1a1a]">
                 <thead className="bg-[#f9fafb] text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
-                    <th className="p-4 rounded-l-xl">Order ID</th>
-                    <th className="p-4">Date</th>
-                    <th className="p-4">Gross</th>
-                    <th className="p-4">Discount</th>
-                    <th className="p-4 text-red-600/70">Platform Fee</th>
-                    <th className="p-4 text-green-600/70">Net</th>
-                    <th className="p-4 rounded-r-xl">Status</th>
+                    <th className="p-4 rounded-l-xl">{t("adminProject.orders.colOrderId")}</th>
+                    <th className="p-4">{t("adminProject.orders.colDate")}</th>
+                    <th className="p-4">{t("adminProject.orders.colGross")}</th>
+                    <th className="p-4">{t("adminProject.orders.colDiscount")}</th>
+                    <th className="p-4 text-red-600/70">{t("adminProject.orders.colPlatformFee")}</th>
+                    <th className="p-4 text-green-600/70">{t("adminProject.orders.colNet")}</th>
+                    <th className="p-4 rounded-r-xl">{t("adminProject.orders.colStatus")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e7eb]">
@@ -689,7 +691,7 @@ export default function ProjectPage() {
                   {orders.length === 0 && (
                     <tr>
                       <td colSpan={7} className="p-8 text-center text-[#555]">
-                        No orders recorded for this event.
+                        {t("adminProject.orders.empty")}
                       </td>
                     </tr>
                   )}
@@ -701,18 +703,18 @@ export default function ProjectPage() {
           {/* REFUNDS */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
             <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <DollarSign size={18} className="text-red-500" /> Refund History
+              <DollarSign size={18} className="text-red-500" /> {t("adminProject.refunds.title")}
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-[#1a1a1a]">
                 <thead className="bg-[#f9fafb] text-[10px] text-[#555] uppercase tracking-wider">
                   <tr>
-                    <th className="p-4 rounded-l-xl">Refund ID</th>
-                    <th className="p-4">Payment ID</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Reason</th>
-                    <th className="p-4">Processed At</th>
-                    <th className="p-4 rounded-r-xl">Status</th>
+                    <th className="p-4 rounded-l-xl">{t("adminProject.refunds.colRefundId")}</th>
+                    <th className="p-4">{t("adminProject.refunds.colPaymentId")}</th>
+                    <th className="p-4">{t("adminProject.refunds.colAmount")}</th>
+                    <th className="p-4">{t("adminProject.refunds.colReason")}</th>
+                    <th className="p-4">{t("adminProject.refunds.colProcessedAt")}</th>
+                    <th className="p-4 rounded-r-xl">{t("adminProject.refunds.colStatus")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e5e7eb]">
@@ -723,7 +725,7 @@ export default function ProjectPage() {
                         <td className="p-4 font-mono text-[10px] text-[#666]">{r.refundId?.substring(0, 8)}...</td>
                         <td className="p-4 font-mono text-[10px] text-[#666]">{r.paymentId?.substring(0, 8)}...</td>
                         <td className="p-4 text-[#1a1a1a] font-medium">{amount.toLocaleString()} FCFA</td>
-                        <td className="p-4 text-[#555]">{r.reason || "No reason provided"}</td>
+                        <td className="p-4 text-[#555]">{r.reason || t("adminProject.refunds.noReason")}</td>
                         <td className="p-4 text-[#555]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
                         <td className="p-4">
                           <span
@@ -740,7 +742,7 @@ export default function ProjectPage() {
                   {refunds.length === 0 && (
                     <tr>
                       <td colSpan={6} className="p-8 text-center text-[#555]">
-                        No refunds processed yet.
+                        {t("adminProject.refunds.empty")}
                       </td>
                     </tr>
                   )}

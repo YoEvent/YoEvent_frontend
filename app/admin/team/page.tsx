@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import { Plus, ChevronDown, User, X, Users, Mic, Save, Pencil, Trash2, MapPin, Star, Clock, Briefcase, Building, PlusCircle, AlertTriangle } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
@@ -20,6 +21,7 @@ const toLocalISOString = (dateInput?: string | Date) => {
 
 export default function TeamPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const auth = getStoredAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -173,20 +175,20 @@ export default function TeamPage() {
         name: newRoleName,
         tenantId: auth?.tenantId || "c0000000-0000-0000-0000-000000000001"
       });
-      showToast(`Role "${created.name}" created!`);
+      showToast(t("adminTeam.toast.roleCreated", { name: created.name }));
       const list = await eventService.getRoles().catch(() => []);
       setRoles(list || []);
       setForm(f => ({ ...f, roleId: created.id }));
       setShowAddRole(false);
       setNewRoleName("");
     } catch {
-      showToast("Failed to create role");
+      showToast(t("adminTeam.toast.roleCreateFailed"));
     }
   };
 
   const handleQuickSessionSave = async () => {
     if (!quickSession.title.trim() || !quickSession.startTime || !quickSession.endTime) {
-      showToast("Fill in all session details");
+      showToast(t("adminTeam.toast.fillSessionDetails"));
       return;
     }
     try {
@@ -200,14 +202,14 @@ export default function TeamPage() {
         maxCapacity: 100,
         locationId: quickSession.locationId || undefined,
       });
-      showToast("Session created!");
+      showToast(t("adminTeam.toast.sessionCreated"));
       const sessList = await eventService.getSessions().catch(() => []);
       setSessions((sessList || []).filter((s: any) => (s.eventId || s.event?.eventId) === selectedEventId));
       setForm(f => ({ ...f, sessionId: created.sessionId || created.id }));
       setShowQuickSession(false);
       setQuickSession({ title: "", startTime: "", endTime: "", locationId: "" });
     } catch (err: any) {
-      showToast(err.message || "Failed to create session");
+      showToast(err.message || t("adminTeam.toast.sessionCreateFailed"));
     }
   };
 
@@ -292,7 +294,7 @@ export default function TeamPage() {
         }
       }
 
-      showToast(editingParticipant ? "Participant updated!" : "Participant registered!");
+      showToast(editingParticipant ? t("adminTeam.toast.participantUpdated") : t("adminTeam.toast.participantRegistered"));
       setEditingParticipant(null);
       setEditingAssignment(null);
       setForm({
@@ -318,14 +320,14 @@ export default function TeamPage() {
       });
       await loadData(selectedEventId);
     } catch (err: any) {
-      showToast(err.message || "Failed to save participant.");
+      showToast(err.message || t("adminTeam.toast.participantSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const removeParticipant = async (id: string) => {
-    if (!confirm("Are you sure you want to remove this participant?")) return;
+    if (!confirm(t("adminTeam.toast.confirmRemove"))) return;
     try {
       // Find assignments
       const assigns = getAssignmentsForParticipant(id);
@@ -333,10 +335,10 @@ export default function TeamPage() {
         await eventService.deleteAssignment(a.id);
       }
       await eventService.deleteParticipant(id);
-      showToast("Participant removed!");
+      showToast(t("adminTeam.toast.participantRemoved"));
       await loadData(selectedEventId);
     } catch {
-      showToast("Failed to remove participant.");
+      showToast(t("adminTeam.toast.participantRemoveFailed"));
     }
   };
 
@@ -358,7 +360,7 @@ export default function TeamPage() {
     });
     
     if (!isCovered) {
-      return `Warning: Assigned session runs on ${sessDay} from ${sessStart} to ${sessEnd}. Speaker's availability profile does not cover this slot.`;
+      return t("adminTeam.form.conflictWarning", { day: sessDay, start: sessStart, end: sessEnd });
     }
     return null;
   }
@@ -387,8 +389,8 @@ export default function TeamPage() {
       <div className="ml-[220px] flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-[#e5e7eb] px-8 py-5 flex items-center justify-between sticky top-0 z-30">
           <div>
-            <h1 className="font-display font-black text-xl text-[#1a1a1a]">Event Participants Manager</h1>
-            <p className="text-xs text-[#888] mt-0.5">Manage crew, speakers, performers, and scheduling availability.</p>
+            <h1 className="font-display font-black text-xl text-[#1a1a1a]">{t("adminTeam.header.title")}</h1>
+            <p className="text-xs text-[#888] mt-0.5">{t("adminTeam.header.subtitle")}</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -403,7 +405,7 @@ export default function TeamPage() {
 
             <div className="relative w-48">
               <select value={selectedLocationId} onChange={e => setSelectedLocationId(e.target.value)} className={inp + " py-1.5 pr-8"}>
-                <option value="ALL">All Rooms</option>
+                <option value="ALL">{t("adminTeam.filters.allRooms")}</option>
                 {locations.map(loc => (
                   <option key={loc.roomId} value={loc.roomId}>{loc.name} {loc.roomNumber ? `(${loc.roomNumber})` : ""}</option>
                 ))}
@@ -416,8 +418,8 @@ export default function TeamPage() {
         <main className="p-8 max-w-[1400px]">
           {/* Header Filter by Role */}
           <div className="flex gap-2 mb-6 items-center flex-wrap">
-            <span className="text-xs text-[#888] font-bold uppercase tracking-wider mr-2">Filter Role:</span>
-            <button onClick={() => setSelectedRoleIdFilter("ALL")} className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${selectedRoleIdFilter === "ALL" ? "bg-[#1a1a1a] text-white border-black" : "bg-white text-[#555] border-[#e5e7eb] hover:bg-stone-50"}`}>All</button>
+            <span className="text-xs text-[#888] font-bold uppercase tracking-wider mr-2">{t("adminTeam.filters.filterRoleLabel")}</span>
+            <button onClick={() => setSelectedRoleIdFilter("ALL")} className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${selectedRoleIdFilter === "ALL" ? "bg-[#1a1a1a] text-white border-black" : "bg-white text-[#555] border-[#e5e7eb] hover:bg-stone-50"}`}>{t("adminTeam.filters.all")}</button>
             {roles.map(role => (
               <button key={role.id} onClick={() => setSelectedRoleIdFilter(role.id)} className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${selectedRoleIdFilter === role.id ? "bg-[#FF4747] text-white border-[#FF4747]" : "bg-white text-[#555] border-[#e5e7eb] hover:bg-stone-50"}`}>{role.name}</button>
             ))}
@@ -426,7 +428,7 @@ export default function TeamPage() {
           <div className="grid lg:grid-cols-[1.8fr_1.2fr] gap-8">
             {/* List */}
             <div>
-              <h2 className="font-display font-bold text-[#1a1a1a] mb-5">Registered Participants ({filteredParticipants.length})</h2>
+              <h2 className="font-display font-bold text-[#1a1a1a] mb-5">{t("adminTeam.list.registeredParticipants", { count: filteredParticipants.length })}</h2>
               
               {loading ? (
                 <div className="grid md:grid-cols-2 gap-5">
@@ -435,7 +437,7 @@ export default function TeamPage() {
               ) : filteredParticipants.length === 0 ? (
                 <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-14 text-center text-[#aaa]">
                   <User size={36} className="mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No participants registered under this filter.</p>
+                  <p className="text-sm">{t("adminTeam.list.emptyState")}</p>
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 gap-5">
@@ -492,7 +494,7 @@ export default function TeamPage() {
                             <div className="w-16 h-16 rounded-full bg-[#FF4747]/10 flex items-center justify-center text-[#FF4747] font-black text-xl mb-3">{(p.person?.firstName || "?").charAt(0)}</div>
                           )}
                           <div className="font-bold text-sm text-[#1a1a1a]">{p.person?.firstName} {p.person?.lastName}</div>
-                          <div className="text-[9px] text-[#FF4747] font-bold bg-red-50 border border-red-100 rounded-full px-2.5 py-0.5 mt-1 tracking-wider uppercase">{p.role?.name || "Staff"}</div>
+                          <div className="text-[9px] text-[#FF4747] font-bold bg-red-50 border border-red-100 rounded-full px-2.5 py-0.5 mt-1 tracking-wider uppercase">{p.role?.name || t("adminTeam.list.staffFallback")}</div>
                           
                           {p.person?.jobTitle && <div className="text-xs text-gray-500 mt-1">{p.person.jobTitle}</div>}
                           {p.person?.organization && <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1"><Building size={10} />{p.person.organization.name}</div>}
@@ -503,7 +505,7 @@ export default function TeamPage() {
                             {/* Availability list */}
                             {slots.length > 0 && (
                               <div className="space-y-1">
-                                <div className="text-[9px] font-bold text-[#888] uppercase tracking-wider">Availability:</div>
+                                <div className="text-[9px] font-bold text-[#888] uppercase tracking-wider">{t("adminTeam.list.availabilityLabel")}</div>
                                 <div className="flex flex-wrap gap-1">
                                   {slots.map((sl: any, idx: number) => (
                                     <span key={idx} className="bg-green-50 text-green-700 border border-green-200 text-[8px] font-bold rounded px-1.5 py-0.5">
@@ -518,16 +520,16 @@ export default function TeamPage() {
                             {assigns.length > 0 ? (
                               assigns.map((ass, idx) => (
                                 <div key={idx} className="bg-stone-50 border border-[#e5e7eb] rounded-xl p-2.5 space-y-1 text-xs">
-                                  {ass.sessionId && <div className="text-red-500 font-bold flex items-center gap-1"><Mic size={10} /> Session: {sessions.find(s => (s.sessionId || s.id) === ass.sessionId)?.title || "Presentation"}</div>}
-                                  {ass.location && <div className="text-blue-600 font-semibold flex items-center gap-1"><MapPin size={10} /> Room: {ass.location.name}</div>}
-                                  {ass.task && <div className="text-[#1a1a1a] font-medium">Task/Notes: {ass.task}</div>}
+                                  {ass.sessionId && <div className="text-red-500 font-bold flex items-center gap-1"><Mic size={10} /> {t("adminTeam.list.sessionPrefix", { title: sessions.find(s => (s.sessionId || s.id) === ass.sessionId)?.title || t("adminTeam.list.presentationFallback") })}</div>}
+                                  {ass.location && <div className="text-blue-600 font-semibold flex items-center gap-1"><MapPin size={10} /> {t("adminTeam.list.roomPrefix", { name: ass.location.name })}</div>}
+                                  {ass.task && <div className="text-[#1a1a1a] font-medium">{t("adminTeam.list.taskPrefix", { task: ass.task })}</div>}
                                   {(ass.shiftStart || ass.shiftEnd) && (
-                                    <div className="text-[9px] text-[#888] flex items-center gap-1"><Clock size={10} /> Shift: {ass.shiftStart ? new Date(ass.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""} - {ass.shiftEnd ? new Date(ass.shiftEnd).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}</div>
+                                    <div className="text-[9px] text-[#888] flex items-center gap-1"><Clock size={10} /> {t("adminTeam.list.shiftPrefix", { start: ass.shiftStart ? new Date(ass.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "", end: ass.shiftEnd ? new Date(ass.shiftEnd).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "" })}</div>
                                   )}
                                 </div>
                               ))
                             ) : (
-                              <div className="text-[10px] text-[#aaa] italic text-center py-1">No active shifts scheduled</div>
+                              <div className="text-[10px] text-[#aaa] italic text-center py-1">{t("adminTeam.list.noShifts")}</div>
                             )}
                           </div>
                         </div>
@@ -541,7 +543,7 @@ export default function TeamPage() {
             {/* Unified Form */}
             <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 h-fit space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold text-[#1a1a1a]">{editingParticipant ? "Edit Participant" : "Add Participant"}</h3>
+                <h3 className="font-display font-bold text-[#1a1a1a]">{editingParticipant ? t("adminTeam.form.editTitle") : t("adminTeam.form.addTitle")}</h3>
                 {editingParticipant && (
                   <button type="button" onClick={() => {
                     setEditingParticipant(null);
@@ -567,33 +569,33 @@ export default function TeamPage() {
                       notes: "",
                       availabilitySlots: []
                     });
-                  }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                  }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminTeam.form.cancelEdit")}</button>
                 )}
               </div>
 
               <form ref={formRef} onSubmit={saveParticipant} className="space-y-4">
                 {/* Core Person Details */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className={label}>First Name *</label><input required placeholder="Alice" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className={inp} /></div>
-                  <div><label className={label}>Last Name</label><input placeholder="Smith" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className={inp} /></div>
+                  <div><label className={label}>{t("adminTeam.form.firstName")}</label><input required placeholder={t("adminTeam.form.firstNamePlaceholder")} value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className={inp} /></div>
+                  <div><label className={label}>{t("adminTeam.form.lastName")}</label><input placeholder={t("adminTeam.form.lastNamePlaceholder")} value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className={inp} /></div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className={label}>Email *</label><input required type="email" placeholder="alice@yoevent.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inp} /></div>
-                  <div><label className={label}>Phone</label><input placeholder="+1 (555) 012-3456" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inp} /></div>
+                  <div><label className={label}>{t("adminTeam.form.email")}</label><input required type="email" placeholder={t("adminTeam.form.emailPlaceholder")} value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inp} /></div>
+                  <div><label className={label}>{t("adminTeam.form.phone")}</label><input placeholder={t("adminTeam.form.phonePlaceholder")} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inp} /></div>
                 </div>
 
                 {/* Role with Inline Create */}
                 <div className="border-t border-[#f0f0f0] pt-4">
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className={label}>Participant Role / Level *</label>
-                    <button type="button" onClick={() => setShowAddRole(!showAddRole)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">+ Add Role</button>
+                    <label className={label}>{t("adminTeam.form.roleLabel")}</label>
+                    <button type="button" onClick={() => setShowAddRole(!showAddRole)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">{t("adminTeam.form.addRole")}</button>
                   </div>
-                  
+
                   {showAddRole && (
                     <div className="flex gap-2 mb-3 bg-[#fafafa] p-3 rounded-xl border border-[#e5e7eb]">
-                      <input placeholder="e.g. Performer" value={newRoleName} onChange={e => setNewRoleName(e.target.value)} className={inp + " py-1.5"} />
-                      <button type="button" onClick={handleAddRole} className="px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-lg hover:bg-[#e03e3e]">Save</button>
+                      <input placeholder={t("adminTeam.form.newRolePlaceholder")} value={newRoleName} onChange={e => setNewRoleName(e.target.value)} className={inp + " py-1.5"} />
+                      <button type="button" onClick={handleAddRole} className="px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-lg hover:bg-[#e03e3e]">{t("adminTeam.form.save")}</button>
                     </div>
                   )}
 
@@ -606,13 +608,13 @@ export default function TeamPage() {
 
                 {/* Job / Bio / Org */}
                 <div className="border-t border-[#f0f0f0] pt-4 space-y-4">
-                  <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">Job / Company Metadata</h4>
+                  <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">{t("adminTeam.form.jobMetadataHeading")}</h4>
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className={label}>Job Title / Caption</label><input placeholder="e.g. Panelist" value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>{t("adminTeam.form.jobTitleLabel")}</label><input placeholder={t("adminTeam.form.jobTitlePlaceholder")} value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} className={inp} /></div>
                     <div>
-                      <label className={label}>Affiliated Company</label>
+                      <label className={label}>{t("adminTeam.form.affiliatedCompany")}</label>
                       <select value={form.organizationId} onChange={e => setForm(f => ({ ...f, organizationId: e.target.value }))} className={inp}>
-                        <option value="">— Select Organization —</option>
+                        <option value="">{t("adminTeam.form.selectOrganization")}</option>
                         {organizations.map(o => (
                           <option key={o.id} value={o.id}>{o.name}</option>
                         ))}
@@ -620,40 +622,40 @@ export default function TeamPage() {
                     </div>
                   </div>
                   <div>
-                    <label className={label}>Or Create New Organization Name</label>
-                    <input placeholder="e.g. OpenAI" value={form.newCompanyName} onChange={e => setForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
+                    <label className={label}>{t("adminTeam.form.newOrgNameLabel")}</label>
+                    <input placeholder={t("adminTeam.form.newOrgNamePlaceholder")} value={form.newCompanyName} onChange={e => setForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
                   </div>
-                  <div><label className={label}>Bio / Description</label><textarea placeholder="Brief notes or speaker biography..." value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
+                  <div><label className={label}>{t("adminTeam.form.bioLabel")}</label><textarea placeholder={t("adminTeam.form.bioPlaceholder")} value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
                 </div>
 
                 {/* Generic Availability Scheduler */}
                 <div className="border-t border-[#f0f0f0] pt-4 space-y-3">
-                  <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">Availability Scheduler</h4>
-                  
+                  <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">{t("adminTeam.form.availabilitySchedulerHeading")}</h4>
+
                   <div className="flex gap-2 flex-wrap items-end bg-[#fafafa] border border-[#e5e7eb] rounded-2xl p-3.5">
                     <div className="flex-1 min-w-[120px]">
-                      <label className={label}>Day</label>
+                      <label className={label}>{t("adminTeam.form.dayLabel")}</label>
                       <select value={availDay} onChange={e => setAvailDay(e.target.value)} className={inp + " py-1.5"}>
-                        <option value="Monday">Monday</option>
-                        <option value="Tuesday">Tuesday</option>
-                        <option value="Wednesday">Wednesday</option>
-                        <option value="Thursday">Thursday</option>
-                        <option value="Friday">Friday</option>
-                        <option value="Saturday">Saturday</option>
-                        <option value="Sunday">Sunday</option>
-                        <option value="All Days">All Days</option>
+                        <option value="Monday">{t("adminTeam.days.monday")}</option>
+                        <option value="Tuesday">{t("adminTeam.days.tuesday")}</option>
+                        <option value="Wednesday">{t("adminTeam.days.wednesday")}</option>
+                        <option value="Thursday">{t("adminTeam.days.thursday")}</option>
+                        <option value="Friday">{t("adminTeam.days.friday")}</option>
+                        <option value="Saturday">{t("adminTeam.days.saturday")}</option>
+                        <option value="Sunday">{t("adminTeam.days.sunday")}</option>
+                        <option value="All Days">{t("adminTeam.days.allDays")}</option>
                       </select>
                     </div>
                     <div className="w-[80px]">
-                      <label className={label}>Start</label>
+                      <label className={label}>{t("adminTeam.form.startLabel")}</label>
                       <input type="time" value={availStart} onChange={e => setAvailStart(e.target.value)} className={inp + " py-1.5 px-2"} />
                     </div>
                     <div className="w-[80px]">
-                      <label className={label}>End</label>
+                      <label className={label}>{t("adminTeam.form.endLabel")}</label>
                       <input type="time" value={availEnd} onChange={e => setAvailEnd(e.target.value)} className={inp + " py-1.5 px-2"} />
                     </div>
                     <button type="button" onClick={addAvailabilitySlot} className="px-3.5 py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-stone-800 transition-colors h-[38px] cursor-pointer">
-                      + Add
+                      {t("adminTeam.form.addSlot")}
                     </button>
                   </div>
 
@@ -672,46 +674,46 @@ export default function TeamPage() {
                 {/* Session Assignment with Inline Create */}
                 <div className="border-t border-[#f0f0f0] pt-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">Session & room scheduling</h4>
-                    <button type="button" onClick={() => setShowQuickSession(!showQuickSession)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">+ Quick Create Session</button>
+                    <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">{t("adminTeam.form.sessionRoomHeading")}</h4>
+                    <button type="button" onClick={() => setShowQuickSession(!showQuickSession)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">{t("adminTeam.form.quickCreateSession")}</button>
                   </div>
 
                   {showQuickSession && (
                     <div className="bg-[#fafafa] border border-[#e5e7eb] rounded-2xl p-4 space-y-3">
                       <div>
-                        <label className={label}>Session Title</label>
-                        <input placeholder="e.g. AI panel debate" value={quickSession.title} onChange={e => setQuickSession(q => ({ ...q, title: e.target.value }))} className={inp + " py-1.5"} />
+                        <label className={label}>{t("adminTeam.form.sessionTitleLabel")}</label>
+                        <input placeholder={t("adminTeam.form.sessionTitlePlaceholder")} value={quickSession.title} onChange={e => setQuickSession(q => ({ ...q, title: e.target.value }))} className={inp + " py-1.5"} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className={label}>Start Date/Time</label>
+                          <label className={label}>{t("adminTeam.form.startDateTime")}</label>
                           <input type="datetime-local" value={quickSession.startTime} onChange={e => setQuickSession(q => ({ ...q, startTime: e.target.value }))} className={inp + " py-1.5"} />
                         </div>
                         <div>
-                          <label className={label}>End Date/Time</label>
+                          <label className={label}>{t("adminTeam.form.endDateTime")}</label>
                           <input type="datetime-local" value={quickSession.endTime} onChange={e => setQuickSession(q => ({ ...q, endTime: e.target.value }))} className={inp + " py-1.5"} />
                         </div>
                       </div>
                       <div>
-                        <label className={label}>Room Location</label>
+                        <label className={label}>{t("adminTeam.form.roomLocationLabel")}</label>
                         <select value={quickSession.locationId} onChange={e => setQuickSession(q => ({ ...q, locationId: e.target.value }))} className={inp + " py-1.5"}>
-                          <option value="">— Select Room —</option>
+                          <option value="">{t("adminTeam.form.selectRoom")}</option>
                           {locations.map(loc => (
                             <option key={loc.roomId} value={loc.roomId}>{loc.name}</option>
                           ))}
                         </select>
                       </div>
                       <div className="flex gap-2 justify-end pt-1">
-                        <button type="button" onClick={() => setShowQuickSession(false)} className="px-3 py-1.5 border border-[#e5e7eb] rounded-lg text-xs font-semibold">Cancel</button>
-                        <button type="button" onClick={handleQuickSessionSave} className="px-3 py-1.5 bg-[#FF4747] text-white rounded-lg text-xs font-bold">Create</button>
+                        <button type="button" onClick={() => setShowQuickSession(false)} className="px-3 py-1.5 border border-[#e5e7eb] rounded-lg text-xs font-semibold">{t("adminTeam.form.cancel")}</button>
+                        <button type="button" onClick={handleQuickSessionSave} className="px-3 py-1.5 bg-[#FF4747] text-white rounded-lg text-xs font-bold">{t("adminTeam.form.create")}</button>
                       </div>
                     </div>
                   )}
 
                   <div>
-                    <label className={label}>Assigned Session</label>
+                    <label className={label}>{t("adminTeam.form.assignedSession")}</label>
                     <select value={form.sessionId} onChange={e => setForm(f => ({ ...f, sessionId: e.target.value }))} className={inp}>
-                      <option value="">— Select Session —</option>
+                      <option value="">{t("adminTeam.form.selectSession")}</option>
                       {sessions.map(s => (
                         <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>
                       ))}
@@ -727,26 +729,26 @@ export default function TeamPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className={label}>Room Location Override</label>
+                      <label className={label}>{t("adminTeam.form.roomLocationOverride")}</label>
                       <select value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                        <option value="">— Select Room —</option>
+                        <option value="">{t("adminTeam.form.selectRoom")}</option>
                         {locations.map(loc => (
                           <option key={loc.roomId} value={loc.roomId}>{loc.name}</option>
                         ))}
                       </select>
                     </div>
-                    <div><label className={label}>Shift Task / Note</label><input placeholder="e.g. Presenter" value={form.task} onChange={e => setForm(f => ({ ...f, task: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>{t("adminTeam.form.shiftTaskNote")}</label><input placeholder={t("adminTeam.form.shiftTaskPlaceholder")} value={form.task} onChange={e => setForm(f => ({ ...f, task: e.target.value }))} className={inp} /></div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className={label}>Shift Start Override</label><input type="datetime-local" value={form.shiftStart} onChange={e => setForm(f => ({ ...f, shiftStart: e.target.value }))} className={inp} /></div>
-                    <div><label className={label}>Shift End Override</label><input type="datetime-local" value={form.shiftEnd} onChange={e => setForm(f => ({ ...f, shiftEnd: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>{t("adminTeam.form.shiftStartOverride")}</label><input type="datetime-local" value={form.shiftStart} onChange={e => setForm(f => ({ ...f, shiftStart: e.target.value }))} className={inp} /></div>
+                    <div><label className={label}>{t("adminTeam.form.shiftEndOverride")}</label><input type="datetime-local" value={form.shiftEnd} onChange={e => setForm(f => ({ ...f, shiftEnd: e.target.value }))} className={inp} /></div>
                   </div>
                 </div>
 
                 {/* Profile Photo */}
                 <div className="border-t border-[#f0f0f0] pt-4">
-                  <label className={label}>Profile Photo</label>
+                  <label className={label}>{t("adminTeam.form.profilePhoto")}</label>
                   <label className="flex items-center gap-3 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
                     {form.photoUrl ? (
                       <img src={form.photoUrl} alt="Preview" className="w-12 h-12 rounded-full object-cover shrink-0" />
@@ -755,7 +757,7 @@ export default function TeamPage() {
                         <User size={18} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
                       </div>
                     )}
-                    <span className="text-sm text-[#888] group-hover:text-[#FF4747] transition-colors">{form.photoUrl ? "Click to change" : "Upload photo"}</span>
+                    <span className="text-sm text-[#888] group-hover:text-[#FF4747] transition-colors">{form.photoUrl ? t("adminTeam.form.clickToChange") : t("adminTeam.form.uploadPhoto")}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={async e => {
                       const f = e.target.files?.[0];
                       if (!f) return;
@@ -763,9 +765,9 @@ export default function TeamPage() {
                         setSaving(true);
                         const res = await eventService.uploadImage(f);
                         setForm(f => ({ ...f, photoUrl: res.url }));
-                        showToast("Photo uploaded successfully!");
+                        showToast(t("adminTeam.toast.photoUploaded"));
                       } catch (err: any) {
-                        showToast("Failed to upload photo: " + (err.message || err));
+                        showToast(t("adminTeam.toast.photoUploadFailed", { error: err.message || err }));
                       } finally {
                         setSaving(false);
                       }
@@ -774,7 +776,7 @@ export default function TeamPage() {
                 </div>
 
                 <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center py-3 mt-4"}>
-                  <Plus size={15} />{saving ? "Registering..." : (editingParticipant ? "Save Participant Changes" : "Register Participant")}
+                  <Plus size={15} />{saving ? t("adminTeam.form.registering") : (editingParticipant ? t("adminTeam.form.saveChanges") : t("adminTeam.form.registerParticipant"))}
                 </button>
               </form>
             </div>

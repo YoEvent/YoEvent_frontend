@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { History, MessageSquare, ShieldAlert, TrendingDown, Radio, Plus, Trash2, Pencil, Save, Star, X, HelpCircle, ThumbsUp, Globe, CheckCircle, BarChart2, ChevronDown, Megaphone } from "lucide-react";
 import { api, getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 type SubTab = "performance" | "polls" | "qa" | "feedbacks" | "announcements";
 
@@ -20,6 +21,7 @@ const typeColors: Record<string, string> = {
 };
 
 export default function EngagementsPage() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<SubTab>("performance");
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
@@ -163,22 +165,22 @@ export default function EngagementsPage() {
       if (editingPoll) {
         await eventService.updatePoll(editingPoll.pollId || editingPoll.id, payload);
         setEditingPoll(null);
-        showToast("success", "Poll updated!");
+        showToast("success", t("adminEngagements.toasts.pollUpdated"));
       } else {
         await eventService.createPoll(payload);
-        showToast("success", "Poll created!");
+        showToast("success", t("adminEngagements.toasts.pollCreated"));
       }
       setPollForm({ question: "", options: ["", ""] });
       await loadEngagementData(selectedEventId);
     } catch {
-      showToast("error", "Failed to save poll.");
+      showToast("error", t("adminEngagements.toasts.pollSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const deletePoll = async (id: string) => {
-    if (!confirm("Delete this poll?")) return;
+    if (!confirm(t("adminEngagements.confirm.deletePoll"))) return;
     try {
       await eventService.deletePoll(id);
       if (editingPoll?.pollId === id || editingPoll?.id === id) {
@@ -186,9 +188,9 @@ export default function EngagementsPage() {
         setPollForm({ question: "", options: ["", ""] });
       }
       await loadEngagementData(selectedEventId);
-      showToast("success", "Poll deleted!");
+      showToast("success", t("adminEngagements.toasts.pollDeleted"));
     } catch {
-      showToast("error", "Failed to delete poll.");
+      showToast("error", t("adminEngagements.toasts.pollDeleteFailed"));
     }
   };
 
@@ -212,22 +214,22 @@ export default function EngagementsPage() {
       if (editingQA) {
         await eventService.updateQaQuestion(editingQA.questionId || editingQA.id, payload);
         setEditingQA(null);
-        showToast("success", "Question updated!");
+        showToast("success", t("adminEngagements.toasts.questionUpdated"));
       } else {
         await eventService.createQaQuestion(payload);
-        showToast("success", "Question added!");
+        showToast("success", t("adminEngagements.toasts.questionAdded"));
       }
       setQaForm({ sessionId: selectedSessionId, questionText: "", isAnonymous: false, answerText: "" });
       if (selectedSessionId) loadSessionQA(selectedSessionId);
     } catch {
-      showToast("error", "Failed to save Q&A question.");
+      showToast("error", t("adminEngagements.toasts.questionSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const deleteQA = async (id: string) => {
-    if (!confirm("Delete this Q&A question?")) return;
+    if (!confirm(t("adminEngagements.confirm.deleteQuestion"))) return;
     try {
       await eventService.deleteQaQuestion(id);
       if (editingQA?.questionId === id || editingQA?.id === id) {
@@ -235,9 +237,9 @@ export default function EngagementsPage() {
         setQaForm({ sessionId: selectedSessionId, questionText: "", isAnonymous: false, answerText: "" });
       }
       if (selectedSessionId) loadSessionQA(selectedSessionId);
-      showToast("success", "Question deleted!");
+      showToast("success", t("adminEngagements.toasts.questionDeleted"));
     } catch {
-      showToast("error", "Failed to delete question.");
+      showToast("error", t("adminEngagements.toasts.questionDeleteFailed"));
     }
   };
 
@@ -261,9 +263,9 @@ export default function EngagementsPage() {
       });
 
       if (selectedSessionId) loadSessionQA(selectedSessionId);
-      showToast("success", "Answer submitted!");
+      showToast("success", t("adminEngagements.toasts.answerSubmitted"));
     } catch {
-      showToast("error", "Failed to submit answer.");
+      showToast("error", t("adminEngagements.toasts.answerSubmitFailed"));
     }
   };
 
@@ -304,23 +306,23 @@ export default function EngagementsPage() {
       if (editingAnnouncement) {
         await eventService.updateAnnouncement(editingAnnouncement.announcementId || editingAnnouncement.id, payload);
         setEditingAnnouncement(null);
-        showToast("success", "Announcement updated!");
+        showToast("success", t("adminEngagements.toasts.announcementUpdated"));
       } else {
         await eventService.createAnnouncement(payload);
-        showToast("success", "Announcement posted!");
+        showToast("success", t("adminEngagements.toasts.announcementPosted"));
       }
       setAnnouncementForm({ title: "", content: "", type: "GENERAL" });
       await loadEngagementData(selectedEventId);
     } catch (err) {
       console.error("Failed to post announcement:", err);
-      showToast("error", "Failed to save announcement.");
+      showToast("error", t("adminEngagements.toasts.announcementSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteAnnouncement = async (id: string) => {
-    if (!confirm("Delete this announcement?")) return;
+    if (!confirm(t("adminEngagements.confirm.deleteAnnouncement"))) return;
     try {
       await eventService.deleteAnnouncement(id);
       if (editingAnnouncement?.announcementId === id || editingAnnouncement?.id === id) {
@@ -328,10 +330,10 @@ export default function EngagementsPage() {
         setAnnouncementForm({ title: "", content: "", type: "GENERAL" });
       }
       await loadEngagementData(selectedEventId);
-      showToast("success", "Announcement deleted!");
+      showToast("success", t("adminEngagements.toasts.announcementDeleted"));
     } catch (err) {
       console.error("Failed to delete announcement:", err);
-      showToast("error", "Failed to delete announcement.");
+      showToast("error", t("adminEngagements.toasts.announcementDeleteFailed"));
     }
   };
 
@@ -357,7 +359,7 @@ export default function EngagementsPage() {
 
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Engagements & Reports</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminEngagements.header.title")}</h1>
           <div className="flex items-center gap-4">
             {events.length > 0 && (
               <div className="relative">
@@ -411,15 +413,15 @@ export default function EngagementsPage() {
           {/* TABS */}
           <div className="flex gap-1 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl p-1 w-fit">
             {([
-              ["performance", "Performance", BarChart2],
-              ["polls", "Live Polls", Radio],
-              ["qa", "Live Q&A", HelpCircle],
-              ["feedbacks", "Feedbacks", MessageSquare],
-              ["announcements", "Announcements", Megaphone],
-            ] as const).map(([key, label, Icon]) => (
+              ["performance", t("adminEngagements.tabs.performance"), BarChart2],
+              ["polls", t("adminEngagements.tabs.polls"), Radio],
+              ["qa", t("adminEngagements.tabs.qa"), HelpCircle],
+              ["feedbacks", t("adminEngagements.tabs.feedbacks"), MessageSquare],
+              ["announcements", t("adminEngagements.tabs.announcements"), Megaphone],
+            ] as const).map(([key, tabLabel, Icon]) => (
               <button key={key} onClick={() => setTab(key)}
                 className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${tab === key ? "bg-[#FF4747] text-white" : "text-[#666] hover:text-[#1a1a1a]"}`}>
-                <Icon size={15} />{label}
+                <Icon size={15} />{tabLabel}
               </button>
             ))}
           </div>
@@ -431,10 +433,10 @@ export default function EngagementsPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-4 gap-5">
                 {[
-                  { label: "Total Registrations", value: totalRegs, subtitle: "Ticket holders", color: "text-[#EB4203]" },
-                  { label: "Total Check-ins", value: totalCheckins, subtitle: "People attended", color: "text-blue-600" },
-                  { label: "Total Page Views", value: totalViews, subtitle: "Landing page visits", color: "text-purple-600" },
-                  { label: "Gross Revenue", value: `${totalRev.toLocaleString()} FCFA`, subtitle: "Before platform fee", color: "text-green-600" },
+                  { label: t("adminEngagements.performance.totalRegistrations"), value: totalRegs, subtitle: t("adminEngagements.performance.totalRegistrationsSub"), color: "text-[#EB4203]" },
+                  { label: t("adminEngagements.performance.totalCheckins"), value: totalCheckins, subtitle: t("adminEngagements.performance.totalCheckinsSub"), color: "text-blue-600" },
+                  { label: t("adminEngagements.performance.totalPageViews"), value: totalViews, subtitle: t("adminEngagements.performance.totalPageViewsSub"), color: "text-purple-600" },
+                  { label: t("adminEngagements.performance.grossRevenue"), value: `${totalRev.toLocaleString()} FCFA`, subtitle: t("adminEngagements.performance.grossRevenueSub"), color: "text-green-600" },
                 ].map((stat, i) => (
                   <div key={i} className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
                     <div className="text-[10px] text-[#666] uppercase tracking-wider mb-2 font-bold">{stat.label}</div>
@@ -450,9 +452,9 @@ export default function EngagementsPage() {
                     <TrendingDown size={18} className="text-red-500" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-[#666] uppercase tracking-wider mb-1 font-bold">Platform Fee Deducted</div>
+                    <div className="text-[10px] text-[#666] uppercase tracking-wider mb-1 font-bold">{t("adminEngagements.performance.platformFeeDeducted")}</div>
                     <div className="font-display text-xl font-bold text-red-500">{totalPlatformFee.toLocaleString()} FCFA</div>
-                    <div className="text-xs text-[#888] mt-0.5">Sum of all commission across {orders.length} order(s)</div>
+                    <div className="text-xs text-[#888] mt-0.5">{t("adminEngagements.performance.platformFeeSub", { count: orders.length })}</div>
                   </div>
                 </div>
                 <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 flex items-center gap-5 shadow-sm">
@@ -460,9 +462,9 @@ export default function EngagementsPage() {
                     <span className="text-green-600 font-bold text-sm">$</span>
                   </div>
                   <div>
-                    <div className="text-[10px] text-[#666] uppercase tracking-wider mb-1 font-bold">Net Payout</div>
+                    <div className="text-[10px] text-[#666] uppercase tracking-wider mb-1 font-bold">{t("adminEngagements.performance.netPayout")}</div>
                     <div className="font-display text-xl font-bold text-green-600">{netPayout.toLocaleString()} FCFA</div>
-                    <div className="text-xs text-[#888] mt-0.5">Gross revenue minus platform fee</div>
+                    <div className="text-xs text-[#888] mt-0.5">{t("adminEngagements.performance.netPayoutSub")}</div>
                   </div>
                 </div>
               </div>
@@ -470,7 +472,7 @@ export default function EngagementsPage() {
               {/* AUDIT LOGS */}
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
                 <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-                  <History size={18} className="text-[#EB4203]" /> Immutable Compliance Logs
+                  <History size={18} className="text-[#EB4203]" /> {t("adminEngagements.performance.auditLogsHeading")}
                 </h2>
                 <div className="overflow-x-auto max-h-[300px]">
                   <table className="w-full text-left text-xs text-[#1a1a1a]">
@@ -488,7 +490,7 @@ export default function EngagementsPage() {
                       {auditLogs.length === 0 && (
                         <tr>
                           <td colSpan={3} className="p-8 text-center text-[#666]">
-                            No compliance actions recorded.
+                            {t("adminEngagements.performance.auditLogsEmpty")}
                           </td>
                         </tr>
                       )}
@@ -502,9 +504,9 @@ export default function EngagementsPage() {
             <div className="grid lg:grid-cols-[1.8fr_1.2fr] gap-8">
               {/* Polls list */}
               <div className="space-y-4">
-                <h3 className="font-display font-bold text-[#1a1a1a]">Live Polls</h3>
+                <h3 className="font-display font-bold text-[#1a1a1a]">{t("adminEngagements.polls.heading")}</h3>
                 {filteredPolls.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">No polls launched for this session yet.</div>
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">{t("adminEngagements.polls.empty")}</div>
                 ) : filteredPolls.map((p, idx) => {
                   const id = p.pollId || p.id;
                   const opts = typeof p.options === "string" ? JSON.parse(p.options) : (p.options || []);
@@ -533,7 +535,7 @@ export default function EngagementsPage() {
                           </li>
                         ))}
                       </ul>
-                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full mt-3.5 inline-block ${p.isActive ? "bg-green-100 text-green-700" : "bg-[#fafafa] text-[#888]"}`}>{p.isActive ? "ACTIVE" : "INACTIVE"}</span>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full mt-3.5 inline-block ${p.isActive ? "bg-green-100 text-green-700" : "bg-[#fafafa] text-[#888]"}`}>{p.isActive ? t("adminEngagements.polls.active") : t("adminEngagements.polls.inactive")}</span>
                     </div>
                   );
                 })}
@@ -542,28 +544,28 @@ export default function EngagementsPage() {
               {/* Poll Create/Edit Form */}
               <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 h-fit">
                 <div className="flex items-center justify-between mb-5">
-                  <h4 className="font-bold text-sm text-[#1a1a1a]">{editingPoll ? "Edit Poll" : "Create Poll"}</h4>
+                  <h4 className="font-bold text-sm text-[#1a1a1a]">{editingPoll ? t("adminEngagements.polls.editTitle") : t("adminEngagements.polls.addTitle")}</h4>
                   {editingPoll && (
-                    <button type="button" onClick={() => { setEditingPoll(null); setPollForm({ question: "", options: ["", ""] }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                    <button type="button" onClick={() => { setEditingPoll(null); setPollForm({ question: "", options: ["", ""] }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminEngagements.polls.cancelEdit")}</button>
                   )}
                 </div>
                 <form ref={pollFormRef} onSubmit={savePoll} className="space-y-4">
                   <div>
-                    <label className={label}>Question *</label>
-                    <input required placeholder="e.g. What topic interests you most?" value={pollForm.question} onChange={e => setPollForm(f => ({ ...f, question: e.target.value }))} className={inp} />
+                    <label className={label}>{t("adminEngagements.polls.questionLabel")}</label>
+                    <input required placeholder={t("adminEngagements.polls.questionPlaceholder")} value={pollForm.question} onChange={e => setPollForm(f => ({ ...f, question: e.target.value }))} className={inp} />
                   </div>
                   <div>
-                    <label className={label}>Options</label>
+                    <label className={label}>{t("adminEngagements.polls.optionsLabel")}</label>
                     {pollForm.options.map((opt, i) => (
                       <div key={i} className="flex gap-2 mb-2">
-                        <input placeholder={`Option ${i + 1}`} value={opt} onChange={e => { const opts = [...pollForm.options]; opts[i] = e.target.value; setPollForm(f => ({ ...f, options: opts })); }} className={inp} />
+                        <input placeholder={t("adminEngagements.polls.optionPlaceholder", { number: i + 1 })} value={opt} onChange={e => { const opts = [...pollForm.options]; opts[i] = e.target.value; setPollForm(f => ({ ...f, options: opts })); }} className={inp} />
                         {pollForm.options.length > 2 && <button type="button" onClick={() => setPollForm(f => ({ ...f, options: f.options.filter((_, j) => j !== i) }))} className="p-2 text-red-400 hover:text-red-600 cursor-pointer"><X size={14} /></button>}
                       </div>
                     ))}
-                    {pollForm.options.length < 6 && <button type="button" onClick={() => setPollForm(f => ({ ...f, options: [...f.options, ""] }))} className="text-xs text-[#FF4747] font-semibold cursor-pointer hover:underline">+ Add option</button>}
+                    {pollForm.options.length < 6 && <button type="button" onClick={() => setPollForm(f => ({ ...f, options: [...f.options, ""] }))} className="text-xs text-[#FF4747] font-semibold cursor-pointer hover:underline">{t("adminEngagements.polls.addOption")}</button>}
                   </div>
                   <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
-                    <Save size={13} /> {editingPoll ? (saving ? "Saving..." : "Save Poll") : (saving ? "Launching..." : "Launch Poll")}
+                    <Save size={13} /> {editingPoll ? (saving ? t("adminEngagements.polls.saving") : t("adminEngagements.polls.save")) : (saving ? t("adminEngagements.polls.launching") : t("adminEngagements.polls.launch"))}
                   </button>
                 </form>
               </div>
@@ -574,7 +576,7 @@ export default function EngagementsPage() {
               {/* Questions list */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-display font-bold text-[#1a1a1a]">Moderation Q&A {activeSession && <span className="text-xs font-normal text-[#666] ml-2">(for {activeSession.title})</span>}</h3>
+                  <h3 className="font-display font-bold text-[#1a1a1a]">{t("adminEngagements.qa.headingBase")} {activeSession && <span className="text-xs font-normal text-[#666] ml-2">{t("adminEngagements.qa.forSession", { session: activeSession.title })}</span>}</h3>
                 </div>
 
                 <div className="space-y-3">
@@ -614,14 +616,14 @@ export default function EngagementsPage() {
                         {q.isAnswered ? (
                           <div className="p-3 bg-green-50 border border-green-100 rounded-lg text-xs text-green-700">
                             <strong className="block text-[9px] uppercase tracking-wider text-green-600 font-bold mb-1">
-                              Answered
+                              {t("adminEngagements.qa.answeredLabel")}
                             </strong>
                             {q.answerText}
                           </div>
                         ) : (
                           <div className="flex gap-2">
                             <input
-                              placeholder="Type answer..."
+                              placeholder={t("adminEngagements.qa.answerPlaceholder")}
                               value={answerForm[id] || ""}
                               onChange={(e) => setAnswerForm({ ...answerForm, [id]: e.target.value })}
                               className="flex-1 bg-[#ffffff] border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-xs text-[#1a1a1a] placeholder:text-[#aaa] outline-none"
@@ -630,7 +632,7 @@ export default function EngagementsPage() {
                               onClick={() => handleAnswerQuestion(id)}
                               className="bg-green-700 hover:bg-green-600 text-white rounded-lg px-4 text-xs font-semibold cursor-pointer shrink-0"
                             >
-                              Submit
+                              {t("adminEngagements.qa.submit")}
                             </button>
                           </div>
                         )}
@@ -639,7 +641,7 @@ export default function EngagementsPage() {
                   })}
                   {questions.length === 0 && (
                     <div className="text-center text-xs text-[#555] py-8 border border-dashed border-[#e5e7eb] rounded-xl bg-white">
-                      No questions posted yet for this session.
+                      {t("adminEngagements.qa.empty")}
                     </div>
                   )}
                 </div>
@@ -648,38 +650,38 @@ export default function EngagementsPage() {
               {/* QA Create/Edit Form */}
               <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 h-fit">
                 <div className="flex items-center justify-between mb-5">
-                  <h4 className="font-bold text-sm text-[#1a1a1a]">{editingQA ? "Edit Q&A Question" : "Add Q&A Question"}</h4>
+                  <h4 className="font-bold text-sm text-[#1a1a1a]">{editingQA ? t("adminEngagements.qa.editTitle") : t("adminEngagements.qa.addTitle")}</h4>
                   {editingQA && (
-                    <button type="button" onClick={() => { setEditingQA(null); setQaForm({ sessionId: selectedSessionId, questionText: "", isAnonymous: false, answerText: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                    <button type="button" onClick={() => { setEditingQA(null); setQaForm({ sessionId: selectedSessionId, questionText: "", isAnonymous: false, answerText: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminEngagements.qa.cancelEdit")}</button>
                   )}
                 </div>
                 {sessions.length === 0 ? (
                   <div className="text-xs text-[#888] bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-4">
-                    Add at least one session first — Q&A questions are linked to sessions.
+                    {t("adminEngagements.qa.noSessionsNotice")}
                   </div>
                 ) : (
                   <form ref={qaFormRef} onSubmit={saveQA} className="space-y-4">
                     <div>
-                      <label className={label}>Session *</label>
+                      <label className={label}>{t("adminEngagements.qa.sessionLabel")}</label>
                       <select value={qaForm.sessionId} onChange={e => setQaForm(f => ({ ...f, sessionId: e.target.value }))} className={inp} required>
-                        <option value="">— Select session —</option>
+                        <option value="">{t("adminEngagements.qa.selectSessionOption")}</option>
                         {sessions.map(s => <option key={`${s.sessionId || s.id}`} value={s.sessionId || s.id}>{s.title}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className={label}>Question *</label>
-                      <textarea required placeholder="Enter a question for attendees..." value={qaForm.questionText} onChange={e => setQaForm(f => ({ ...f, questionText: e.target.value }))} rows={3} className={inp + " resize-none"} />
+                      <label className={label}>{t("adminEngagements.qa.questionLabel")}</label>
+                      <textarea required placeholder={t("adminEngagements.qa.questionPlaceholder")} value={qaForm.questionText} onChange={e => setQaForm(f => ({ ...f, questionText: e.target.value }))} rows={3} className={inp + " resize-none"} />
                     </div>
                     <div>
-                      <label className={label}>Answer (Optional)</label>
-                      <textarea placeholder="Answer text..." value={qaForm.answerText} onChange={e => setQaForm(f => ({ ...f, answerText: e.target.value }))} rows={2} className={inp + " resize-none"} />
+                      <label className={label}>{t("adminEngagements.qa.answerLabel")}</label>
+                      <textarea placeholder={t("adminEngagements.qa.answerTextPlaceholder")} value={qaForm.answerText} onChange={e => setQaForm(f => ({ ...f, answerText: e.target.value }))} rows={2} className={inp + " resize-none"} />
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-[#555] font-semibold">
                       <input type="checkbox" checked={qaForm.isAnonymous} onChange={e => setQaForm(f => ({ ...f, isAnonymous: e.target.checked }))} className="rounded border-[#e5e7eb]" />
-                      Post anonymously
+                      {t("adminEngagements.qa.postAnonymously")}
                     </label>
                     <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
-                      <Save size={13} /> {editingQA ? (saving ? "Saving..." : "Save Question") : (saving ? "Adding..." : "Add Question")}
+                      <Save size={13} /> {editingQA ? (saving ? t("adminEngagements.qa.saving") : t("adminEngagements.qa.save")) : (saving ? t("adminEngagements.qa.adding") : t("adminEngagements.qa.add"))}
                     </button>
                   </form>
                 )}
@@ -689,13 +691,13 @@ export default function EngagementsPage() {
             // FEEDBACKS SUBTAB
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
               <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-                <MessageSquare size={18} className="text-[#EB4203]" /> Attendee Feedback <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+                <MessageSquare size={18} className="text-[#EB4203]" /> {t("adminEngagements.feedbacks.headingBase")} <span className="text-xs font-normal text-[#666] ml-2 mt-1">{t("adminEngagements.feedbacks.forEvent", { event: activeEvent?.title || t("adminEngagements.feedbacks.defaultEvent") })}</span>
               </h2>
               <div className="space-y-4">
                 {feedbacks.map((f, idx) => (
                   <div key={`${f.feedbackId || f.id || idx}-${idx}`} className="p-4 bg-white border border-[#e5e7eb] rounded-xl space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-[#888] font-mono">User ID: {(f.userId || "").substring(0, 8)}...</span>
+                      <span className="text-[10px] text-[#888] font-mono">{t("adminEngagements.feedbacks.userIdLabel")} {(f.userId || "").substring(0, 8)}...</span>
                       <div className="flex items-center gap-0.5 text-amber-400 text-xs">
                         {"★".repeat(f.rating || 0)}
                         {"☆".repeat(5 - (f.rating || 0))}
@@ -706,7 +708,7 @@ export default function EngagementsPage() {
                 ))}
                 {feedbacks.length === 0 && (
                   <div className="text-center text-xs text-[#555] py-12">
-                    No attendee feedbacks received yet.
+                    {t("adminEngagements.feedbacks.empty")}
                   </div>
                 )}
               </div>
@@ -716,9 +718,9 @@ export default function EngagementsPage() {
             <div className="grid lg:grid-cols-[1.8fr_1.2fr] gap-8">
               {/* List */}
               <div className="space-y-4">
-                <h3 className="font-display font-bold text-[#1a1a1a]">Event Announcements</h3>
+                <h3 className="font-display font-bold text-[#1a1a1a]">{t("adminEngagements.announcements.heading")}</h3>
                 {filteredAnnouncements.length === 0 ? (
-                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">No announcements broadcasted for this session yet.</div>
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-10 text-center text-[#aaa]">{t("adminEngagements.announcements.empty")}</div>
                 ) : filteredAnnouncements.map((a, idx) => {
                   const id = a.announcementId || a.id;
                   return (
@@ -726,7 +728,7 @@ export default function EngagementsPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <span className={`text-[8px] font-bold px-2.5 py-0.5 rounded-full border ${typeColors[a.type] || typeColors.GENERAL} uppercase tracking-wider`}>
-                            {a.type || "GENERAL"}
+                            {t(`adminEngagements.announcements.categories.${a.type || "GENERAL"}`)}
                           </span>
                           <div className="text-sm font-bold text-[#1a1a1a] mt-2">{a.title}</div>
                         </div>
@@ -745,7 +747,7 @@ export default function EngagementsPage() {
                       </div>
                       <div className="text-xs text-[#555] leading-relaxed mt-2 italic">&ldquo;{a.content}&rdquo;</div>
                       <div className="text-[9px] text-[#888] mt-3 font-mono">
-                        Posted on {new Date(a.publishedAt).toLocaleString()}
+                        {t("adminEngagements.announcements.postedOn", { date: new Date(a.publishedAt).toLocaleString() })}
                       </div>
                     </div>
                   );
@@ -755,32 +757,32 @@ export default function EngagementsPage() {
               {/* Form */}
               <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 h-fit">
                 <div className="flex items-center justify-between mb-5">
-                  <h4 className="font-bold text-sm text-[#1a1a1a]">{editingAnnouncement ? "Edit Announcement" : "Create Announcement"}</h4>
+                  <h4 className="font-bold text-sm text-[#1a1a1a]">{editingAnnouncement ? t("adminEngagements.announcements.editTitle") : t("adminEngagements.announcements.addTitle")}</h4>
                   {editingAnnouncement && (
-                    <button type="button" onClick={() => { setEditingAnnouncement(null); setAnnouncementForm({ title: "", content: "", type: "GENERAL" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                    <button type="button" onClick={() => { setEditingAnnouncement(null); setAnnouncementForm({ title: "", content: "", type: "GENERAL" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminEngagements.announcements.cancelEdit")}</button>
                   )}
                 </div>
                 <form ref={announcementFormRef} onSubmit={handlePostAnnouncement} className="space-y-4">
                   <div>
-                    <label className={label}>Announcement Title *</label>
-                    <input required placeholder="e.g. Venue Change / Event Delay" value={announcementForm.title} onChange={e => setAnnouncementForm(f => ({ ...f, title: e.target.value }))} className={inp} />
+                    <label className={label}>{t("adminEngagements.announcements.titleLabel")}</label>
+                    <input required placeholder={t("adminEngagements.announcements.titlePlaceholder")} value={announcementForm.title} onChange={e => setAnnouncementForm(f => ({ ...f, title: e.target.value }))} className={inp} />
                   </div>
                   <div>
-                    <label className={label}>Announcement Category</label>
+                    <label className={label}>{t("adminEngagements.announcements.categoryLabel")}</label>
                     <select value={announcementForm.type} onChange={e => setAnnouncementForm(f => ({ ...f, type: e.target.value }))} className={inp}>
-                      <option value="GENERAL">General</option>
-                      <option value="URGENT">Urgent</option>
-                      <option value="SCHEDULE_CHANGE">Schedule Change</option>
-                      <option value="REMINDER">Reminder</option>
-                      <option value="LOGISTICS">Logistics</option>
+                      <option value="GENERAL">{t("adminEngagements.announcements.categories.GENERAL")}</option>
+                      <option value="URGENT">{t("adminEngagements.announcements.categories.URGENT")}</option>
+                      <option value="SCHEDULE_CHANGE">{t("adminEngagements.announcements.categories.SCHEDULE_CHANGE")}</option>
+                      <option value="REMINDER">{t("adminEngagements.announcements.categories.REMINDER")}</option>
+                      <option value="LOGISTICS">{t("adminEngagements.announcements.categories.LOGISTICS")}</option>
                     </select>
                   </div>
                   <div>
-                    <label className={label}>Content *</label>
-                    <textarea required placeholder="Write your broadcast content here..." value={announcementForm.content} onChange={e => setAnnouncementForm(f => ({ ...f, content: e.target.value }))} rows={4} className={inp + " resize-none"} />
+                    <label className={label}>{t("adminEngagements.announcements.contentLabel")}</label>
+                    <textarea required placeholder={t("adminEngagements.announcements.contentPlaceholder")} value={announcementForm.content} onChange={e => setAnnouncementForm(f => ({ ...f, content: e.target.value }))} rows={4} className={inp + " resize-none"} />
                   </div>
                   <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
-                    <Megaphone size={13} /> {editingAnnouncement ? (saving ? "Saving..." : "Save Announcement") : (saving ? "Broadcasting..." : "Broadcast Announcement")}
+                    <Megaphone size={13} /> {editingAnnouncement ? (saving ? t("adminEngagements.announcements.saving") : t("adminEngagements.announcements.save")) : (saving ? t("adminEngagements.announcements.broadcasting") : t("adminEngagements.announcements.broadcast"))}
                   </button>
                 </form>
               </div>

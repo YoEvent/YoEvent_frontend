@@ -8,6 +8,7 @@ import { Elements, CardElement, useStripe, useElements } from "@stripe/react-str
 import { api, setStoredAuth } from "@/app/utils/api";
 import { paymentService } from "@/app/utils/services/paymentService";
 import { getDisplayPlans, formatCfaPrice } from "@/app/utils/pricingPlans";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
 const isMockStripe =
@@ -49,12 +50,13 @@ function StripeCardSubscribeForm({
 }) {
   const stripe = useStripe();
   const elements = useElements();
+  const { t } = useLanguage();
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mappedPlan?.planId) {
-      onError("This plan is not linked to the billing system yet. Please contact support.");
+      onError(t("registerPage.card.planNotLinked"));
       return;
     }
 
@@ -63,9 +65,9 @@ function StripeCardSubscribeForm({
       let paymentMethodId: string | undefined;
 
       if (!isMockStripe) {
-        if (!stripe || !elements) throw new Error("Stripe is still loading. Please try again.");
+        if (!stripe || !elements) throw new Error(t("registerPage.card.stripeLoading"));
         const cardElement = elements.getElement(CardElement);
-        if (!cardElement) throw new Error("Please enter your card details.");
+        if (!cardElement) throw new Error(t("registerPage.card.enterCardDetails"));
 
         const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
           type: "card",
@@ -92,7 +94,7 @@ function StripeCardSubscribeForm({
 
       onSuccess();
     } catch (err: any) {
-      onError(err.message || "Failed to create subscription. Please try again.");
+      onError(err.message || t("registerPage.card.subscriptionFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -102,15 +104,15 @@ function StripeCardSubscribeForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {!isMockStripe ? (
         <div>
-          <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Card Details</label>
+          <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.card.cardDetailsLabel")}</label>
           <div className="px-4 py-3 bg-[#fcfbf9] border-[1.5px] border-[#e5e7eb] rounded-xl">
             <CardElement options={cardElementOptions} />
           </div>
-          <p className="text-[10px] text-[#888] mt-1.5">Test card: 4242 4242 4242 4242 · any future expiry · any CVC</p>
+          <p className="text-[10px] text-[#888] mt-1.5">{t("registerPage.card.testCardHint")}</p>
         </div>
       ) : (
         <p className="text-[10px] text-[#888] bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
-          Stripe mock mode — no real card required. Set <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
+          {t("registerPage.card.mockModePrefix")} <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> {t("registerPage.card.mockModeSuffix")}
         </p>
       )}
       <button
@@ -118,7 +120,7 @@ function StripeCardSubscribeForm({
         disabled={submitting || (!isMockStripe && !stripe)}
         className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
       >
-        {submitting ? "Processing payment..." : `Pay ${formatCfaPrice(mappedPlan?.price ?? 0)} & Subscribe`}
+        {submitting ? t("registerPage.card.processingPayment") : t("registerPage.card.payAndSubscribe", { price: formatCfaPrice(mappedPlan?.price ?? 0) })}
       </button>
     </form>
   );
@@ -126,6 +128,7 @@ function StripeCardSubscribeForm({
 
 function RegisterFormContent() {
   const router = useRouter();
+  const { t, tl } = useLanguage();
   const searchParams = useSearchParams();
   const planName = searchParams.get("plan") || "";
   const from = searchParams.get("from") || "";
@@ -195,19 +198,19 @@ function RegisterFormContent() {
     if (/[^A-Za-z0-9]/.test(pw)) s++;
     return s;
   };
-  const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"];
+  const strengthLabel = ["", t("registerPage.form.strengthWeak"), t("registerPage.form.strengthFair"), t("registerPage.form.strengthGood"), t("registerPage.form.strengthStrong")];
   const strengthColor = ["", "bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-green-500"];
   const s = strength(form.password);
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.firstName.trim()) e.firstName = "Required";
-    if (!form.lastName.trim()) e.lastName = "Required";
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
-    if (roleMode === "ORGANIZER" && isOrg && !form.orgName.trim()) e.orgName = "Required";
-    if (form.password.length < 8) e.password = "Min. 8 characters";
-    if (form.password !== form.confirm) e.confirm = "Passwords do not match";
-    if (!form.agree) e.agree = "You must accept the terms";
+    if (!form.firstName.trim()) e.firstName = t("registerPage.form.errorRequired");
+    if (!form.lastName.trim()) e.lastName = t("registerPage.form.errorRequired");
+    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = t("registerPage.form.errorValidEmail");
+    if (roleMode === "ORGANIZER" && isOrg && !form.orgName.trim()) e.orgName = t("registerPage.form.errorRequired");
+    if (form.password.length < 8) e.password = t("registerPage.form.errorMinPassword");
+    if (form.password !== form.confirm) e.confirm = t("registerPage.form.errorPasswordsMismatch");
+    if (!form.agree) e.agree = t("registerPage.form.errorAcceptTerms");
     return e;
   };
 
@@ -243,7 +246,7 @@ function RegisterFormContent() {
       setSubmitted(true);
       setTimeout(() => router.push(from ? `/login?from=${encodeURIComponent(from)}` : "/login"), 2000);
     } catch (err: any) {
-      setErrors((prev) => ({ ...prev, submit: err.message || "Failed to register" }));
+      setErrors((prev) => ({ ...prev, submit: err.message || t("registerPage.form.errorRegisterFailed") }));
     } finally {
       setLoading(false);
     }
@@ -277,7 +280,7 @@ function RegisterFormContent() {
       setRegisteredAuth({ tenantId: authData.tenantId, email: authData.email });
       setShowPayment(true);
     } catch (err: any) {
-      setErrors((prev) => ({ ...prev, submit: err.message || "Failed to register" }));
+      setErrors((prev) => ({ ...prev, submit: err.message || t("registerPage.form.errorRegisterFailed") }));
     } finally {
       setLoading(false);
     }
@@ -293,11 +296,11 @@ function RegisterFormContent() {
     e.preventDefault();
     setCardErrors({});
     if (!registeredAuth?.tenantId || !mappedPlan?.planId) {
-      setCardErrors({ submit: "This plan is not linked to the billing system yet. Please contact support." });
+      setCardErrors({ submit: t("registerPage.payment.planNotLinked") });
       return;
     }
     if (momoPhone.replace(/\D/g, "").length < 9) {
-      setCardErrors({ submit: "Please enter a valid phone number." });
+      setCardErrors({ submit: t("registerPage.payment.invalidPhone") });
       return;
     }
 
@@ -326,18 +329,18 @@ function RegisterFormContent() {
         }
         if (status?.status === "FAILED") {
           setMomoWaiting(false);
-          setCardErrors({ submit: "Mobile Money payment failed or was declined. Please try again." });
+          setCardErrors({ submit: t("registerPage.payment.momoFailed") });
           return;
         }
       }
       if (!confirmed) {
         setMomoWaiting(false);
-        setCardErrors({ submit: "Still waiting for Mobile Money confirmation. Your plan will activate automatically once the payment completes — check back shortly." });
+        setCardErrors({ submit: t("registerPage.payment.momoStillWaiting") });
       }
     } catch (err: any) {
       setPaymentLoading(false);
       setMomoWaiting(false);
-      setCardErrors({ submit: err.message || "Failed to create subscription." });
+      setCardErrors({ submit: err.message || t("registerPage.payment.subscriptionCreateFailed") });
     }
   };
 
@@ -353,8 +356,8 @@ function RegisterFormContent() {
         <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a] hover:opacity-80 transition-opacity">
           Yow<span className="text-[#FF4747]">Event</span>
         </Link>
-        <span className="text-sm text-[#888]">Already have an account?{" "}
-          <Link href={from ? `/login?from=${encodeURIComponent(from)}` : "/login"} className="text-[#1a1a1a] font-semibold hover:underline">Log in</Link>
+        <span className="text-sm text-[#888]">{t("registerPage.nav.alreadyHaveAccount")}{" "}
+          <Link href={from ? `/login?from=${encodeURIComponent(from)}` : "/login"} className="text-[#1a1a1a] font-semibold hover:underline">{t("registerPage.nav.login")}</Link>
         </span>
       </nav>
 
@@ -362,26 +365,24 @@ function RegisterFormContent() {
         {/* LEFT */}
         <div className="bg-white px-14 py-16 flex flex-col justify-center">
           <div className="relative z-10">
-            <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-8">Get Started Today</span>
+            <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-8">{t("registerPage.left.badge")}</span>
             <h2 className="font-display text-4xl font-bold text-[#1a1a1a] leading-[1.15] tracking-tight mb-5">
-              Your events,<br /><em className="italic text-[#FF4747]">your rules.</em>
+              {t("registerPage.left.headline1")}<br /><em className="italic text-[#FF4747]">{t("registerPage.left.headline2")}</em>
             </h2>
-            <p className="text-sm text-[#666] leading-relaxed max-w-sm mb-12">Provision your own isolated event management environment in seconds. No setup fees, no sales call required.</p>
+            <p className="text-sm text-[#666] leading-relaxed max-w-sm mb-12">{t("registerPage.left.subtitle")}</p>
             <div className="space-y-6">
-              {[
-                ["🎟", "Free tier included", "Start with no credit card. Upgrade when you grow."],
-                ["🔒", "Fully isolated environment", "Your data, brand and users — completely separate."],
-                ["📊", "Real-time traffic dashboard", "Flash crowd detection and congestion alerts built in."],
-                ["⚡", "Live in under 3 minutes", "From sign-up to your first published event — fast."],
-              ].map(([icon, title, desc]) => (
-                <div key={title} className="flex items-start gap-4">
-                  <div className="w-9 h-9 rounded-xl bg-[#f5f5f5] flex items-center justify-center text-base flex-shrink-0 shadow-sm">{icon}</div>
-                  <div>
-                    <div className="text-sm font-medium text-[#1a1a1a] mb-0.5">{title}</div>
-                    <div className="text-xs text-[#777]">{desc}</div>
+              {(["🎟", "🔒", "📊", "⚡"] as const).map((icon, i) => {
+                const item = (tl("registerPage.left.features") as { title: string; desc: string }[])[i];
+                return (
+                  <div key={item.title} className="flex items-start gap-4">
+                    <div className="w-9 h-9 rounded-xl bg-[#f5f5f5] flex items-center justify-center text-base flex-shrink-0 shadow-sm">{icon}</div>
+                    <div>
+                      <div className="text-sm font-medium text-[#1a1a1a] mb-0.5">{item.title}</div>
+                      <div className="text-xs text-[#777]">{item.desc}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -396,26 +397,26 @@ function RegisterFormContent() {
                   onClick={() => setShowPayment(false)}
                   className="text-xs font-semibold text-[#FF4747] hover:underline mb-4 cursor-pointer"
                 >
-                  ← Back
+                  {t("registerPage.payment.back")}
                 </button>
               )}
 
-              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#FF4747]">Secure Payment</h2>
-              <p className="text-sm text-[#888] mb-6">Your account is ready — finish subscribing to activate {mappedPlan?.name || planName}.</p>
+              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#FF4747]">{t("registerPage.payment.securePayment")}</h2>
+              <p className="text-sm text-[#888] mb-6">{t("registerPage.payment.accountReady", { planName: mappedPlan?.name || planName })}</p>
 
               {paymentSuccess ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4 border border-green-200">
                     <ShieldCheck className="text-green-500" size={32} />
                   </div>
-                  <h3 className="text-lg font-bold text-green-800 mb-1">Payment Successful!</h3>
-                  <p className="text-sm text-green-700">Account created. Redirecting to login...</p>
+                  <h3 className="text-lg font-bold text-green-800 mb-1">{t("registerPage.payment.paymentSuccessful")}</h3>
+                  <p className="text-sm text-green-700">{t("registerPage.payment.accountCreatedRedirecting")}</p>
                 </div>
               ) : momoWaiting ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <div className="w-8 h-8 mb-4 border-2 border-[#FF4747] border-t-transparent rounded-full animate-spin" />
-                  <h3 className="text-sm font-bold text-[#1a1a1a] mb-1">Check your phone and confirm the USSD prompt</h3>
-                  <p className="text-xs text-[#888]">Waiting for {momoPhone} to confirm payment via Mobile Money…</p>
+                  <h3 className="text-sm font-bold text-[#1a1a1a] mb-1">{t("registerPage.payment.checkPhone")}</h3>
+                  <p className="text-xs text-[#888]">{t("registerPage.payment.waitingForPhone", { phone: momoPhone })}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -428,12 +429,12 @@ function RegisterFormContent() {
                   {/* Order Summary badge */}
                   <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-2">
                     <div>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#FF4747]">Selected Subscription</span>
-                      <h4 className="text-sm font-bold text-[#1a1a1a]">{mappedPlan?.name || planName} Plan</h4>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#FF4747]">{t("registerPage.payment.selectedSubscription")}</span>
+                      <h4 className="text-sm font-bold text-[#1a1a1a]">{mappedPlan?.name || planName} {t("registerPage.payment.planSuffix")}</h4>
                     </div>
                     <div className="text-right">
                       <span className="text-lg font-extrabold text-[#1a1a1a]">{formatCfaPrice(mappedPlan?.price ?? getPrice())}</span>
-                      <span className="text-[10px] text-[#888] block">/month</span>
+                      <span className="text-[10px] text-[#888] block">{t("registerPage.payment.perMonth")}</span>
                     </div>
                   </div>
 
@@ -444,14 +445,14 @@ function RegisterFormContent() {
                       onClick={() => setPaymentTab("stripe")}
                       className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "stripe" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"}`}
                     >
-                      <Lock size={12} /> Card
+                      <Lock size={12} /> {t("registerPage.payment.tabCard")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setPaymentTab("momo")}
                       className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${paymentTab === "momo" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"}`}
                     >
-                      <Smartphone size={12} /> Mobile Money
+                      <Smartphone size={12} /> {t("registerPage.payment.tabMobileMoney")}
                     </button>
                   </div>
 
@@ -468,7 +469,7 @@ function RegisterFormContent() {
                   ) : (
                     <form onSubmit={handleMomoSubscribe} className="space-y-4">
                       <div>
-                        <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Phone Number (MTN/Orange)</label>
+                        <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.payment.phoneNumberLabel")}</label>
                         <input
                           type="tel"
                           required
@@ -483,7 +484,7 @@ function RegisterFormContent() {
                         disabled={paymentLoading}
                         className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                       >
-                        {paymentLoading ? "Sending USSD prompt..." : `Pay ${formatCfaPrice(mappedPlan?.price ?? getPrice())} & Subscribe`}
+                        {paymentLoading ? t("registerPage.payment.sendingUssd") : t("registerPage.payment.payAndSubscribe", { price: formatCfaPrice(mappedPlan?.price ?? getPrice()) })}
                       </button>
                     </form>
                   )}
@@ -492,25 +493,25 @@ function RegisterFormContent() {
             </div>
           ) : (
             <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#FF4747]">Create your account</h2>
-              <p className="text-sm text-[#888] mb-8">Already have an account?{" "}<Link href="/login" className="text-[#1a1a1a] font-semibold hover:underline">Log in</Link></p>
+              <h2 className="font-display text-3xl font-bold tracking-tight mb-2 text-[#FF4747]">{t("registerPage.form.createAccount")}</h2>
+              <p className="text-sm text-[#888] mb-8">{t("registerPage.nav.alreadyHaveAccount")}{" "}<Link href="/login" className="text-[#1a1a1a] font-semibold hover:underline">{t("registerPage.nav.login")}</Link></p>
 
               {isPaidPlan && (
                 <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex justify-between items-center mb-6">
                   <div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#FF4747]">Selected Plan</span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#FF4747]">{t("registerPage.form.selectedPlan")}</span>
                     <h4 className="text-sm font-bold text-[#1a1a1a]">{planName}</h4>
                   </div>
                   <div className="text-right">
                     <span className="text-base font-extrabold text-[#1a1a1a]">{formatCfaPrice(mappedPlan?.price ?? getPrice())}</span>
-                    <span className="text-[10px] text-[#888]">/mo</span>
+                    <span className="text-[10px] text-[#888]">{t("registerPage.form.perMonth")}</span>
                   </div>
                 </div>
               )}
 
               {submitted && (
                 <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6 text-sm text-green-700">
-                  <CheckCircle size={16} /> Account created! Redirecting to login…
+                  <CheckCircle size={16} /> {t("registerPage.form.accountCreatedRedirecting")}
                 </div>
               )}
 
@@ -528,7 +529,7 @@ function RegisterFormContent() {
                     roleMode === "ATTENDEE" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
                   }`}
                 >
-                  Attendee
+                  {t("registerPage.form.tabAttendee")}
                 </button>
                 <button
                   type="button"
@@ -537,7 +538,7 @@ function RegisterFormContent() {
                     roleMode === "ORGANIZER" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
                   }`}
                 >
-                  Event Organizer
+                  {t("registerPage.form.tabOrganizer")}
                 </button>
               </div>
 
@@ -550,7 +551,7 @@ function RegisterFormContent() {
                       !isOrg ? "bg-white text-[#FF4747] shadow-sm" : "text-[#888] hover:text-[#FF4747]"
                     }`}
                   >
-                    Individual
+                    {t("registerPage.form.subTabIndividual")}
                   </button>
                   <button
                     type="button"
@@ -559,7 +560,7 @@ function RegisterFormContent() {
                       isOrg ? "bg-white text-[#FF4747] shadow-sm" : "text-[#888] hover:text-[#FF4747]"
                     }`}
                   >
-                    Organisation
+                    {t("registerPage.form.subTabOrganisation")}
                   </button>
                 </div>
               )}
@@ -568,7 +569,7 @@ function RegisterFormContent() {
                 <div className="grid grid-cols-2 gap-4">
                   {(["firstName", "lastName"] as const).map((f) => (
                     <div key={f}>
-                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{f === "firstName" ? "First Name" : "Last Name"}</label>
+                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{f === "firstName" ? t("registerPage.form.firstName") : t("registerPage.form.lastName")}</label>
                       <input value={form[f]} onChange={(e) => set(f, e.target.value)}
                         placeholder={f === "firstName" ? "Jean" : "Dupont"}
                         className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors[f] ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
@@ -578,25 +579,25 @@ function RegisterFormContent() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Email Address</label>
-                  <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="you@company.com"
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.emailAddress")}</label>
+                  <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("registerPage.form.emailPlaceholder")}
                     className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                   {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
 
                 {roleMode === "ORGANIZER" && isOrg && (
                   <div>
-                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Organisation Name</label>
-                    <input type="text" value={form.orgName} onChange={(e) => set("orgName", e.target.value)} placeholder="Acme Corp"
+                    <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.organisationName")}</label>
+                    <input type="text" value={form.orgName} onChange={(e) => set("orgName", e.target.value)} placeholder={t("registerPage.form.orgNamePlaceholder")}
                       className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.orgName ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                     {errors.orgName && <p className="text-xs text-red-500 mt-1">{errors.orgName}</p>}
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Password</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.password")}</label>
                   <div className="relative">
-                    <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Min. 8 characters"
+                    <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={t("registerPage.form.passwordPlaceholder")}
                       className={`w-full px-4 py-2.5 pr-11 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.password ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
                     <button type="button" onClick={() => setShow(!show)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#888] hover:text-[#1a1a1a]">
                       {show ? <EyeOff size={16} /> : <Eye size={16} />}

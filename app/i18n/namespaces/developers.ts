@@ -1,0 +1,196 @@
+export const developers = {
+  en: {
+    nav: {
+      apiReference: "API Reference",
+      openSwagger: "Open Swagger UI ⚡",
+    },
+    header: {
+      badge: "API Reference",
+      title: "EventaaS API",
+      introBeforeGateway: "All endpoints are served through a single API gateway at",
+      introBeforeAuth: ". Authenticate with",
+      introBeforePass: "and pass",
+      introAfterTenant: "on all tenant-scoped requests.",
+      quirksTitle: "Field name quirks to know",
+    },
+    quirks: [
+      { label: "Ticket quantity", value: "quantityAvailable (not quantity)" },
+      { label: "Ticket sale dates", value: "saleStart / saleEnd (not saleStartDate)" },
+      { label: "Session capacity", value: "maxCapacity (not capacity)" },
+      { label: "Poll options", value: "JSON string, JSON.stringify([...options])" },
+      { label: "Poll status", value: "isActive: boolean (not status: string)" },
+      { label: "Q&A", value: "session-scoped: send sessionId + questionText" },
+      { label: "Team member", value: "role: TEAM_MEMBER, position → skills, bio → availability" },
+      { label: "Event creator", value: "organizerId (not creatorId)" },
+    ],
+    services: [
+      {
+        name: "Auth Service",
+        endpoints: [
+          "User authentication & JWT sign-in",
+          "Provision isolated tenant workspace",
+          "Upgrade plan scale",
+          "Upload tenant logo (multipart)",
+          "Upload tenant banner (multipart)",
+        ],
+      },
+      {
+        name: "Event Service",
+        endpoints: [
+          "List events for authenticated tenant (JWT-scoped)",
+          "Public event discovery",
+          "Create event (requires tenantId + organizerId)",
+          "Update event details",
+          "Upload cover banner binary",
+          "Create event session (maxCapacity, not capacity)",
+          "Add live poll (options as JSON string, isActive boolean)",
+          "Post Q&A, session-scoped (questionText + sessionId)",
+          "Add team member / volunteer (skills, availability)",
+          "Apply as sponsor (status: PENDING)",
+          "Broadcast email campaign",
+          "List categories",
+          "Set event location + coordinates",
+        ],
+      },
+      {
+        name: "Ticketing Service",
+        endpoints: [
+          "Add pricing tier (quantityAvailable, saleStart, saleEnd)",
+          "List ticket types for an event",
+          "Create purchase order",
+          "Fetch authenticated user's orders",
+          "Add discount promo code",
+          "User's event registrations",
+        ],
+      },
+      {
+        name: "Payment Service",
+        endpoints: [
+          "Record payment (method: MOBILE_MONEY | CARD | ORANGE_MONEY)",
+          "List payments for authenticated tenant",
+          "Available payout balance (JWT-scoped)",
+          "Withdrawal history",
+          "Request tenant payout withdrawal",
+        ],
+      },
+      {
+        name: "Platform Admin",
+        endpoints: [
+          "Platform commission revenue summary (SUPER_ADMIN only)",
+          "Platform withdrawal ledger",
+          "Record platform withdrawal",
+        ],
+      },
+      {
+        name: "Notification Service",
+        endpoints: [
+          "Retrieve unread alert cards",
+          "Broadcast campaign to registrants",
+        ],
+      },
+    ],
+    authNotes: {
+      requiredHeaders: "Required headers",
+      jwtIssuedAt: "The JWT is issued at",
+      superAdminScope: "SUPER_ADMIN scope unlocks",
+      endpointsSuffix: "endpoints.",
+    },
+  },
+  fr: {
+    nav: {
+      apiReference: "Référence API",
+      openSwagger: "Ouvrir Swagger UI ⚡",
+    },
+    header: {
+      badge: "Référence API",
+      title: "EventaaS API",
+      introBeforeGateway: "Tous les points de terminaison sont servis via une passerelle API unique à l'adresse",
+      introBeforeAuth: ". Authentifiez-vous avec",
+      introBeforePass: "et transmettez",
+      introAfterTenant: "sur toutes les requêtes propres à un locataire.",
+      quirksTitle: "Particularités des noms de champs à connaître",
+    },
+    quirks: [
+      { label: "Quantité de billets", value: "quantityAvailable (pas quantity)" },
+      { label: "Dates de vente des billets", value: "saleStart / saleEnd (pas saleStartDate)" },
+      { label: "Capacité de session", value: "maxCapacity (pas capacity)" },
+      { label: "Options de sondage", value: "Chaîne JSON, JSON.stringify([...options])" },
+      { label: "Statut du sondage", value: "isActive : boolean (pas status: string)" },
+      { label: "Questions-réponses", value: "limité à la session : envoyer sessionId + questionText" },
+      { label: "Membre d'équipe", value: "role : TEAM_MEMBER, position → skills, bio → availability" },
+      { label: "Créateur de l'événement", value: "organizerId (pas creatorId)" },
+    ],
+    services: [
+      {
+        name: "Service d'authentification",
+        endpoints: [
+          "Authentification utilisateur et connexion JWT",
+          "Provisionner un espace de travail locataire isolé",
+          "Faire évoluer le forfait",
+          "Téléverser le logo du locataire (multipart)",
+          "Téléverser la bannière du locataire (multipart)",
+        ],
+      },
+      {
+        name: "Service événementiel",
+        endpoints: [
+          "Lister les événements du locataire authentifié (portée JWT)",
+          "Découverte publique des événements",
+          "Créer un événement (nécessite tenantId + organizerId)",
+          "Mettre à jour les détails de l'événement",
+          "Téléverser l'image de couverture",
+          "Créer une session d'événement (maxCapacity, pas capacity)",
+          "Ajouter un sondage en direct (options en chaîne JSON, isActive en booléen)",
+          "Publier une question-réponse, limitée à la session (questionText + sessionId)",
+          "Ajouter un membre d'équipe / bénévole (skills, availability)",
+          "Postuler en tant que sponsor (status : PENDING)",
+          "Diffuser une campagne d'e-mails",
+          "Lister les catégories",
+          "Définir le lieu de l'événement et ses coordonnées",
+        ],
+      },
+      {
+        name: "Service de billetterie",
+        endpoints: [
+          "Ajouter un palier tarifaire (quantityAvailable, saleStart, saleEnd)",
+          "Lister les types de billets d'un événement",
+          "Créer une commande d'achat",
+          "Récupérer les commandes de l'utilisateur authentifié",
+          "Ajouter un code promo",
+          "Inscriptions de l'utilisateur aux événements",
+        ],
+      },
+      {
+        name: "Service de paiement",
+        endpoints: [
+          "Enregistrer un paiement (method : MOBILE_MONEY | CARD | ORANGE_MONEY)",
+          "Lister les paiements du locataire authentifié",
+          "Solde disponible pour retrait (portée JWT)",
+          "Historique des retraits",
+          "Demander un retrait pour le locataire",
+        ],
+      },
+      {
+        name: "Administration de la plateforme",
+        endpoints: [
+          "Résumé des revenus de commission de la plateforme (SUPER_ADMIN uniquement)",
+          "Registre des retraits de la plateforme",
+          "Enregistrer un retrait de la plateforme",
+        ],
+      },
+      {
+        name: "Service de notifications",
+        endpoints: [
+          "Récupérer les alertes non lues",
+          "Diffuser une campagne aux inscrits",
+        ],
+      },
+    ],
+    authNotes: {
+      requiredHeaders: "En-têtes requis",
+      jwtIssuedAt: "Le JWT est émis à l'adresse",
+      superAdminScope: "La portée SUPER_ADMIN débloque les points de terminaison",
+      endpointsSuffix: ".",
+    },
+  },
+};

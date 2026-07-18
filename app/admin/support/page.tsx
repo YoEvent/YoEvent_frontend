@@ -4,8 +4,10 @@ import Sidebar from "@/components/Sidebar";
 import { Send, ChevronDown, Mail, Star } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 export default function SupportPage() {
+  const { t } = useLanguage();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -65,10 +67,10 @@ export default function SupportPage() {
       });
       setCampaignForm({ subject: "", targetAudience: "All Attendees", body: "" });
       await fetchEventEngagement(selectedEventId);
-      showToast("Email Campaign launched successfully!");
+      showToast(t("adminSupport.toast.launched"));
     } catch (err) {
       console.error("Failed to post campaign:", err);
-      showToast("Failed to launch campaign.");
+      showToast(t("adminSupport.toast.launchFailed"));
     } finally {
       setSaving(false);
     }
@@ -90,7 +92,7 @@ export default function SupportPage() {
 
         {/* HEADER */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Support & Broadcasting</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminSupport.header.title")}</h1>
           {events.length > 0 && (
             <div className="relative">
               <select
@@ -113,14 +115,14 @@ export default function SupportPage() {
           {/* EMAIL CAMPAIGNS */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
             <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <Mail size={18} className="text-[#EB4203]" /> Scheduled Email Campaigns <span className="text-xs font-normal text-[#666] ml-2 mt-1">(for {activeEvent?.title || "selected event"})</span>
+              <Mail size={18} className="text-[#EB4203]" /> {t("adminSupport.campaigns.title")} <span className="text-xs font-normal text-[#666] ml-2 mt-1">{t("adminSupport.campaigns.forEvent", { event: activeEvent?.title || t("adminSupport.campaigns.defaultEvent") })}</span>
             </h2>
             <div className="grid md:grid-cols-[1fr_1.5fr] gap-8">
               <form onSubmit={handleLaunchCampaign} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Email Subject</label>
+                  <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">{t("adminSupport.campaigns.subjectLabel")}</label>
                   <input
-                    placeholder="e.g. Welcome to the conference!"
+                    placeholder={t("adminSupport.campaigns.subjectPlaceholder")}
                     value={campaignForm.subject}
                     onChange={(e) => setCampaignForm({ ...campaignForm, subject: e.target.value })}
                     className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors"
@@ -128,21 +130,21 @@ export default function SupportPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Target Audience</label>
+                  <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">{t("adminSupport.campaigns.audienceLabel")}</label>
                   <select
                     value={campaignForm.targetAudience}
                     onChange={(e) => setCampaignForm({ ...campaignForm, targetAudience: e.target.value })}
                     className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none cursor-pointer"
                   >
-                    <option value="All Attendees">All Attendees</option>
-                    <option value="Sponsors Only">Sponsors Only</option>
-                    <option value="Exhibitors Only">Exhibitors Only</option>
+                    <option value="All Attendees">{t("adminSupport.campaigns.audienceAll")}</option>
+                    <option value="Sponsors Only">{t("adminSupport.campaigns.audienceSponsors")}</option>
+                    <option value="Exhibitors Only">{t("adminSupport.campaigns.audienceExhibitors")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">Body Message</label>
+                  <label className="block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5">{t("adminSupport.campaigns.bodyLabel")}</label>
                   <textarea
-                    placeholder="Write campaign body content..."
+                    placeholder={t("adminSupport.campaigns.bodyPlaceholder")}
                     value={campaignForm.body}
                     onChange={(e) => setCampaignForm({ ...campaignForm, body: e.target.value })}
                     rows={6}
@@ -155,12 +157,12 @@ export default function SupportPage() {
                   disabled={saving}
                   className="w-full py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <Send size={14} /> {saving ? "Sending Campaign..." : "Send Email Campaign"}
+                  <Send size={14} /> {saving ? t("adminSupport.campaigns.sending") : t("adminSupport.campaigns.submit")}
                 </button>
               </form>
 
               <div className="space-y-4 max-h-[450px] overflow-y-auto pr-2">
-                <h3 className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider text-[#666] mb-3">Broadcast History</h3>
+                <h3 className="text-xs font-bold text-[#1a1a1a] uppercase tracking-wider text-[#666] mb-3">{t("adminSupport.campaigns.historyTitle")}</h3>
                 {campaigns.map((c) => (
                   <div key={c.campaignId || c.id} className="p-4 bg-white border border-[#e5e7eb] rounded-xl flex justify-between items-start hover:border-[#FF4747]/20 transition-all">
                     <div className="space-y-1.5 max-w-[70%]">
@@ -169,7 +171,7 @@ export default function SupportPage() {
                         &ldquo;{c.body}&rdquo;
                       </p>
                       <div className="text-[8px] text-[#888] font-mono">
-                        Sent on {new Date(c.scheduledAt).toLocaleString()}
+                        {t("adminSupport.campaigns.sentOn", { date: new Date(c.scheduledAt).toLocaleString() })}
                       </div>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-green-50 text-green-700 border border-green-100 uppercase tracking-wider shrink-0">
@@ -179,7 +181,7 @@ export default function SupportPage() {
                 ))}
                 {campaigns.length === 0 && (
                   <div className="text-center text-xs text-[#888] py-16 h-full flex flex-col items-center justify-center border border-dashed border-[#e5e7eb] rounded-2xl">
-                    No marketing campaigns scheduled yet.
+                    {t("adminSupport.campaigns.empty")}
                   </div>
                 )}
               </div>

@@ -7,6 +7,7 @@ import {
   ScanLine, Check, X, AlertCircle, Search, QrCode, Users,
   Calendar, ChevronDown, CheckCircle2, XCircle
 } from "lucide-react";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
@@ -14,6 +15,7 @@ const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wi
 type CheckInResult = { success: boolean; message: string; registration?: any };
 
 export default function CheckInPage() {
+  const { t } = useLanguage();
   const auth = getStoredAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -54,11 +56,11 @@ export default function CheckInPage() {
     setResult(null);
     try {
       const updated = await eventService.checkInRegistration(regId);
-      setResult({ success: true, message: "Check-in successful!", registration: updated });
+      setResult({ success: true, message: t("adminCheckin.result.checkInSuccessMessage"), registration: updated });
       setManualCode("");
       await loadRegistrations(selectedEventId);
     } catch (err: any) {
-      setResult({ success: false, message: err.message || "Check-in failed. Registration may already be checked in or not found." });
+      setResult({ success: false, message: err.message || t("adminCheckin.result.checkInFailedDefault") });
     } finally {
       setProcessing(false);
       setTimeout(() => inputRef.current?.focus(), 100);

@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 let stripePromise: Promise<any> | null = null;
 const getStripePromise = () => {
@@ -42,6 +43,7 @@ interface StripeUpgradeFormProps {
 }
 
 function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSuccess, onError, loading, setLoading }: StripeUpgradeFormProps) {
+  const { t } = useLanguage();
   const stripe = useStripe();
   const elements = useElements();
   const [cardError, setCardError] = useState("");
@@ -54,11 +56,11 @@ function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSucces
     setLoading(true);
     try {
       const cardElement = elements.getElement(CardElement);
-      if (!cardElement) throw new Error("Card element not found");
+      if (!cardElement) throw new Error(t("userDashboard.upgrade.errors.cardNotFound"));
       const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({ type: "card", card: cardElement });
       if (pmError) throw new Error(pmError.message);
       const auth = getStoredAuth();
-      if (!auth) throw new Error("Not authenticated");
+      if (!auth) throw new Error(t("userDashboard.upgrade.errors.notAuthenticated"));
       const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
       const tenantId = data.tenantId ? String(data.tenantId) : "";
       // Store the freshly-issued TENANT_OWNER-scoped token BEFORE createSubscription —
@@ -76,7 +78,7 @@ function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSucces
       }
       onSuccess(data);
     } catch (err: any) {
-      const msg = err.message || "Payment failed";
+      const msg = err.message || t("userDashboard.upgrade.errors.paymentFailed");
       setCardError(msg);
       onError(msg);
     } finally {
@@ -91,7 +93,7 @@ function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSucces
       </div>
       {cardError && <p className="text-xs text-red-500 font-semibold">{cardError}</p>}
       <button type="submit" disabled={loading || !stripe || !elements} className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
-        {loading ? "Processing..." : "Pay & Create Workspace"}
+        {loading ? t("userDashboard.upgrade.step.payment.processing") : t("userDashboard.upgrade.step.payment.payAndCreate")}
       </button>
     </form>
   );
@@ -102,6 +104,7 @@ type EngageSubTab = "polls" | "qa";
 
 export default function AttendeeDashboard() {
   const router = useRouter();
+  const { t, tl } = useLanguage();
   const [userName, setUserName] = useState("Attendee");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeStep, setUpgradeStep] = useState<"plan" | "payment" | "workspace">("plan");
@@ -146,11 +149,11 @@ export default function AttendeeDashboard() {
   const confirmRefundProcess = async (ticket: any) => {
     setRefundConfirmTicket(null);
     if (ticket.isPastEvent) {
-      setRefundStatus({ type: "error", title: "Refund Not Available", message: "This event has already ended. Refunds are not available after the event date." });
+      setRefundStatus({ type: "error", title: t("userDashboard.refundModal.errors.pastEventTitle"), message: t("userDashboard.refundModal.errors.pastEventMsg") });
       return;
     }
     if (!(ticket.totalAmount > 0)) {
-      setRefundStatus({ type: "error", title: "Refund Not Applicable", message: "This ticket was free, so there is no payment to refund. You can cancel it instead." });
+      setRefundStatus({ type: "error", title: t("userDashboard.refundModal.errors.notApplicableTitle"), message: t("userDashboard.refundModal.errors.notApplicableMsg") });
       return;
     }
     const ticketOrderId = ticket.orderId || ticket.id;
@@ -158,14 +161,14 @@ export default function AttendeeDashboard() {
     try {
       const payments = await paymentService.getPaymentsByOrderId(ticketOrderId);
       const payment = (payments || [])[0];
-      if (!payment) throw new Error("No payment record found for this order.");
+      if (!payment) throw new Error(t("userDashboard.refundModal.errors.noPaymentRecord"));
       await paymentService.createRefund({ paymentId: payment.paymentId, amount: payment.amount, reason: "Requested by attendee via dashboard", status: "SUCCESSFUL" });
       await eventService.updateOrder(ticketOrderId, { ...ticket, status: "REFUNDED" });
       const auth = getStoredAuth();
       if (auth) await fetchTickets(auth.userId);
-      setRefundStatus({ type: "success", title: "Refund Successful", message: "Your refund has been processed. Funds will be credited to your original payment method shortly." });
+      setRefundStatus({ type: "success", title: t("userDashboard.refundModal.errors.successTitle"), message: t("userDashboard.refundModal.errors.successMsg") });
     } catch (err: any) {
-      setRefundStatus({ type: "error", title: "Refund Failed", message: err.message || "An unknown error occurred." });
+      setRefundStatus({ type: "error", title: t("userDashboard.refundModal.errors.failTitle"), message: err.message || t("userDashboard.common.unknownError") });
     } finally {
       setRefundLoadingId(null);
     }
@@ -179,9 +182,9 @@ export default function AttendeeDashboard() {
       await eventService.deleteOrder(ticketOrderId);
       const auth = getStoredAuth();
       if (auth) await fetchTickets(auth.userId);
-      setRefundStatus({ type: "success", title: "Ticket Deleted", message: "The ticket record has been permanently removed." });
+      setRefundStatus({ type: "success", title: t("userDashboard.deleteModal.successTitle"), message: t("userDashboard.deleteModal.successMsg") });
     } catch (err: any) {
-      setRefundStatus({ type: "error", title: "Delete Failed", message: err.message || "An unknown error occurred." });
+      setRefundStatus({ type: "error", title: t("userDashboard.deleteModal.failTitle"), message: err.message || t("userDashboard.common.unknownError") });
     } finally {
       setDeleteLoadingId(null);
     }
@@ -193,13 +196,13 @@ export default function AttendeeDashboard() {
     try {
       const payments = await paymentService.getPaymentsByOrderId(ticketOrderId);
       const payment = (payments || [])[0];
-      if (!payment) throw new Error("No payment record found.");
+      if (!payment) throw new Error(t("userDashboard.sync.noPaymentRecord"));
       const updatedPayment = await paymentService.getPaymentById(payment.paymentId);
       const auth = getStoredAuth();
       if (auth) await fetchTickets(auth.userId);
-      setRefundStatus({ type: "success", title: "Status Synced", message: `Payment status: ${updatedPayment.status}` });
+      setRefundStatus({ type: "success", title: t("userDashboard.sync.successTitle"), message: t("userDashboard.tickets.sync.statusMessage", { status: updatedPayment.status }) });
     } catch (err: any) {
-      setRefundStatus({ type: "error", title: "Sync Failed", message: err.message || "An unknown error occurred." });
+      setRefundStatus({ type: "error", title: t("userDashboard.sync.failTitle"), message: err.message || t("userDashboard.common.unknownError") });
     } finally {
       setSyncLoadingId(null);
     }
@@ -331,11 +334,11 @@ export default function AttendeeDashboard() {
     setProfileMsg({ type: "", text: "" });
     try {
       const auth = getStoredAuth();
-      if (!auth) throw new Error("Not logged in");
+      if (!auth) throw new Error(t("userDashboard.profile.notLoggedIn"));
       const payload: any = { ...profileForm };
       delete payload.email;
       await authService.updateUser(auth.userId, payload);
-      setProfileMsg({ type: "success", text: "Profile updated successfully!" });
+      setProfileMsg({ type: "success", text: t("userDashboard.profile.successUpdate") });
       setUserName(profileForm.firstName);
     } catch (err: any) {
       setProfileMsg({ type: "error", text: err.message });
@@ -353,18 +356,18 @@ export default function AttendeeDashboard() {
       const res: any = await authService.uploadUserAvatar(auth.userId, file);
       const newAvatar = res.avatarUrl || res.url || res.avatar || (typeof res === "string" ? res : "");
       setProfileForm(prev => ({ ...prev, avatar: newAvatar }));
-      setProfileMsg({ type: "success", text: "Avatar uploaded!" });
+      setProfileMsg({ type: "success", text: t("userDashboard.profile.avatarUploaded") });
     } catch (err: any) {
-      setProfileMsg({ type: "error", text: err.message || "Failed to upload avatar" });
+      setProfileMsg({ type: "error", text: err.message || t("userDashboard.profile.avatarUploadFailed") });
     }
   };
 
   const handleLogout = () => { clearStoredAuth(); router.push("/login"); };
 
   const PLAN_FEATURES: Record<string, string[]> = {
-    FREE:    ["3 events", "100 attendees/event", "General listing only"],
-    BASIC:   ["20 events", "1,000 attendees/event", "Up to 5 team members", "Paid events"],
-    PREMIUM: ["Unlimited events", "Unlimited attendees", "Unlimited team members", "Custom domain", "Advanced branding"],
+    FREE: tl("userDashboard.upgrade.plans.free"),
+    BASIC: tl("userDashboard.upgrade.plans.basic"),
+    PREMIUM: tl("userDashboard.upgrade.plans.premium"),
   };
 
   const openUpgradeModal = () => {
@@ -397,7 +400,7 @@ export default function AttendeeDashboard() {
 
   const handleUpgradeSubmit = async () => {
     setUpgradeError("");
-    if (!upgradeForm.workspaceName.trim()) { setUpgradeError("Workspace name is required"); return; }
+    if (!upgradeForm.workspaceName.trim()) { setUpgradeError(t("userDashboard.upgrade.errors.workspaceNameRequired")); return; }
     const auth = getStoredAuth();
     if (!auth) { router.push("/login?from=/user/dashboard"); return; }
     setUpgradeLoading(true);
@@ -424,13 +427,13 @@ export default function AttendeeDashboard() {
               if (status?.status === "ACTIVE") { confirmed = true; break; }
               if (status?.status === "FAILED") {
                 setUpgradeMomoWaiting(false);
-                setUpgradeError("Mobile Money payment failed or was declined. Please try again.");
+                setUpgradeError(t("userDashboard.upgrade.errors.momoFailed"));
                 return;
               }
             }
             setUpgradeMomoWaiting(false);
             if (!confirmed) {
-              setUpgradeError("Still waiting for Mobile Money confirmation. Your plan will activate automatically once the payment completes — check back shortly.");
+              setUpgradeError(t("userDashboard.upgrade.errors.momoStillWaiting"));
               return;
             }
           }
@@ -438,7 +441,7 @@ export default function AttendeeDashboard() {
       }
       finishUpgrade(data);
     } catch (err: any) {
-      setUpgradeError(err.message || "An error occurred");
+      setUpgradeError(err.message || t("userDashboard.upgrade.errors.generic"));
     } finally {
       setUpgradeLoading(false);
     }
@@ -447,7 +450,7 @@ export default function AttendeeDashboard() {
   const handleWorkspaceContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     setUpgradeError("");
-    if (!upgradeForm.workspaceName.trim()) { setUpgradeError("Workspace name is required"); return; }
+    if (!upgradeForm.workspaceName.trim()) { setUpgradeError(t("userDashboard.upgrade.errors.workspaceNameRequired")); return; }
     if (!getStoredAuth()) { router.push("/login?from=/user/dashboard"); return; }
     if (PLAN_PRICES[selectedPlan] > 0) setUpgradeStep("payment");
     else await handleUpgradeSubmit();
@@ -455,7 +458,7 @@ export default function AttendeeDashboard() {
 
   const handleUpgradePayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (upgradePaymentMethod !== "stripe" && upgradePhone.replace(/\D/g, "").length < 9) { setUpgradeError("Please enter a valid 9-digit phone number."); return; }
+    if (upgradePaymentMethod !== "stripe" && upgradePhone.replace(/\D/g, "").length < 9) { setUpgradeError(t("userDashboard.upgrade.errors.invalidPhone")); return; }
     setUpgradeError("");
     await handleUpgradeSubmit();
   };
@@ -467,11 +470,11 @@ export default function AttendeeDashboard() {
     const isUsed = ticket.status === "USED" || ticket.isPastEvent;
     const isPending = ticket.paymentStatus === "PENDING" || (!isRefunded && !isUsed && ticket.status === "PENDING");
     const isPaid = !isPending && (ticket.paymentStatus === "SUCCESSFUL" || ticket.status === "COMPLETED" || ticket.status === "PAID");
-    if (isRefunded) return { label: "Refunded", cls: "bg-red-100 text-red-600" };
-    if (isUsed)     return { label: "Used",     cls: "bg-[#f5f5f5] text-[#888]" };
-    if (isPending)  return { label: "Pending",  cls: "bg-amber-100 text-amber-700" };
-    if (isPaid)     return { label: "Paid",     cls: "bg-green-100 text-green-700" };
-    return { label: ticket.status || "Active", cls: "bg-[#f5f5f5] text-[#888]" };
+    if (isRefunded) return { label: t("userDashboard.tickets.badge.refunded"), cls: "bg-red-100 text-red-600" };
+    if (isUsed)     return { label: t("userDashboard.tickets.badge.used"),     cls: "bg-[#f5f5f5] text-[#888]" };
+    if (isPending)  return { label: t("userDashboard.tickets.badge.pending"),  cls: "bg-amber-100 text-amber-700" };
+    if (isPaid)     return { label: t("userDashboard.tickets.badge.paid"),     cls: "bg-green-100 text-green-700" };
+    return { label: ticket.status || t("userDashboard.tickets.badge.active"), cls: "bg-[#f5f5f5] text-[#888]" };
   };
 
   const upcoming = myTickets.filter(t => !t.isPastEvent && t.status !== "REFUNDED" && t.paymentStatus !== "REFUNDED").slice(0, 3);
@@ -481,11 +484,11 @@ export default function AttendeeDashboard() {
   );
 
   const NAV: { id: Tab; label: string; icon: any; count?: number }[] = [
-    { id: "overview", label: "Overview",     icon: LayoutDashboard },
-    { id: "tickets",  label: "My Tickets",   icon: Ticket,   count: myTickets.length },
-    { id: "saved",    label: "Saved Events", icon: Bookmark, count: savedEvents.length },
-    ...(registeredTickets.length > 0 ? [{ id: "engage" as Tab, label: "Engage", icon: MessageSquare }] : []),
-    { id: "settings", label: "Profile",      icon: User },
+    { id: "overview", label: t("userDashboard.nav.overview"),     icon: LayoutDashboard },
+    { id: "tickets",  label: t("userDashboard.nav.tickets"),   icon: Ticket,   count: myTickets.length },
+    { id: "saved",    label: t("userDashboard.nav.saved"), icon: Bookmark, count: savedEvents.length },
+    ...(registeredTickets.length > 0 ? [{ id: "engage" as Tab, label: t("userDashboard.nav.engage"), icon: MessageSquare }] : []),
+    { id: "settings", label: t("userDashboard.nav.profile"),      icon: User },
   ];
 
   const handleEngageEventChange = async (eid: string) => {
@@ -521,7 +524,7 @@ export default function AttendeeDashboard() {
       setEngageQaQuestions(prev => [q, ...prev]);
       setEngageQaInput("");
     } catch (err: any) {
-      alert(err.message || "Failed to post question");
+      alert(err.message || t("userDashboard.engage.qa.postFailed"));
     }
   };
 
@@ -539,9 +542,9 @@ export default function AttendeeDashboard() {
     if (!auth) return;
     try {
       await eventService.createPollResponse({ pollId, userId: auth.userId, selectedOption: option });
-      alert("Vote recorded — thank you!");
+      alert(t("userDashboard.engage.polls.voteRecorded"));
     } catch (err: any) {
-      alert(err.message || "Failed to vote");
+      alert(err.message || t("userDashboard.engage.polls.voteFailed"));
     }
   };
 
@@ -564,7 +567,7 @@ export default function AttendeeDashboard() {
         <div className="px-6 py-5 border-b border-[#f0f0f0]">
           <div className="flex items-center gap-3">
             {profileForm.avatar ? (
-              <img src={profileForm.avatar} alt="avatar" className="w-10 h-10 rounded-full object-cover border border-[#e5e7eb]" />
+              <img src={profileForm.avatar} alt={t("userDashboard.profile.avatarAlt")} className="w-10 h-10 rounded-full object-cover border border-[#e5e7eb]" />
             ) : (
               <div className="w-10 h-10 rounded-full bg-[#F7E998] flex items-center justify-center font-black text-base text-[#1a1a1a]">
                 {(profileForm.firstName || userName).charAt(0).toUpperCase()}
@@ -605,12 +608,12 @@ export default function AttendeeDashboard() {
             {isOrganizer && (
               <Link href="/admin" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#555] hover:bg-[#f5f5f5] hover:text-[#1a1a1a] transition-all">
                 <Zap size={16} className="text-[#FF4747]" />
-                Organizer Dashboard
+                {t("userDashboard.nav.organizerDashboard")}
               </Link>
             )}
             <Link href="/" className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#555] hover:bg-[#f5f5f5] transition-all">
               <Home size={16} />
-              Back to Home
+              {t("userDashboard.nav.backToHome")}
             </Link>
           </div>
         </nav>
@@ -619,7 +622,7 @@ export default function AttendeeDashboard() {
         {!isOrganizer && (
           <div className="px-4 py-4 border-t border-[#f0f0f0]">
             <button onClick={openUpgradeModal} className="w-full bg-[#FF4747] hover:bg-[#e03e3e] text-white text-xs font-bold py-3 px-4 rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-2">
-              <Zap size={13} /> Become an Organizer
+              <Zap size={13} /> {t("userDashboard.nav.becomeOrganizer")}
             </button>
           </div>
         )}
@@ -627,7 +630,7 @@ export default function AttendeeDashboard() {
         {/* Logout */}
         <div className="px-4 pb-4">
           <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-[#888] hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer">
-            <LogOut size={15} /> Log out
+            <LogOut size={15} /> {t("userDashboard.nav.logOut")}
           </button>
         </div>
       </aside>
@@ -640,19 +643,19 @@ export default function AttendeeDashboard() {
           <div className="max-w-4xl">
             {/* Header */}
             <div className="mb-8">
-              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Dashboard</p>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("userDashboard.overview.eyebrow")}</p>
               <h1 className="font-display text-3xl font-black text-[#1a1a1a]">
-                Welcome back, <span className="text-[#FF4747]">{profileForm.firstName || userName}</span>
+                {t("userDashboard.overview.welcomeBack")} <span className="text-[#FF4747]">{profileForm.firstName || userName}</span>
               </h1>
-              <p className="text-[#888] text-sm mt-1">Here's what's happening with your events.</p>
+              <p className="text-[#888] text-sm mt-1">{t("userDashboard.overview.subtitle")}</p>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mb-8">
               {[
-                { label: "Tickets Owned",  value: myTickets.filter(t => t.status !== "REFUNDED").length, color: "#FF4747",  bg: "#FF4747" },
-                { label: "Upcoming Events", value: upcoming.length, color: "#10b981", bg: "#10b981" },
-                { label: "Saved Events",   value: savedEvents.length, color: "#6366f1", bg: "#6366f1" },
+                { label: t("userDashboard.overview.stats.ticketsOwned"),  value: myTickets.filter(tk => tk.status !== "REFUNDED").length, color: "#FF4747",  bg: "#FF4747" },
+                { label: t("userDashboard.overview.stats.upcomingEvents"), value: upcoming.length, color: "#10b981", bg: "#10b981" },
+                { label: t("userDashboard.overview.stats.savedEvents"),   value: savedEvents.length, color: "#6366f1", bg: "#6366f1" },
               ].map(s => (
                 <div key={s.label} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.bg}15` }}>
@@ -670,23 +673,23 @@ export default function AttendeeDashboard() {
             {upcoming.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-display font-bold text-lg text-[#1a1a1a]">Upcoming Events</h2>
+                  <h2 className="font-display font-bold text-lg text-[#1a1a1a]">{t("userDashboard.overview.upcomingEvents.title")}</h2>
                   <button onClick={() => setActiveTab("tickets")} className="text-xs text-[#FF4747] font-semibold hover:underline cursor-pointer flex items-center gap-1">
-                    View all <ChevronRight size={12} />
+                    {t("userDashboard.overview.upcomingEvents.viewAll")} <ChevronRight size={12} />
                   </button>
                 </div>
                 <div className="grid md:grid-cols-3 gap-4">
-                  {upcoming.map(t => (
-                    <div key={t.orderId} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 hover:border-[#FF4747]/30 hover:shadow-sm transition-all">
+                  {upcoming.map(tk => (
+                    <div key={tk.orderId} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 hover:border-[#FF4747]/30 hover:shadow-sm transition-all">
                       <div className="w-8 h-8 rounded-lg bg-[#FF4747]/10 flex items-center justify-center mb-3">
                         <Calendar size={15} className="text-[#FF4747]" />
                       </div>
-                      <p className="font-bold text-sm text-[#1a1a1a] mb-1 line-clamp-2">{t.eventTitle}</p>
+                      <p className="font-bold text-sm text-[#1a1a1a] mb-1 line-clamp-2">{tk.eventTitle}</p>
                       <p className="text-xs text-[#888] flex items-center gap-1 mb-3">
-                        <Clock size={10} /> {t.eventDate}
+                        <Clock size={10} /> {tk.eventDate}
                       </p>
                       <button onClick={() => setActiveTab("tickets")} className="text-xs font-semibold text-[#FF4747] hover:underline cursor-pointer flex items-center gap-1">
-                        View Ticket <ArrowRight size={11} />
+                        {t("userDashboard.overview.upcomingEvents.viewTicket")} <ArrowRight size={11} />
                       </button>
                     </div>
                   ))}
@@ -699,7 +702,7 @@ export default function AttendeeDashboard() {
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-4">
                   <Star size={15} className="text-[#F7E998] fill-[#F7E998]" />
-                  <h2 className="font-display font-bold text-lg text-[#1a1a1a]">Recommended for You</h2>
+                  <h2 className="font-display font-bold text-lg text-[#1a1a1a]">{t("userDashboard.overview.recommended")}</h2>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {recommendations.map((ev: any) => (
@@ -724,8 +727,8 @@ export default function AttendeeDashboard() {
                   <Ticket size={18} className="text-[#FF4747]" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-[#1a1a1a]">My Tickets</div>
-                  <div className="text-xs text-[#888]">{myTickets.length} ticket{myTickets.length !== 1 ? "s" : ""} • view QR codes, request refunds</div>
+                  <div className="font-bold text-sm text-[#1a1a1a]">{t("userDashboard.overview.quickLinks.ticketsTitle")}</div>
+                  <div className="text-xs text-[#888]">{t("userDashboard.overview.quickLinks.ticketsDesc", { count: myTickets.length, plural: myTickets.length !== 1 ? "s" : "" })}</div>
                 </div>
                 <ChevronRight size={16} className="text-[#ccc] ml-auto shrink-0" />
               </button>
@@ -734,8 +737,8 @@ export default function AttendeeDashboard() {
                   <Bookmark size={18} className="text-[#6366f1]" />
                 </div>
                 <div>
-                  <div className="font-bold text-sm text-[#1a1a1a]">Saved Events</div>
-                  <div className="text-xs text-[#888]">{savedEvents.length} event{savedEvents.length !== 1 ? "s" : ""} bookmarked</div>
+                  <div className="font-bold text-sm text-[#1a1a1a]">{t("userDashboard.overview.quickLinks.savedTitle")}</div>
+                  <div className="text-xs text-[#888]">{t("userDashboard.overview.quickLinks.savedDesc", { count: savedEvents.length, plural: savedEvents.length !== 1 ? "s" : "" })}</div>
                 </div>
                 <ChevronRight size={16} className="text-[#ccc] ml-auto shrink-0" />
               </button>
@@ -752,16 +755,16 @@ export default function AttendeeDashboard() {
               return (
                 <div className="mt-8">
                   <h2 className="font-display font-bold text-lg text-[#1a1a1a] mb-4 flex items-center gap-2">
-                    <Zap size={16} className="text-[#FF4747]" /> Your Engagement
+                    <Zap size={16} className="text-[#FF4747]" /> {t("userDashboard.overview.engagement.title")}
                   </h2>
 
                   {/* Engagement stats */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                     {[
-                      { label: "Events Joined",  value: uniqueEvents,       color: "#FF4747",  icon: Calendar },
-                      { label: "Attended",        value: attended.length,    color: "#10b981",  icon: CheckCircle2 },
-                      { label: "Paid Tickets",    value: paid.length,        color: "#f59e0b",  icon: Star },
-                      { label: "Events Saved",    value: savedEvents.length, color: "#6366f1",  icon: Bookmark },
+                      { label: t("userDashboard.overview.engagement.stats.eventsJoined"),  value: uniqueEvents,       color: "#FF4747",  icon: Calendar },
+                      { label: t("userDashboard.overview.engagement.stats.attended"),        value: attended.length,    color: "#10b981",  icon: CheckCircle2 },
+                      { label: t("userDashboard.overview.engagement.stats.paidTickets"),    value: paid.length,        color: "#f59e0b",  icon: Star },
+                      { label: t("userDashboard.overview.engagement.stats.eventsSaved"),    value: savedEvents.length, color: "#6366f1",  icon: Bookmark },
                     ].map(({ label, value, color, icon: Icon }) => (
                       <div key={label} className="bg-white border border-[#e5e7eb] rounded-2xl p-4 text-center">
                         <div className="w-8 h-8 rounded-xl mx-auto mb-2 flex items-center justify-center" style={{ background: `${color}15` }}>
@@ -774,22 +777,22 @@ export default function AttendeeDashboard() {
                   </div>
 
                   {/* Recent activity */}
-                  <h3 className="font-semibold text-sm text-[#1a1a1a] mb-3">Recent Activity</h3>
+                  <h3 className="font-semibold text-sm text-[#1a1a1a] mb-3">{t("userDashboard.overview.engagement.recentActivity")}</h3>
                   <div className="space-y-2">
-                    {recentActivity.map((t: any) => {
-                      const isUsed = t.status === "USED" || t.isPastEvent;
-                      const isPaid = t.paymentStatus === "SUCCESSFUL" || t.status === "COMPLETED" || t.status === "PAID";
-                      const isPending = t.paymentStatus === "PENDING" || t.status === "PENDING";
+                    {recentActivity.map((item: any) => {
+                      const isUsed = item.status === "USED" || item.isPastEvent;
+                      const isPaid = item.paymentStatus === "SUCCESSFUL" || item.status === "COMPLETED" || item.status === "PAID";
+                      const isPending = item.paymentStatus === "PENDING" || item.status === "PENDING";
                       const statusColor = isUsed ? "#10b981" : isPaid ? "#FF4747" : isPending ? "#f59e0b" : "#888";
-                      const statusLabel = isUsed ? "Attended" : isPaid ? "Registered" : isPending ? "Pending" : "Ticket";
+                      const statusLabel = isUsed ? t("userDashboard.overview.engagement.statusLabels.attended") : isPaid ? t("userDashboard.overview.engagement.statusLabels.registered") : isPending ? t("userDashboard.overview.engagement.statusLabels.pending") : t("userDashboard.overview.engagement.statusLabels.ticket");
                       return (
-                        <div key={t.orderId} className="flex items-center gap-3 bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
+                        <div key={item.orderId} className="flex items-center gap-3 bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${statusColor}15` }}>
                             <Ticket size={14} style={{ color: statusColor }} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-sm text-[#1a1a1a] truncate">{t.eventTitle || "Event"}</div>
-                            <div className="text-[10px] text-[#aaa]">{t.eventDate || ""}</div>
+                            <div className="font-semibold text-sm text-[#1a1a1a] truncate">{item.eventTitle || t("userDashboard.overview.engagement.eventFallback")}</div>
+                            <div className="text-[10px] text-[#aaa]">{item.eventDate || ""}</div>
                           </div>
                           <span className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0" style={{ background: `${statusColor}15`, color: statusColor }}>
                             {statusLabel}
@@ -808,22 +811,22 @@ export default function AttendeeDashboard() {
         {activeTab === "tickets" && (
           <div className="max-w-4xl">
             <div className="mb-6">
-              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Tickets</p>
-              <h1 className="font-display text-2xl font-black text-[#1a1a1a]">My Tickets</h1>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("userDashboard.tickets.eyebrow")}</p>
+              <h1 className="font-display text-2xl font-black text-[#1a1a1a]">{t("userDashboard.tickets.title")}</h1>
             </div>
 
             {ticketsLoading ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#aaa]">
                 <div className="w-8 h-8 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin mb-4" />
-                <p className="text-sm">Loading your tickets...</p>
+                <p className="text-sm">{t("userDashboard.tickets.loading")}</p>
               </div>
             ) : myTickets.length === 0 ? (
               <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
                 <Ticket size={40} className="mx-auto text-[#F7E998] mb-4" />
-                <p className="font-bold text-[#1a1a1a] mb-2">No tickets yet</p>
-                <p className="text-sm text-[#888] max-w-xs mx-auto mb-6">Explore events and book your spot to see your tickets here.</p>
+                <p className="font-bold text-[#1a1a1a] mb-2">{t("userDashboard.tickets.empty.title")}</p>
+                <p className="text-sm text-[#888] max-w-xs mx-auto mb-6">{t("userDashboard.tickets.empty.desc")}</p>
                 <Link href="/events" className="inline-flex items-center gap-2 bg-[#FF4747] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#e03e3e] transition-colors">
-                  Explore Events <ArrowRight size={14} />
+                  {t("userDashboard.tickets.empty.cta")} <ArrowRight size={14} />
                 </Link>
               </div>
             ) : (
@@ -853,7 +856,7 @@ export default function AttendeeDashboard() {
 
                           {ticket.paymentStatus === "PENDING" && (
                             <div className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
-                              <strong>Payment Pending:</strong> Awaiting confirmation from payment provider. If you've completed checkout, it may take a moment.
+                              <strong>{t("userDashboard.tickets.paymentPendingLabel")}</strong> {t("userDashboard.tickets.paymentPendingDesc")}
                             </div>
                           )}
 
@@ -862,18 +865,18 @@ export default function AttendeeDashboard() {
                             {isPaid && !isUsed && !isRefunded && ticket.totalAmount > 0 && (
                               <button onClick={() => handleRefund(ticket)} disabled={refundLoadingId === (ticket.orderId || ticket.id)}
                                 className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1">
-                                <RefreshCw size={10} /> {refundLoadingId === (ticket.orderId || ticket.id) ? "Refunding..." : "Request Refund"}
+                                <RefreshCw size={10} /> {refundLoadingId === (ticket.orderId || ticket.id) ? t("userDashboard.tickets.actions.refunding") : t("userDashboard.tickets.actions.requestRefund")}
                               </button>
                             )}
                             {isPending && (
                               <button onClick={() => handleSyncPaymentStatus(ticket)} disabled={syncLoadingId === (ticket.orderId || ticket.id)}
                                 className="text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1">
-                                <RefreshCw size={10} /> {syncLoadingId === (ticket.orderId || ticket.id) ? "Syncing..." : "Sync Status"}
+                                <RefreshCw size={10} /> {syncLoadingId === (ticket.orderId || ticket.id) ? t("userDashboard.tickets.actions.syncing") : t("userDashboard.tickets.actions.syncStatus")}
                               </button>
                             )}
                             <button onClick={() => setDeleteConfirmTicket(ticket)}
                               className="text-xs font-semibold text-[#888] bg-[#f5f5f5] hover:bg-red-50 hover:text-red-600 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
-                              <Trash2 size={10} /> Delete
+                              <Trash2 size={10} /> {t("userDashboard.tickets.actions.delete")}
                             </button>
                           </div>
                         </div>
@@ -883,11 +886,11 @@ export default function AttendeeDashboard() {
                           <div className="border-l border-dashed border-[#e5e7eb] flex flex-col items-center justify-center px-5 py-4 shrink-0 bg-[#fafafa]">
                             <img
                               src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`YOEVENT:ORDER:${ticket.orderId}`)}&bgcolor=ffffff&color=1a1a1a&margin=4`}
-                              alt="Ticket QR"
+                              alt={t("userDashboard.tickets.qrAlt")}
                               className="w-20 h-20 rounded-lg"
                             />
                             <p className="text-[9px] text-[#aaa] mt-2 font-mono uppercase tracking-wider flex items-center gap-1">
-                              <QrCode size={9} /> Scan at entry
+                              <QrCode size={9} /> {t("userDashboard.tickets.scanAtEntry")}
                             </p>
                           </div>
                         )}
@@ -904,22 +907,22 @@ export default function AttendeeDashboard() {
         {activeTab === "saved" && (
           <div className="max-w-4xl">
             <div className="mb-6">
-              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Bookmarks</p>
-              <h1 className="font-display text-2xl font-black text-[#1a1a1a]">Saved Events</h1>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("userDashboard.saved.eyebrow")}</p>
+              <h1 className="font-display text-2xl font-black text-[#1a1a1a]">{t("userDashboard.saved.title")}</h1>
             </div>
 
             {savedEventsLoading ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#aaa]">
                 <div className="w-8 h-8 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin mb-4" />
-                <p className="text-sm">Loading saved events...</p>
+                <p className="text-sm">{t("userDashboard.saved.loading")}</p>
               </div>
             ) : savedEvents.length === 0 ? (
               <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
                 <Bookmark size={40} className="mx-auto text-[#F7E998] mb-4" />
-                <p className="font-bold text-[#1a1a1a] mb-2">Nothing saved yet</p>
-                <p className="text-sm text-[#888] max-w-xs mx-auto mb-6">Bookmark events you're interested in so you can easily find them later.</p>
+                <p className="font-bold text-[#1a1a1a] mb-2">{t("userDashboard.saved.empty.title")}</p>
+                <p className="text-sm text-[#888] max-w-xs mx-auto mb-6">{t("userDashboard.saved.empty.desc")}</p>
                 <Link href="/events" className="inline-flex items-center gap-2 bg-[#FF4747] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#e03e3e] transition-colors">
-                  Browse Events <ArrowRight size={14} />
+                  {t("userDashboard.saved.empty.cta")} <ArrowRight size={14} />
                 </Link>
               </div>
             ) : (
@@ -944,7 +947,7 @@ export default function AttendeeDashboard() {
                           <Clock size={10} /> {ev.eventDate} · {ev.organizerName}
                         </p>
                       </div>
-                      <button onClick={() => handleUnsave(ev.id)} title="Remove bookmark"
+                      <button onClick={() => handleUnsave(ev.id)} title={t("userDashboard.saved.removeBookmark")}
                         className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-[#ccc] hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer">
                         <X size={14} />
                       </button>
@@ -960,8 +963,8 @@ export default function AttendeeDashboard() {
         {activeTab === "settings" && (
           <div className="max-w-2xl">
             <div className="mb-6">
-              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Account</p>
-              <h1 className="font-display text-2xl font-black text-[#1a1a1a]">Profile Settings</h1>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("userDashboard.profile.eyebrow")}</p>
+              <h1 className="font-display text-2xl font-black text-[#1a1a1a]">{t("userDashboard.profile.title")}</h1>
             </div>
 
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-7">
@@ -975,7 +978,7 @@ export default function AttendeeDashboard() {
               <div className="flex items-center gap-5 mb-7 pb-7 border-b border-[#f0f0f0]">
                 <label className="cursor-pointer group relative">
                   {profileForm.avatar ? (
-                    <img src={profileForm.avatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-[#e5e7eb] group-hover:opacity-80 transition-opacity" />
+                    <img src={profileForm.avatar} alt={t("userDashboard.profile.avatarAlt")} className="w-20 h-20 rounded-full object-cover border-2 border-[#e5e7eb] group-hover:opacity-80 transition-opacity" />
                   ) : (
                     <div className="w-20 h-20 rounded-full bg-[#F7E998] flex items-center justify-center font-black text-3xl text-[#1a1a1a] group-hover:opacity-80 transition-opacity">
                       {(profileForm.firstName || userName).charAt(0).toUpperCase()}
@@ -989,32 +992,32 @@ export default function AttendeeDashboard() {
                 <div>
                   <p className="font-bold text-[#1a1a1a] text-sm">{profileForm.firstName ? `${profileForm.firstName} ${profileForm.lastName}`.trim() : userName}</p>
                   <p className="text-xs text-[#888] mt-0.5">{profileForm.email}</p>
-                  <p className="text-xs text-[#FF4747] mt-2 font-semibold">Click avatar to change photo</p>
+                  <p className="text-xs text-[#FF4747] mt-2 font-semibold">{t("userDashboard.profile.clickAvatar")}</p>
                 </div>
               </div>
 
               <form onSubmit={handleProfileUpdate} className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className={label}>First Name</label>
+                    <label className={label}>{t("userDashboard.profile.firstNameLabel")}</label>
                     <input value={profileForm.firstName} onChange={e => setProfileForm(f => ({ ...f, firstName: e.target.value }))} className={inp} required />
                   </div>
                   <div>
-                    <label className={label}>Last Name</label>
+                    <label className={label}>{t("userDashboard.profile.lastNameLabel")}</label>
                     <input value={profileForm.lastName} onChange={e => setProfileForm(f => ({ ...f, lastName: e.target.value }))} className={inp} required />
                   </div>
                 </div>
                 <div>
-                  <label className={label}>Email Address</label>
+                  <label className={label}>{t("userDashboard.profile.emailLabel")}</label>
                   <input value={profileForm.email} disabled className="w-full bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#aaa] cursor-not-allowed" />
-                  <p className="text-[10px] text-[#aaa] mt-1">Email cannot be changed.</p>
+                  <p className="text-[10px] text-[#aaa] mt-1">{t("userDashboard.profile.emailHint")}</p>
                 </div>
                 <div>
-                  <label className={label}>Phone Number</label>
+                  <label className={label}>{t("userDashboard.profile.phoneLabel")}</label>
                   <input value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} placeholder="+237 6XXXXXXXX" className={inp} />
                 </div>
                 <button type="submit" disabled={profileLoading} className="mt-2 px-6 py-2.5 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-colors disabled:opacity-50 cursor-pointer">
-                  {profileLoading ? "Saving..." : "Save Changes"}
+                  {profileLoading ? t("userDashboard.profile.saving") : t("userDashboard.profile.save")}
                 </button>
               </form>
             </div>
@@ -1025,26 +1028,26 @@ export default function AttendeeDashboard() {
         {activeTab === "engage" && (
           <div className="max-w-4xl">
             <div className="mb-8">
-              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Attendee Hub</p>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("userDashboard.engage.eyebrow")}</p>
               <h1 className="font-display text-3xl font-black text-[#1a1a1a]">
-                Engage with <span className="text-[#FF4747]">Your Events</span>
+                {t("userDashboard.engage.titlePrefix")} <span className="text-[#FF4747]">{t("userDashboard.engage.titleHighlight")}</span>
               </h1>
-              <p className="text-[#888] text-sm mt-1">Participate in live polls and ask questions — exclusive for registered attendees.</p>
+              <p className="text-[#888] text-sm mt-1">{t("userDashboard.engage.subtitle")}</p>
             </div>
 
             {/* Event Picker */}
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 mb-6 shadow-sm">
-              <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-2">Select an Event</label>
+              <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-2">{t("userDashboard.engage.selectEventLabel")}</label>
               <div className="relative">
                 <select
                   value={engageEventId}
                   onChange={e => handleEngageEventChange(e.target.value)}
                   className="w-full appearance-none bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-3 text-sm font-medium text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors cursor-pointer pr-10"
                 >
-                  <option value="">— Choose one of your registered events —</option>
-                  {registeredTickets.map((t: any, i) => (
-                    <option key={`${t.eventId || t.orderId || i}-${i}`} value={t.eventId}>
-                      {t.eventTitle || "Event"} {t.eventDate ? `· ${t.eventDate}` : ""}
+                  <option value="">{t("userDashboard.engage.selectEventPlaceholder")}</option>
+                  {registeredTickets.map((rt: any, i) => (
+                    <option key={`${rt.eventId || rt.orderId || i}-${i}`} value={rt.eventId}>
+                      {rt.eventTitle || t("userDashboard.overview.engagement.eventFallback")} {rt.eventDate ? `· ${rt.eventDate}` : ""}
                     </option>
                   ))}
                 </select>
@@ -1055,13 +1058,13 @@ export default function AttendeeDashboard() {
             {!engageEventId ? (
               <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
                 <MessageSquare size={40} className="mx-auto text-[#FF4747]/30 mb-4" />
-                <p className="font-bold text-[#1a1a1a] mb-2">Pick an event to engage</p>
-                <p className="text-sm text-[#888] max-w-xs mx-auto">Select one of your registered events above to access Live Polls and Q&amp;A.</p>
+                <p className="font-bold text-[#1a1a1a] mb-2">{t("userDashboard.engage.pickEvent.title")}</p>
+                <p className="text-sm text-[#888] max-w-xs mx-auto">{t("userDashboard.engage.pickEvent.desc")}</p>
               </div>
             ) : engageLoading ? (
               <div className="flex flex-col items-center justify-center py-24 text-[#aaa]">
                 <div className="w-8 h-8 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin mb-4" />
-                <p className="text-sm">Loading engagement data...</p>
+                <p className="text-sm">{t("userDashboard.engage.loading")}</p>
               </div>
             ) : (() => {
               // Determine event active status
@@ -1083,14 +1086,14 @@ export default function AttendeeDashboard() {
                     }`}>
                       <Clock size={15} className="shrink-0" />
                       {isEnded
-                        ? "This event has ended — you can still read Q&A but cannot post new questions or vote."
-                        : "This event hasn't started yet — interactive features will be available when it goes live."}
+                        ? t("userDashboard.engage.banner.ended")
+                        : t("userDashboard.engage.banner.notStarted")}
                     </div>
                   )}
                   {isActive && (
                     <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl border bg-green-50 border-green-200 text-green-700 text-sm font-medium">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
-                      Event is live — all interactive features are enabled!
+                      {t("userDashboard.engage.banner.active")}
                     </div>
                   )}
 
@@ -1098,8 +1101,8 @@ export default function AttendeeDashboard() {
                   <div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-sm overflow-hidden">
                     <div className="flex border-b border-[#f0f0f0]">
                       {[
-                        { id: "polls" as EngageSubTab, label: "Live Polls", icon: Vote },
-                        { id: "qa"    as EngageSubTab, label: "Q&A Forum",  icon: MessageSquare },
+                        { id: "polls" as EngageSubTab, label: t("userDashboard.engage.subtabs.polls"), icon: Vote },
+                        { id: "qa"    as EngageSubTab, label: t("userDashboard.engage.subtabs.qa"),  icon: MessageSquare },
                       ].map(({ id, label, icon: Icon }) => (
                         <button
                           key={id}
@@ -1123,8 +1126,8 @@ export default function AttendeeDashboard() {
                           {engagePolls.length === 0 ? (
                             <div className="text-center py-12">
                               <Vote size={36} className="mx-auto text-[#FF4747]/20 mb-3" />
-                              <p className="font-semibold text-[#1a1a1a] mb-1">No live polls yet</p>
-                              <p className="text-xs text-[#aaa]">The organizer hasn't created any polls for this event.</p>
+                              <p className="font-semibold text-[#1a1a1a] mb-1">{t("userDashboard.engage.polls.emptyTitle")}</p>
+                              <p className="text-xs text-[#aaa]">{t("userDashboard.engage.polls.emptyDesc")}</p>
                             </div>
                           ) : (
                             engagePolls.map((poll, idx) => {
@@ -1160,7 +1163,7 @@ export default function AttendeeDashboard() {
                                   </div>
                                   {!isActive && (
                                     <p className="pl-10 text-[10px] text-[#aaa] font-medium">
-                                      {isEnded ? "Voting closed — event has ended." : "Voting opens when the event goes live."}
+                                      {isEnded ? t("userDashboard.engage.polls.votingClosed") : t("userDashboard.engage.polls.votingOpensLater")}
                                     </p>
                                   )}
                                 </div>
@@ -1179,7 +1182,7 @@ export default function AttendeeDashboard() {
                               <input
                                 value={engageQaInput}
                                 onChange={e => setEngageQaInput(e.target.value)}
-                                placeholder="Ask a question to the organizer or speakers..."
+                                placeholder={t("userDashboard.engage.qa.inputPlaceholder")}
                                 className="flex-1 border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FF4747] bg-white text-[#1a1a1a] transition-colors"
                                 required
                               />
@@ -1187,20 +1190,20 @@ export default function AttendeeDashboard() {
                                 type="submit"
                                 className="shrink-0 px-4 py-2.5 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-colors cursor-pointer flex items-center gap-2"
                               >
-                                <Send size={14} /> Post
+                                <Send size={14} /> {t("userDashboard.engage.qa.post")}
                               </button>
                             </form>
                           )}
                           {!isActive && !isEnded && (
                             <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
                               <Clock size={14} className="shrink-0" />
-                              <span>Q&amp;A opens when the event starts.</span>
+                              <span>{t("userDashboard.engage.qa.opensWhenStarts")}</span>
                             </div>
                           )}
                           {isEnded && (
                             <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
                               <Clock size={14} className="shrink-0" />
-                              <span>Q&amp;A closed — event has ended. You can still read and upvote questions.</span>
+                              <span>{t("userDashboard.engage.qa.closedEnded")}</span>
                             </div>
                           )}
 
@@ -1209,8 +1212,8 @@ export default function AttendeeDashboard() {
                             {engageQaQuestions.length === 0 ? (
                               <div className="text-center py-12">
                                 <MessageSquare size={36} className="mx-auto text-[#FF4747]/20 mb-3" />
-                                <p className="font-semibold text-[#1a1a1a] mb-1">No questions yet</p>
-                                <p className="text-xs text-[#aaa]">{isActive ? "Be the first to ask a question!" : "Questions will appear here once the event starts."}</p>
+                                <p className="font-semibold text-[#1a1a1a] mb-1">{t("userDashboard.engage.qa.emptyTitle")}</p>
+                                <p className="text-xs text-[#aaa]">{isActive ? t("userDashboard.engage.qa.emptyDescActive") : t("userDashboard.engage.qa.emptyDescInactive")}</p>
                               </div>
                             ) : (
                               engageQaQuestions
@@ -1231,11 +1234,11 @@ export default function AttendeeDashboard() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-semibold text-[#1a1a1a] leading-snug">{q.questionText}</p>
                                       <p className="text-[10px] text-[#aaa] mt-1.5">
-                                        {q.createdAt ? new Date(q.createdAt).toLocaleString() : "Posted by attendee"}
+                                        {q.createdAt ? new Date(q.createdAt).toLocaleString() : t("userDashboard.engage.qa.postedByAttendee")}
                                       </p>
                                       {q.answer && (
                                         <div className="mt-2 pl-3 border-l-2 border-[#FF4747]/30">
-                                          <p className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider mb-0.5">Organizer Reply</p>
+                                          <p className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider mb-0.5">{t("userDashboard.engage.qa.organizerReply")}</p>
                                           <p className="text-xs text-[#555]">{q.answer}</p>
                                         </div>
                                       )}
@@ -1264,16 +1267,16 @@ export default function AttendeeDashboard() {
 
             {upgradeStep === "plan" && (
               <div className="p-8">
-                <h2 className="font-display text-2xl font-black mb-1">Choose your plan</h2>
-                <p className="text-sm text-[#888] mb-6">Select the plan that fits your needs.</p>
+                <h2 className="font-display text-2xl font-black mb-1">{t("userDashboard.upgrade.step.plan.title")}</h2>
+                <p className="text-sm text-[#888] mb-6">{t("userDashboard.upgrade.step.plan.subtitle")}</p>
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   {(["FREE", "BASIC", "PREMIUM"] as const).map(plan => (
                     <button key={plan} type="button" onClick={() => setSelectedPlan(plan)}
                       className={`rounded-2xl p-4 border-2 text-left transition-all cursor-pointer ${selectedPlan === plan ? "border-[#FF4747] bg-[#FF4747]/5" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}>
                       <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${selectedPlan === plan ? "text-[#FF4747]" : "text-[#aaa]"}`}>{plan}</div>
                       <div className="text-2xl font-black text-[#1a1a1a] mb-3">
-                        {PLAN_PRICES[plan] === 0 ? "Free" : `${Number(PLAN_PRICES[plan]).toLocaleString()} FCFA`}
-                        {PLAN_PRICES[plan] > 0 && <span className="text-xs font-normal text-[#aaa]">/mo</span>}
+                        {PLAN_PRICES[plan] === 0 ? t("userDashboard.upgrade.step.plan.freeLabel") : `${Number(PLAN_PRICES[plan]).toLocaleString()} FCFA`}
+                        {PLAN_PRICES[plan] > 0 && <span className="text-xs font-normal text-[#aaa]">{t("userDashboard.upgrade.step.plan.perMonth")}</span>}
                       </div>
                       <ul className="space-y-1">{PLAN_FEATURES[plan].map(f => (
                         <li key={f} className="text-[10px] text-[#666] flex items-start gap-1"><CheckCircle2 size={9} className="text-green-500 shrink-0 mt-0.5" /> {f}</li>
@@ -1283,37 +1286,37 @@ export default function AttendeeDashboard() {
                 </div>
                 <button type="button" onClick={() => setUpgradeStep("workspace")}
                   className="w-full py-3.5 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all cursor-pointer">
-                  Continue with {selectedPlan} →
+                  {t("userDashboard.upgrade.step.plan.continueWith", { plan: selectedPlan })}
                 </button>
               </div>
             )}
 
             {upgradeStep === "workspace" && (
               <div className="p-8">
-                <button type="button" onClick={() => setUpgradeStep("plan")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">← Back</button>
-                <h2 className="font-display text-2xl font-black mb-1">Set up your workspace</h2>
-                <p className="text-sm text-[#888] mb-6">Creating a <span className="font-bold text-[#1a1a1a]">{selectedPlan}</span> workspace.</p>
+                <button type="button" onClick={() => setUpgradeStep("plan")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">{t("userDashboard.upgrade.step.workspace.back")}</button>
+                <h2 className="font-display text-2xl font-black mb-1">{t("userDashboard.upgrade.step.workspace.title")}</h2>
+                <p className="text-sm text-[#888] mb-6">{t("userDashboard.upgrade.step.workspace.creatingLabel", { plan: selectedPlan })}</p>
                 {upgradeError && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-200 mb-4">⚠️ {upgradeError}</div>}
                 <form onSubmit={handleWorkspaceContinue} className="space-y-4">
                   <div>
-                    <label className={label}>Account Type</label>
+                    <label className={label}>{t("userDashboard.upgrade.step.workspace.accountTypeLabel")}</label>
                     <div className="flex bg-[#f5f5f5] rounded-xl p-1">
-                      {(["INDIVIDUAL", "ORGANIZATION"] as const).map(t => (
-                        <button key={t} type="button" onClick={() => setUpgradeForm(f => ({ ...f, type: t }))}
-                          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${upgradeForm.type === t ? "bg-white text-[#1a1a1a] shadow-sm" : "text-[#888]"}`}>
-                          {t.charAt(0) + t.slice(1).toLowerCase()}
+                      {(["INDIVIDUAL", "ORGANIZATION"] as const).map(accType => (
+                        <button key={accType} type="button" onClick={() => setUpgradeForm(f => ({ ...f, type: accType }))}
+                          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${upgradeForm.type === accType ? "bg-white text-[#1a1a1a] shadow-sm" : "text-[#888]"}`}>
+                          {t(`userDashboard.upgrade.step.workspace.accountType.${accType.toLowerCase()}`)}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label className={label}>{upgradeForm.type === "INDIVIDUAL" ? "Display Name" : "Organization Name"}</label>
+                    <label className={label}>{upgradeForm.type === "INDIVIDUAL" ? t("userDashboard.upgrade.step.workspace.displayNameLabel") : t("userDashboard.upgrade.step.workspace.organizationNameLabel")}</label>
                     <input value={upgradeForm.workspaceName} onChange={e => setUpgradeForm(f => ({ ...f, workspaceName: e.target.value }))}
-                      placeholder={upgradeForm.type === "INDIVIDUAL" ? "e.g. Jane Doe" : "e.g. Acme Events"} className={inp} required />
+                      placeholder={upgradeForm.type === "INDIVIDUAL" ? t("userDashboard.upgrade.step.workspace.displayNamePlaceholder") : t("userDashboard.upgrade.step.workspace.organizationNamePlaceholder")} className={inp} required />
                   </div>
                   <button type="submit" disabled={upgradeLoading}
                     className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
-                    {upgradeLoading ? "Creating..." : PLAN_PRICES[selectedPlan] > 0 ? "Continue to Payment →" : "Create Free Workspace"}
+                    {upgradeLoading ? t("userDashboard.upgrade.step.workspace.creating") : PLAN_PRICES[selectedPlan] > 0 ? t("userDashboard.upgrade.step.workspace.continueToPayment") : t("userDashboard.upgrade.step.workspace.createFreeWorkspace")}
                   </button>
                 </form>
               </div>
@@ -1321,15 +1324,15 @@ export default function AttendeeDashboard() {
 
             {upgradeStep === "payment" && (
               <div className="p-8">
-                <button type="button" onClick={() => setUpgradeStep("workspace")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">← Back</button>
-                <h2 className="font-display text-2xl font-black mb-1">Payment</h2>
-                <p className="text-sm text-[#888] mb-5">{selectedPlan} — {Number(PLAN_PRICES[selectedPlan]).toLocaleString()} FCFA/month</p>
+                <button type="button" onClick={() => setUpgradeStep("workspace")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">{t("userDashboard.upgrade.step.payment.back")}</button>
+                <h2 className="font-display text-2xl font-black mb-1">{t("userDashboard.upgrade.step.payment.title")}</h2>
+                <p className="text-sm text-[#888] mb-5">{t("userDashboard.upgrade.step.payment.priceLine", { plan: selectedPlan, price: Number(PLAN_PRICES[selectedPlan]).toLocaleString() })}</p>
                 {upgradeError && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-200 mb-4">⚠️ {upgradeError}</div>}
                 <div className="space-y-3 mb-5">
                   {[
-                    { id: "stripe" as const, label: "Credit / Debit Card", sub: "Visa, Mastercard — via Stripe", tag: "S", color: "#635bff" },
-                    { id: "mtn_mobile_money" as const, label: "MTN Mobile Money", sub: "USSD push — all MTN numbers", tag: "MTN", color: "#ffcc00", textDark: true },
-                    { id: "orange_money" as const, label: "Orange Money", sub: "USSD push — all Orange numbers", tag: "OM", color: "#ff6600" },
+                    { id: "stripe" as const, label: t("userDashboard.upgrade.step.payment.methods.stripe.label"), sub: t("userDashboard.upgrade.step.payment.methods.stripe.sub"), tag: "S", color: "#635bff" },
+                    { id: "mtn_mobile_money" as const, label: t("userDashboard.upgrade.step.payment.methods.mtn.label"), sub: t("userDashboard.upgrade.step.payment.methods.mtn.sub"), tag: "MTN", color: "#ffcc00", textDark: true },
+                    { id: "orange_money" as const, label: t("userDashboard.upgrade.step.payment.methods.orange.label"), sub: t("userDashboard.upgrade.step.payment.methods.orange.sub"), tag: "OM", color: "#ff6600" },
                   ].map(m => (
                     <button key={m.id} type="button" onClick={() => setUpgradePaymentMethod(m.id)}
                       className={`w-full flex items-center gap-3 p-4 border-2 rounded-2xl text-left transition-colors cursor-pointer ${upgradePaymentMethod === m.id ? "border-current" : "border-[#e5e7eb] hover:border-[#e5e7eb]"}`}
@@ -1358,13 +1361,13 @@ export default function AttendeeDashboard() {
                 ) : upgradeMomoWaiting ? (
                   <div className="text-center py-6 space-y-3">
                     <div className="w-8 h-8 mx-auto border-2 border-[#FF4747] border-t-transparent rounded-full animate-spin" />
-                    <p className="text-[#1a1a1a] font-semibold text-sm">Check your phone and confirm the USSD prompt</p>
-                    <p className="text-xs text-[#888]">Waiting for +237{upgradePhone} to confirm payment via Mobile Money…</p>
+                    <p className="text-[#1a1a1a] font-semibold text-sm">{t("userDashboard.upgrade.step.payment.momoWaitingTitle")}</p>
+                    <p className="text-xs text-[#888]">{t("userDashboard.upgrade.step.payment.momoWaitingDesc", { phone: upgradePhone })}</p>
                   </div>
                 ) : (
                   <>
                     <div className="mb-5">
-                      <label className={label}>{upgradePaymentMethod === "mtn_mobile_money" ? "MTN" : "Orange"} Phone Number</label>
+                      <label className={label}>{upgradePaymentMethod === "mtn_mobile_money" ? t("userDashboard.upgrade.step.payment.phoneLabelMtn") : t("userDashboard.upgrade.step.payment.phoneLabelOrange")}</label>
                       <div className="flex gap-2">
                         <div className="px-3 py-2.5 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm font-semibold text-[#555] shrink-0">+237</div>
                         <input type="tel" placeholder="6XXXXXXXX" value={upgradePhone} onChange={e => setUpgradePhone(e.target.value.replace(/\D/g, ""))} maxLength={9} className={inp} />
@@ -1372,7 +1375,7 @@ export default function AttendeeDashboard() {
                     </div>
                     <form onSubmit={handleUpgradePayment}>
                       <button type="submit" disabled={upgradeLoading} className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
-                        {upgradeLoading ? "Processing..." : "Pay & Create Workspace"}
+                        {upgradeLoading ? t("userDashboard.upgrade.step.payment.processing") : t("userDashboard.upgrade.step.payment.payAndCreate")}
                       </button>
                     </form>
                   </>
@@ -1391,16 +1394,16 @@ export default function AttendeeDashboard() {
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
               <RefreshCw size={22} className="text-red-500" />
             </div>
-            <h2 className="font-display text-xl font-black text-[#1a1a1a] mb-1">Request Refund</h2>
-            <p className="text-sm text-[#888] mb-5">For <span className="font-semibold text-[#1a1a1a]">{refundConfirmTicket.eventTitle}</span></p>
+            <h2 className="font-display text-xl font-black text-[#1a1a1a] mb-1">{t("userDashboard.refundModal.title")}</h2>
+            <p className="text-sm text-[#888] mb-5">{t("userDashboard.refundModal.forLabel")} <span className="font-semibold text-[#1a1a1a]">{refundConfirmTicket.eventTitle}</span></p>
             <div className="bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-4 mb-5 text-xs space-y-1.5">
-              <div className="flex justify-between"><span className="text-[#888]">Order</span><span className="font-mono font-semibold">#{refundConfirmTicket.orderId?.substring(0, 8)}</span></div>
-              <div className="flex justify-between"><span className="text-[#888]">Amount</span><span className="font-semibold">{refundConfirmTicket.totalAmount?.toLocaleString()} FCFA</span></div>
+              <div className="flex justify-between"><span className="text-[#888]">{t("userDashboard.refundModal.orderLabel")}</span><span className="font-mono font-semibold">#{refundConfirmTicket.orderId?.substring(0, 8)}</span></div>
+              <div className="flex justify-between"><span className="text-[#888]">{t("userDashboard.refundModal.amountLabel")}</span><span className="font-semibold">{refundConfirmTicket.totalAmount?.toLocaleString()} FCFA</span></div>
             </div>
-            <p className="text-xs text-[#888] mb-6 leading-relaxed">This will invalidate your ticket and cannot be undone.</p>
+            <p className="text-xs text-[#888] mb-6 leading-relaxed">{t("userDashboard.refundModal.warning")}</p>
             <div className="flex gap-3">
-              <button onClick={() => setRefundConfirmTicket(null)} className="flex-1 py-3 border border-[#e5e7eb] rounded-xl text-sm font-bold text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors cursor-pointer">Keep Ticket</button>
-              <button onClick={() => confirmRefundProcess(refundConfirmTicket)} className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer">Confirm Refund</button>
+              <button onClick={() => setRefundConfirmTicket(null)} className="flex-1 py-3 border border-[#e5e7eb] rounded-xl text-sm font-bold text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors cursor-pointer">{t("userDashboard.refundModal.keep")}</button>
+              <button onClick={() => confirmRefundProcess(refundConfirmTicket)} className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer">{t("userDashboard.refundModal.confirm")}</button>
             </div>
           </div>
         </div>
@@ -1414,12 +1417,12 @@ export default function AttendeeDashboard() {
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
               <Trash2 size={22} className="text-red-500" />
             </div>
-            <h2 className="font-display text-xl font-black text-[#1a1a1a] mb-1">Delete Ticket</h2>
-            <p className="text-sm text-[#888] mb-5">For <span className="font-semibold text-[#1a1a1a]">{deleteConfirmTicket.eventTitle}</span></p>
-            <p className="text-xs text-[#888] mb-6 leading-relaxed">This permanently removes the ticket from your history and cannot be undone.</p>
+            <h2 className="font-display text-xl font-black text-[#1a1a1a] mb-1">{t("userDashboard.deleteModal.title")}</h2>
+            <p className="text-sm text-[#888] mb-5">{t("userDashboard.deleteModal.forLabel")} <span className="font-semibold text-[#1a1a1a]">{deleteConfirmTicket.eventTitle}</span></p>
+            <p className="text-xs text-[#888] mb-6 leading-relaxed">{t("userDashboard.deleteModal.warning")}</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirmTicket(null)} className="flex-1 py-3 border border-[#e5e7eb] rounded-xl text-sm font-bold text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors cursor-pointer">Cancel</button>
-              <button onClick={() => confirmDeleteProcess(deleteConfirmTicket)} className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer">Delete</button>
+              <button onClick={() => setDeleteConfirmTicket(null)} className="flex-1 py-3 border border-[#e5e7eb] rounded-xl text-sm font-bold text-[#1a1a1a] hover:bg-[#f5f5f5] transition-colors cursor-pointer">{t("userDashboard.deleteModal.cancel")}</button>
+              <button onClick={() => confirmDeleteProcess(deleteConfirmTicket)} className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors cursor-pointer">{t("userDashboard.deleteModal.confirm")}</button>
             </div>
           </div>
         </div>
@@ -1430,8 +1433,8 @@ export default function AttendeeDashboard() {
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 shadow-2xl flex flex-col items-center max-w-xs text-center">
             <div className="w-12 h-12 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin mb-4" />
-            <h3 className="font-bold text-[#1a1a1a] mb-1">{refundLoadingId ? "Processing Refund" : "Deleting Ticket"}</h3>
-            <p className="text-xs text-[#888]">Please do not close this window.</p>
+            <h3 className="font-bold text-[#1a1a1a] mb-1">{refundLoadingId ? t("userDashboard.processing.refundTitle") : t("userDashboard.processing.deleteTitle")}</h3>
+            <p className="text-xs text-[#888]">{t("userDashboard.processing.waitMsg")}</p>
           </div>
         </div>
       )}
@@ -1452,7 +1455,7 @@ export default function AttendeeDashboard() {
             </p>
             <button onClick={() => setRefundStatus(null)}
               className={`w-full py-3 font-bold rounded-xl text-sm transition-colors cursor-pointer ${refundStatus.type === "success" ? "bg-green-500 hover:bg-green-600 text-white" : "bg-[#FF4747] hover:bg-[#e03e3e] text-white"}`}>
-              Dismiss
+              {t("userDashboard.statusModal.dismiss")}
             </button>
           </div>
         </div>

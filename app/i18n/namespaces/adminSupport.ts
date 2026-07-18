@@ -1,0 +1,56 @@
+export const adminSupport = {
+  en: {
+    header: {
+      title: "Support & Broadcasting",
+    },
+    campaigns: {
+      title: "Scheduled Email Campaigns",
+      forEvent: "(for {event})",
+      defaultEvent: "selected event",
+      subjectLabel: "Email Subject",
+      subjectPlaceholder: "e.g. Welcome to the conference!",
+      audienceLabel: "Target Audience",
+      audienceAll: "All Attendees",
+      audienceSponsors: "Sponsors Only",
+      audienceExhibitors: "Exhibitors Only",
+      bodyLabel: "Body Message",
+      bodyPlaceholder: "Write campaign body content...",
+      sending: "Sending Campaign...",
+      submit: "Send Email Campaign",
+      historyTitle: "Broadcast History",
+      sentOn: "Sent on {date}",
+      empty: "No marketing campaigns scheduled yet.",
+    },
+    toast: {
+      launched: "Email Campaign launched successfully!",
+      launchFailed: "Failed to launch campaign.",
+    },
+  },
+  fr: {
+    header: {
+      title: "Support et diffusion",
+    },
+    campaigns: {
+      title: "Campagnes e-mail programmées",
+      forEvent: "(pour {event})",
+      defaultEvent: "l'événement sélectionné",
+      subjectLabel: "Objet de l'e-mail",
+      subjectPlaceholder: "ex. Bienvenue à la conférence !",
+      audienceLabel: "Public cible",
+      audienceAll: "Tous les participants",
+      audienceSponsors: "Sponsors uniquement",
+      audienceExhibitors: "Exposants uniquement",
+      bodyLabel: "Contenu du message",
+      bodyPlaceholder: "Rédigez le contenu de la campagne...",
+      sending: "Envoi de la campagne...",
+      submit: "Envoyer la campagne",
+      historyTitle: "Historique des diffusions",
+      sentOn: "Envoyée le {date}",
+      empty: "Aucune campagne marketing programmée pour le moment.",
+    },
+    toast: {
+      launched: "Campagne e-mail lancée avec succès !",
+      launchFailed: "Échec du lancement de la campagne.",
+    },
+  },
+};

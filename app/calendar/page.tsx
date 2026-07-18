@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { api, getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 type CalEvent = { title: string; time: string; cls: string };
 type EventMap = Record<string, CalEvent[]>;
@@ -26,8 +27,6 @@ const INITIAL_EVENTS: EventMap = {
   ],
 };
 
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const CAT_CLS: Record<string, string> = {
   Conference: "bg-blue-900/40 text-blue-300 border-l-2 border-blue-500",
   Workshop: "bg-green-900/40 text-green-300 border-l-2 border-green-500",
@@ -39,6 +38,11 @@ const CAT_CLS: Record<string, string> = {
 const TODAY = new Date();
 
 export default function CalendarPage() {
+  const { t, tl } = useLanguage();
+  const MONTHS: string[] = tl("calendarPage.months");
+  const MONTHS_SHORT: string[] = tl("calendarPage.monthsShort");
+  const DAYS: string[] = tl("calendarPage.days");
+  const DAYS_MINI: string[] = tl("calendarPage.daysMini");
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(5); // June
   const [events, setEvents] = useState<EventMap>(INITIAL_EVENTS);
@@ -177,7 +181,7 @@ export default function CalendarPage() {
         if (sched && sched.startDatetime) {
           const parts = sched.startDatetime.split("T");
           const dateParts = parts[0].split("-");
-          const monthName = MONTHS[parseInt(dateParts[1]) - 1]?.substring(0, 3);
+          const monthName = MONTHS_SHORT[parseInt(dateParts[1]) - 1];
           const dayNum = dateParts[2];
           const startTime = parts[1] ? parts[1].substring(0, 5) : "00:00";
           const endTimeParts = sched.endDatetime ? sched.endDatetime.split("T")[1] : null;
@@ -216,16 +220,16 @@ export default function CalendarPage() {
       <div className="ml-[220px] flex-1 flex flex-col">
         {/* TOPBAR */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Calendar</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("calendarPage.topbar.title")}</h1>
           <div className="flex items-center gap-3">
             <div className="flex border border-[#e5e7eb] rounded-lg overflow-hidden">
-              {["Month","Week","Day"].map((v) => (
-                <button key={v} className={`px-3.5 py-1.5 text-xs transition-all cursor-pointer ${v === "Month" ? "bg-[#1a1a1a] text-white" : "text-[#666] hover:text-[#1a1a1a] bg-transparent"}`}>{v}</button>
+              {(["month","week","day"] as const).map((v) => (
+                <button key={v} className={`px-3.5 py-1.5 text-xs transition-all cursor-pointer ${v === "month" ? "bg-[#1a1a1a] text-white" : "text-[#666] hover:text-[#1a1a1a] bg-transparent"}`}>{t(`calendarPage.topbar.views.${v}`)}</button>
               ))}
             </div>
-            <button className="px-3.5 py-1.5 text-xs border border-[#e5e7eb] rounded-lg text-[#555] hover:bg-white transition-colors cursor-pointer">📥 Import</button>
+            <button className="px-3.5 py-1.5 text-xs border border-[#e5e7eb] rounded-lg text-[#555] hover:bg-white transition-colors cursor-pointer">{t("calendarPage.topbar.import")}</button>
             <button onClick={() => setModal(true)} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#EB4203] text-white text-xs font-semibold rounded-lg hover:bg-[#c23b02] transition-colors cursor-pointer">
-              <Plus size={14}/> New Event
+              <Plus size={14}/> {t("calendarPage.topbar.newEvent")}
             </button>
           </div>
         </header>
@@ -238,7 +242,7 @@ export default function CalendarPage() {
                 <button onClick={prev} className="w-8 h-8 border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#1a1a1a] hover:border-[#555] transition-all cursor-pointer"><ChevronLeft size={16}/></button>
                 <h2 className="font-display text-xl font-bold text-[#EB4203]">{MONTHS[month]} {year}</h2>
                 <button onClick={next} className="w-8 h-8 border border-[#e5e7eb] rounded-lg flex items-center justify-center hover:bg-[#1a1a1a] hover:border-[#555] transition-all cursor-pointer"><ChevronRight size={16}/></button>
-                <button onClick={goToday} className="px-3 py-1 text-xs border border-[#e5e7eb] rounded-full text-[#555] hover:bg-[#1a1a1a] transition-all cursor-pointer">Today</button>
+                <button onClick={goToday} className="px-3 py-1 text-xs border border-[#e5e7eb] rounded-full text-[#555] hover:bg-[#1a1a1a] transition-all cursor-pointer">{t("calendarPage.grid.today")}</button>
               </div>
               <div className="flex gap-4">
                 {[["#1565c0","Conference"],["#2e7d32","Workshop"],["#f57c00","Webinar"],["#EB4203","Internal"]].map(([c,l]) => (
@@ -265,7 +269,7 @@ export default function CalendarPage() {
                       {evs.slice(0, 2).map((ev, j) => (
                         <div key={j} className={`text-[10px] font-medium rounded px-1.5 py-0.5 mb-0.5 truncate cursor-pointer hover:brightness-110 transition-all ${ev.cls}`}>{ev.time} {ev.title}</div>
                       ))}
-                      {evs.length > 2 && <div className="text-[10px] text-[#555] cursor-pointer hover:text-[#999]">+{evs.length - 2} more</div>}
+                      {evs.length > 2 && <div className="text-[10px] text-[#555] cursor-pointer hover:text-[#999]">{t("calendarPage.grid.moreCount", { count: evs.length - 2 })}</div>}
                     </div>
                   );
                 })}
@@ -276,11 +280,11 @@ export default function CalendarPage() {
           {/* SIDE PANEL */}
           <aside className="w-72 bg-white border-l border-[#e5e7eb] p-5 flex flex-col gap-6">
             <div>
-              <h3 className="font-display font-bold text-[#EB4203] mb-4">📅 {MONTHS[month]} {year}</h3>
+              <h3 className="font-display font-bold text-[#EB4203] mb-4">{t("calendarPage.sidePanel.title", { month: MONTHS[month], year })}</h3>
               {/* Mini calendar */}
               <div className="bg-white rounded-xl p-3 mb-5">
                 <div className="grid grid-cols-7 gap-0.5 mb-1">
-                  {["S","M","T","W","T","F","S"].map((d,i) => <div key={i} className="text-center text-[9px] text-[#555] py-1">{d}</div>)}
+                  {DAYS_MINI.map((d,i) => <div key={i} className="text-center text-[9px] text-[#555] py-1">{d}</div>)}
                 </div>
                 <div className="grid grid-cols-7 gap-0.5">
                   {Array.from({ length: firstDay }, (_, i) => <div key={`e${i}`} />)}
@@ -296,7 +300,7 @@ export default function CalendarPage() {
               </div>
             </div>
             <div>
-              <h3 className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-4">Upcoming Events</h3>
+              <h3 className="text-[10px] font-medium text-[#555] uppercase tracking-widest mb-4">{t("calendarPage.sidePanel.upcomingEvents")}</h3>
               <div className="space-y-4">
                 {upcoming.map((ev) => (
                   <div key={ev.title} className="flex gap-3 pb-4 border-b border-[#e5e7eb] last:border-0">
@@ -319,23 +323,23 @@ export default function CalendarPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && setModal(false)}>
           <div className="bg-white border border-[#e5e7eb] rounded-2xl w-[480px] max-w-full p-8 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-display text-xl font-bold text-[#EB4203]">New Event</h3>
+              <h3 className="font-display text-xl font-bold text-[#EB4203]">{t("calendarPage.modal.title")}</h3>
               <button onClick={() => setModal(false)} className="text-[#555] hover:text-white transition-colors cursor-pointer"><X size={18}/></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Event Title *</label>
-                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Annual Conference 2026"
+                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("calendarPage.modal.eventTitleLabel")}</label>
+                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={t("calendarPage.modal.eventTitlePlaceholder")}
                   className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors"/>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Start Date</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("calendarPage.modal.startDateLabel")}</label>
                   <input type="date" value={form.start} onChange={e => setForm(f => ({ ...f, start: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Category</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("calendarPage.modal.categoryLabel")}</label>
                   <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors">
                     {["Conference","Workshop","Webinar","Internal","Other"].map(c => <option key={c}>{c}</option>)}
@@ -344,24 +348,24 @@ export default function CalendarPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Start Time</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("calendarPage.modal.startTimeLabel")}</label>
                   <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">End Time</label>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("calendarPage.modal.endTimeLabel")}</label>
                   <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white outline-none focus:border-[#F7E998]/50 transition-colors"/>
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Description</label>
-                <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} rows={3} placeholder="Brief description…"
+                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("calendarPage.modal.descriptionLabel")}</label>
+                <textarea value={form.desc} onChange={e => setForm(f => ({ ...f, desc: e.target.value }))} rows={3} placeholder={t("calendarPage.modal.descriptionPlaceholder")}
                   className="w-full px-4 py-2.5 bg-white border border-[#e5e7eb] rounded-xl text-sm text-white placeholder:text-[#555] outline-none focus:border-[#F7E998]/50 transition-colors resize-none"/>
               </div>
               <div className="flex gap-3 justify-end pt-2">
-                <button onClick={() => setModal(false)} className="px-5 py-2.5 text-sm border border-[#e5e7eb] rounded-full text-[#555] hover:bg-white transition-colors cursor-pointer">Cancel</button>
-                <button onClick={handleCreate} className="px-5 py-2.5 text-sm bg-[#EB4203] text-white rounded-full font-semibold hover:bg-[#c23b02] transition-colors cursor-pointer">Create Event</button>
+                <button onClick={() => setModal(false)} className="px-5 py-2.5 text-sm border border-[#e5e7eb] rounded-full text-[#555] hover:bg-white transition-colors cursor-pointer">{t("calendarPage.modal.cancel")}</button>
+                <button onClick={handleCreate} className="px-5 py-2.5 text-sm bg-[#EB4203] text-white rounded-full font-semibold hover:bg-[#c23b02] transition-colors cursor-pointer">{t("calendarPage.modal.create")}</button>
               </div>
             </div>
           </div>
@@ -370,7 +374,7 @@ export default function CalendarPage() {
 
       {/* TOAST */}
       <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-[#e5e7eb] text-white text-sm px-6 py-3 rounded-full shadow-2xl transition-all duration-300 z-50 ${toast ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
-        ✅ Event created successfully!
+        {t("calendarPage.toast.created")}
       </div>
     </div>
   );

@@ -8,14 +8,18 @@ import { authService } from "@/app/utils/services/authService";
 import { Calendar, MapPin, Users, Clock, Box, Navigation, Link2, X, CheckCircle2, Bookmark, Bell, Ticket, Star, ArrowRight, ArrowLeft, Tag, Eye, Info, Image as ImageIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Footer from "@/components/Footer";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const EventMap = dynamic(() => import("@/components/EventMap"), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-56 bg-white flex items-center justify-center rounded-2xl border border-[#e5e7eb] mt-4">
-      <span className="text-xs text-[#666] font-medium">Loading Map...</span>
-    </div>
-  ),
+  loading: () => {
+    const { t } = useLanguage();
+    return (
+      <div className="w-full h-56 bg-white flex items-center justify-center rounded-2xl border border-[#e5e7eb] mt-4">
+        <span className="text-xs text-[#666] font-medium">{t("eventDetail.common.loadingMap")}</span>
+      </div>
+    );
+  },
 });
 
 import { loadStripe } from '@stripe/stripe-js';
@@ -47,6 +51,7 @@ function EventDetailsPageContent() {
   const eventId = params.id as string;
   const stripe = useStripe();
   const elements = useElements();
+  const { t } = useLanguage();
 
   const [auth, setAuth] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
@@ -329,12 +334,12 @@ function EventDetailsPageContent() {
         const discountType = valid.type || "PERCENTAGE";
         const val = parseFloat(valid.value) || 0;
         if (discountType === "PERCENTAGE") {
-          alert(`Coupon applied: ${val}% off`);
+          alert(t("eventDetail.alerts.couponAppliedPercent", { value: val }));
         } else {
-          alert(`Coupon applied: -${val.toLocaleString()} FCFA`);
+          alert(t("eventDetail.alerts.couponAppliedFlat", { value: val.toLocaleString() }));
         }
       } else {
-        alert("Invalid coupon code");
+        alert(t("eventDetail.alerts.invalidCoupon"));
         setAppliedCoupon(null);
       }
     } catch (err) {
@@ -358,7 +363,7 @@ function EventDetailsPageContent() {
 
   const handleCheckoutSubmit = async () => {
     if (isRegistrationClosed) {
-      alert("Ticket sales for this event have closed.");
+      alert(t("eventDetail.alerts.salesClosed"));
       setShowCheckout(false);
       return;
     }
@@ -369,7 +374,7 @@ function EventDetailsPageContent() {
 
     const totalQty = Object.values(selectedTickets).reduce((a,b) => a+b, 0);
     if (totalQty === 0) {
-      alert("Please select at least one ticket.");
+      alert(t("eventDetail.alerts.selectTicket"));
       return;
     }
 
@@ -434,13 +439,13 @@ function EventDetailsPageContent() {
       // 3. Create Payment based on selected method
       if (paymentMethod === "stripe") {
         if (!stripe || !elements) {
-          alert("Stripe has not loaded yet. Please try again.");
+          alert(t("eventDetail.alerts.stripeNotLoaded"));
           setIsProcessing(false);
           return;
         }
         const cardElement = elements.getElement(CardElement);
         if (!cardElement) {
-          alert("Please fill in your credit card details.");
+          alert(t("eventDetail.alerts.fillCardDetails"));
           setIsProcessing(false);
           return;
         }
@@ -464,7 +469,7 @@ function EventDetailsPageContent() {
               }
             });
             if (confirmError) {
-              alert("Payment confirmation failed: " + confirmError.message);
+              alert(t("eventDetail.alerts.paymentConfirmFailed", { message: confirmError.message || "" }));
               setIsProcessing(false);
               return;
             }
@@ -475,7 +480,7 @@ function EventDetailsPageContent() {
         }
       } else {
         if (!phoneNumber || phoneNumber.replace(/\D/g, "").length < 8) {
-          alert("Please enter a valid 9-digit phone number.");
+          alert(t("eventDetail.alerts.invalidPhone"));
           setIsProcessing(false);
           return;
         }
@@ -493,7 +498,7 @@ function EventDetailsPageContent() {
       }
     } catch (err: any) {
       console.error(err);
-      alert("Checkout failed: " + (err.message || "Unknown error"));
+      alert(t("eventDetail.alerts.checkoutFailed", { message: err.message || t("eventDetail.alerts.unknownError") }));
     } finally {
       setIsProcessing(false);
     }
@@ -530,7 +535,7 @@ function EventDetailsPageContent() {
   const handleSponsorApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSponsorApplicationOpen) {
-      alert("Sponsorship applications are closed.");
+      alert(t("eventDetail.alerts.sponsorClosed"));
       return;
     }
     if (!sponsorForm.companyName || !sponsorForm.email) return;
@@ -539,7 +544,7 @@ function EventDetailsPageContent() {
       (s: any) => sameEmail(s.email, sponsorForm.email) || samePhone(s.phone, sponsorForm.phone)
     );
     if (alreadyApplied) {
-      setApplicationMsg({ type: "error", text: "An application with this email or phone number has already been submitted for this event.", source: "sponsor" });
+      setApplicationMsg({ type: "error", text: t("eventDetail.alerts.duplicateApplicationEmailPhone"), source: "sponsor" });
       return;
     }
 
@@ -559,11 +564,11 @@ function EventDetailsPageContent() {
         status: "PENDING",
       });
       setSponsors((prev) => [...prev, created]);
-      setApplicationMsg({ type: "success", text: "Your sponsorship application has been submitted! The organizer will contact you shortly.", source: "sponsor" });
+      setApplicationMsg({ type: "success", text: t("eventDetail.alerts.sponsorSuccess"), source: "sponsor" });
       setShowSponsorForm(false);
       setSponsorForm({ companyName: "", contactName: "", email: "", phone: "", message: "", packageId: "", logoUrl: "" });
     } catch (err: any) {
-      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again.", source: "sponsor" });
+      setApplicationMsg({ type: "error", text: t("eventDetail.alerts.applicationFailed"), source: "sponsor" });
     } finally {
       setAppLoading(false);
     }
@@ -572,7 +577,7 @@ function EventDetailsPageContent() {
   const handleVolunteerApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isVolunteerApplicationOpen) {
-      alert("Volunteer applications are closed.");
+      alert(t("eventDetail.alerts.volunteerClosed"));
       return;
     }
     if (!volunteerForm.name || !volunteerForm.email) return;
@@ -581,7 +586,7 @@ function EventDetailsPageContent() {
       (v: any) => sameEmail(v.email, volunteerForm.email) || samePhone(v.phone, volunteerForm.phone)
     );
     if (alreadyApplied) {
-      setApplicationMsg({ type: "error", text: "An application with this email or phone number has already been submitted for this event.", source: "volunteer" });
+      setApplicationMsg({ type: "error", text: t("eventDetail.alerts.duplicateApplicationEmailPhone"), source: "volunteer" });
       return;
     }
 
@@ -601,11 +606,11 @@ function EventDetailsPageContent() {
         status: "PENDING",
       });
       setVolunteerApplications((prev) => [...prev, created]);
-      setApplicationMsg({ type: "success", text: "Your volunteer application has been submitted! We'll be in touch soon.", source: "volunteer" });
+      setApplicationMsg({ type: "success", text: t("eventDetail.alerts.volunteerSuccess"), source: "volunteer" });
       setShowVolunteerForm(false);
       setVolunteerForm({ name: "", email: "", phone: "", skills: "", availability: "", photoUrl: "" });
     } catch (err: any) {
-      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again.", source: "volunteer" });
+      setApplicationMsg({ type: "error", text: t("eventDetail.alerts.applicationFailed"), source: "volunteer" });
     } finally {
       setAppLoading(false);
     }
@@ -614,14 +619,14 @@ function EventDetailsPageContent() {
   const handleVendorApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isVendorApplicationOpen) {
-      alert("Vendor applications are closed.");
+      alert(t("eventDetail.alerts.vendorClosed"));
       return;
     }
     if (!vendorForm.name || !vendorForm.email) return;
 
     const alreadyApplied = exhibitors.some((ex: any) => sameEmail(ex.email, vendorForm.email));
     if (alreadyApplied) {
-      setApplicationMsg({ type: "error", text: "An application with this email has already been submitted for this event.", source: "vendor" });
+      setApplicationMsg({ type: "error", text: t("eventDetail.alerts.duplicateApplicationEmail"), source: "vendor" });
       return;
     }
 
@@ -639,11 +644,11 @@ function EventDetailsPageContent() {
         status: "PENDING",
       });
       setExhibitors((prev) => [...prev, created]);
-      setApplicationMsg({ type: "success", text: "Your vendor application has been submitted! The organizer will contact you shortly.", source: "vendor" });
+      setApplicationMsg({ type: "success", text: t("eventDetail.alerts.vendorSuccess"), source: "vendor" });
       setShowVendorForm(false);
       setVendorForm({ name: "", email: "", website: "", logoUrl: "" });
     } catch (err: any) {
-      setApplicationMsg({ type: "error", text: "Failed to submit application. Please try again.", source: "vendor" });
+      setApplicationMsg({ type: "error", text: t("eventDetail.alerts.applicationFailed"), source: "vendor" });
     } finally {
       setAppLoading(false);
     }
@@ -652,13 +657,13 @@ function EventDetailsPageContent() {
   const handlePostFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) {
-      alert("Please log in to leave feedback");
+      alert(t("eventDetail.alerts.loginToFeedback"));
       router.push("/login");
       return;
     }
 
     if (newRating !== null && eventEndDate && new Date() < eventEndDate) {
-      alert("Star ratings can only be submitted after the event ends. Please post a comment instead.");
+      alert(t("eventDetail.alerts.ratingLocked"));
       return;
     }
 
@@ -673,7 +678,7 @@ function EventDetailsPageContent() {
       setNewComment("");
       setNewRating(null);
     } catch (err: any) {
-      alert(err.message || "Failed to post feedback");
+      alert(err.message || t("eventDetail.alerts.feedbackFailed"));
     }
   };
 
@@ -706,7 +711,7 @@ function EventDetailsPageContent() {
               onClick={() => (window.history.length > 1 ? router.back() : router.push("/events"))}
               className="inline-flex items-center gap-2 text-white/70 hover:text-white text-sm font-semibold cursor-pointer transition-colors"
             >
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> {t("eventDetail.common.back")}
             </button>
           </div>
           <span className="inline-block px-3 py-1 bg-[#EB4203] text-white text-xs font-bold rounded-full uppercase tracking-widest mb-6">
@@ -721,17 +726,17 @@ function EventDetailsPageContent() {
                   {tenant.name.charAt(0)}
                 </div>
               )}
-              <span className="text-white/80 text-sm font-semibold">Hosted by {tenant.name}</span>
+              <span className="text-white/80 text-sm font-semibold">{t("eventDetail.common.hostedBy", { name: tenant.name })}</span>
             </div>
           )}
           <div className="flex items-start justify-between gap-4 mb-6">
             <h1 className="font-display text-5xl md:text-7xl font-black text-white leading-tight max-w-4xl">
               {event.title}
             </h1>
-            <button 
+            <button
               onClick={toggleSaveEvent}
               className={`p-4 rounded-full border ${isSaved ? 'bg-[#F7E998] border-[#F7E998] text-[#1a1a1a]' : 'bg-transparent border-[#e5e7eb]/50 text-white hover:bg-white/10'} transition-all cursor-pointer shadow-lg`}
-              title={isSaved ? "Unsave Event" : "Save Event"}
+              title={isSaved ? t("eventDetail.common.unsaveEvent") : t("eventDetail.common.saveEvent")}
             >
               <Bookmark size={28} className={isSaved ? "fill-current" : ""} />
             </button>
@@ -744,18 +749,18 @@ function EventDetailsPageContent() {
             )}
             {event.format && (
               <span className="px-3 py-1 bg-white/20 text-white text-xs font-bold rounded-full border border-white/30 uppercase tracking-wider">
-                {event.format === "IN_PERSON" ? "In Person" : event.format === "VIRTUAL" ? "Virtual" : "Hybrid"}
+                {event.format === "IN_PERSON" ? t("eventDetail.format.inPerson") : event.format === "VIRTUAL" ? t("eventDetail.format.virtual") : t("eventDetail.format.hybrid")}
               </span>
             )}
             {event.isPaid === false && (
-              <span className="px-3 py-1 bg-green-500/80 text-white text-xs font-bold rounded-full uppercase tracking-wider">Free</span>
+              <span className="px-3 py-1 bg-green-500/80 text-white text-xs font-bold rounded-full uppercase tracking-wider">{t("eventDetail.common.free")}</span>
             )}
             {event.isPaid === true && event.currency && (
-              <span className="px-3 py-1 bg-[#EB4203]/80 text-white text-xs font-bold rounded-full uppercase tracking-wider">Paid · {event.currency}</span>
+              <span className="px-3 py-1 bg-[#EB4203]/80 text-white text-xs font-bold rounded-full uppercase tracking-wider">{t("eventDetail.common.paidWith", { currency: event.currency })}</span>
             )}
             {event.maxCapacity != null && (
               <span className="flex items-center gap-1.5 px-3 py-1 bg-white/15 text-white text-xs font-medium rounded-full">
-                <Users size={12} /> {event.maxCapacity.toLocaleString()} capacity
+                <Users size={12} /> {t("eventDetail.common.capacity", { count: event.maxCapacity.toLocaleString() })}
               </span>
             )}
           </div>
@@ -764,14 +769,17 @@ function EventDetailsPageContent() {
               <Calendar size={18} />
               <span>
                 {(event.startDate || eventSchedule?.startDatetime)
-                  ? `${new Date(event.startDate || eventSchedule.startDatetime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} — ${new Date(event.endDate || eventSchedule?.endDatetime || event.startDate || eventSchedule.startDatetime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
-                  : "Date TBD"}
+                  ? t("eventDetail.common.dateRange", {
+                      start: new Date(event.startDate || eventSchedule.startDatetime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+                      end: new Date(event.endDate || eventSchedule?.endDatetime || event.startDate || eventSchedule.startDatetime).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+                    })
+                  : t("eventDetail.common.dateTBD")}
               </span>
             </div>
             {locations.length > 0 && (
               <div className="flex items-center gap-2">
                 <MapPin size={18} />
-                <span>{locations[0].type === "VIRTUAL" ? "Virtual Event" : locations[0].city || "Multiple Locations"}</span>
+                <span>{locations[0].type === "VIRTUAL" ? t("eventDetail.common.virtualEvent") : locations[0].city || t("eventDetail.common.multipleLocations")}</span>
               </div>
             )}
           </div>
@@ -783,8 +791,8 @@ function EventDetailsPageContent() {
           <div className="flex items-center gap-3 bg-[#1a1a1a] text-white px-6 py-4 rounded-2xl">
             <Clock size={18} className="text-[#F7E998] shrink-0" />
             <div>
-              <span className="font-bold text-sm">This event has ended.</span>
-              <span className="text-[#aaa] text-sm ml-2">You can still browse sessions, locations, and past announcements.</span>
+              <span className="font-bold text-sm">{t("eventDetail.eventEnded.title")}</span>
+              <span className="text-[#aaa] text-sm ml-2">{t("eventDetail.eventEnded.desc")}</span>
             </div>
           </div>
         </div>
@@ -797,9 +805,9 @@ function EventDetailsPageContent() {
           
           {/* ABOUT */}
           <section>
-            <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6">About This Event</h2>
+            <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6">{t("eventDetail.about.title")}</h2>
             <div className="prose prose-lg text-[#555] leading-relaxed max-w-none">
-              <p>{event.description || "No description provided."}</p>
+              <p>{event.description || t("eventDetail.about.noDescription")}</p>
             </div>
           </section>
 
@@ -811,7 +819,7 @@ function EventDetailsPageContent() {
             return (
               <section>
                 <h2 className="font-display text-3xl font-black text-[#1a1a1a] mb-6 flex items-center gap-3">
-                  <MapPin size={26} className="text-[#EB4203]" /> Venue
+                  <MapPin size={26} className="text-[#EB4203]" /> {t("eventDetail.venue.title")}
                 </h2>
 
                 {/* Location selector — only shown when there are multiple */}
@@ -819,7 +827,7 @@ function EventDetailsPageContent() {
                   <div className="flex flex-wrap gap-2 mb-6">
                     {locations.map((loc) => {
                       const active = loc.locationId === selectedLocationId;
-                      const label = loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Online") : (loc.venueName || loc.city || "Venue");
+                      const label = loc.type === "VIRTUAL" ? (loc.virtualPlatform || t("eventDetail.common.online")) : (loc.venueName || loc.city || t("eventDetail.common.venueFallback"));
                       return (
                         <button
                           key={loc.locationId}
@@ -845,7 +853,7 @@ function EventDetailsPageContent() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-[#1a1a1a] text-sm">
-                        {isVirtual ? (activeLoc.virtualPlatform || "Online Event") : activeLoc.venueName}
+                        {isVirtual ? (activeLoc.virtualPlatform || t("eventDetail.common.onlineEvent")) : activeLoc.venueName}
                       </div>
                       <div className="text-xs text-[#666] mt-0.5">
                         {isVirtual
@@ -857,25 +865,25 @@ function EventDetailsPageContent() {
                       <div className="mt-4 grid grid-cols-3 gap-3">
                         <div className="bg-[#faf9f7] rounded-xl p-3 text-center">
                           <div className="text-lg font-black text-[#1a1a1a]">{ticketTypes.length}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">Ticket Types</div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">{t("eventDetail.venue.ticketTypes")}</div>
                           {ticketTypes.length > 0 && (
                             <div className="text-[10px] text-[#EB4203] font-semibold mt-1">
-                              from {Math.min(...ticketTypes.map((t: any) => t.price ?? 0)).toLocaleString()} FCFA
+                              {t("eventDetail.venue.fromPrice", { price: Math.min(...ticketTypes.map((t: any) => t.price ?? 0)).toLocaleString() })}
                             </div>
                           )}
                         </div>
                         <div className="bg-[#faf9f7] rounded-xl p-3 text-center">
                           <div className="text-lg font-black text-[#1a1a1a]">{volunteerOpenings.length}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">Volunteer Roles</div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">{t("eventDetail.venue.volunteerRoles")}</div>
                           {volunteerOpenings.length > 0 && (
                             <div className="text-[10px] text-green-600 font-semibold mt-1">
-                              {volunteerOpenings.reduce((s: number, v: any) => s + (v.maxVolunteers || 0), 0)} slots
+                              {t("eventDetail.venue.slots", { count: volunteerOpenings.reduce((s: number, v: any) => s + (v.maxVolunteers || 0), 0) })}
                             </div>
                           )}
                         </div>
                         <div className="bg-[#faf9f7] rounded-xl p-3 text-center">
                           <div className="text-lg font-black text-[#1a1a1a]">{sessions.length}</div>
-                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">Sessions</div>
+                          <div className="text-[10px] uppercase tracking-wider text-[#888] font-semibold mt-0.5">{t("eventDetail.venue.sessions")}</div>
                         </div>
                       </div>
                     </div>
@@ -883,7 +891,7 @@ function EventDetailsPageContent() {
                       <a href={`https://www.openstreetmap.org/?mlat=${activeLoc.latitude}&mlon=${activeLoc.longitude}#map=15/${activeLoc.latitude}/${activeLoc.longitude}`}
                         target="_blank" rel="noopener noreferrer"
                         className="shrink-0 flex items-center gap-1.5 px-4 py-2 border border-[#e5e7eb] rounded-xl text-xs font-semibold text-[#555] hover:border-[#EB4203] hover:text-[#EB4203] transition-colors">
-                        <Navigation size={13} /> Open in Maps
+                        <Navigation size={13} /> {t("eventDetail.venue.openInMaps")}
                       </a>
                     )}
                   </div>
@@ -1750,10 +1758,10 @@ function EventDetailsPageContent() {
           {/* REGISTRATION CARD */}
           <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 shadow-xl sticky top-24">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-display text-2xl font-black text-[#1a1a1a]">Attend Event</h3>
+              <h3 className="font-display text-2xl font-black text-[#1a1a1a]">{t("eventDetail.sidebar.attendTitle")}</h3>
               {isRegistered && (
                 <span className="flex items-center gap-1 px-2.5 py-1 bg-[#e6fcf5] border border-[#c2f9e6] rounded-full text-[10px] text-[#0ca678] font-bold uppercase tracking-wide">
-                  <CheckCircle2 size={10} className="text-[#0ca678]" /> Registered
+                  <CheckCircle2 size={10} className="text-[#0ca678]" /> {t("eventDetail.sidebar.registeredBadge")}
                 </span>
               )}
             </div>
@@ -1761,24 +1769,24 @@ function EventDetailsPageContent() {
               <div className="mb-4 p-3 bg-[#f4fbf7] border border-[#d3f4e4] rounded-xl flex items-start gap-2.5">
                 <CheckCircle2 size={16} className="text-[#0ca678] mt-0.5 shrink-0" />
                 <div className="text-xs text-[#2b8a3e] leading-relaxed">
-                  <strong>Spot Secured:</strong> You already have a ticket for this event. Live polls are active for you!
+                  <strong>{t("eventDetail.sidebar.spotSecuredTitle")}</strong> {t("eventDetail.sidebar.spotSecuredDesc")}
                 </div>
               </div>
             )}
             {ticketTypes.length > 0 && (
               <div className="mb-5 space-y-2 pt-1">
-                {ticketTypes.slice(0, 3).map(t => (
-                  <div key={t.ticketId} className="flex justify-between items-center text-sm">
+                {ticketTypes.slice(0, 3).map(tk => (
+                  <div key={tk.ticketId} className="flex justify-between items-center text-sm">
                     <span className="flex items-center gap-1.5 text-[#555]">
-                      <Ticket size={13} className="text-[#EB4203]" /> {t.name}
+                      <Ticket size={13} className="text-[#EB4203]" /> {tk.name}
                     </span>
                     <span className="font-black text-[#EB4203]">
-                      {t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} ${event.currency || "XAF"}`}
+                      {tk.price === 0 ? t("eventDetail.common.free") : `${Number(tk.price).toLocaleString()} ${event.currency || "XAF"}`}
                     </span>
                   </div>
                 ))}
                 {ticketTypes.length > 3 && (
-                  <p className="text-[10px] text-[#888]">+{ticketTypes.length - 3} more type{ticketTypes.length - 3 > 1 ? "s" : ""}</p>
+                  <p className="text-[10px] text-[#888]">{t("eventDetail.sidebar.moreTypes", { count: ticketTypes.length - 3, plural: ticketTypes.length - 3 > 1 ? "s" : "" })}</p>
                 )}
                 <div className="border-t border-[#f0f0f0] pt-1" />
               </div>
@@ -1786,31 +1794,31 @@ function EventDetailsPageContent() {
             {isRegistrationClosed ? (
               <>
                 <p className="text-[#666] text-sm mb-4">
-                  {isEventOver ? "This event has already ended." : "Ticket sales for this event have closed."}
+                  {isEventOver ? t("eventDetail.sidebar.eventEndedMsg") : t("eventDetail.sidebar.salesClosedMsg")}
                 </p>
                 <div className="w-full py-4 bg-[#e5e7eb] text-[#888] font-bold rounded-xl text-center text-sm">
-                  Registration Closed
+                  {t("eventDetail.sidebar.registrationClosed")}
                 </div>
               </>
             ) : event?.visibility === "INVITE_ONLY" ? (
               <div className="text-center py-3">
                 <div className="text-3xl mb-2">✉️</div>
-                <p className="font-semibold text-[#1a1a1a] text-sm mb-1">Invite-Only Event</p>
-                <p className="text-xs text-[#888]">Check your email for an invitation from the organizer.</p>
+                <p className="font-semibold text-[#1a1a1a] text-sm mb-1">{t("eventDetail.sidebar.inviteOnlyTitle")}</p>
+                <p className="text-xs text-[#888]">{t("eventDetail.sidebar.inviteOnlyDesc")}</p>
               </div>
             ) : (
               <>
-                <p className="text-[#666] text-sm mb-4">Secure your spot before tickets sell out.</p>
+                <p className="text-[#666] text-sm mb-4">{t("eventDetail.sidebar.secureSpot")}</p>
                 <button
                   onClick={() => setShowCheckout(true)}
                   className="w-full py-4 bg-[#EB4203] hover:bg-[#c73a00] text-white font-bold rounded-xl transition-colors cursor-pointer shadow-md"
                 >
-                  Register Now
+                  {t("eventDetail.sidebar.registerNow")}
                 </button>
               </>
             )}
             <p className="text-center text-[10px] text-[#888] mt-4 uppercase tracking-widest font-semibold">
-              Powered by YowEvent Ticketing
+              {t("eventDetail.sidebar.poweredBy")}
             </p>
           </div>
 
@@ -1818,13 +1826,13 @@ function EventDetailsPageContent() {
           {eventSchedule && (
             <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
               <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
-                <Calendar size={18} className="text-[#EB4203]" /> Schedule
+                <Calendar size={18} className="text-[#EB4203]" /> {t("eventDetail.scheduleCard.title")}
               </h3>
               <div className="space-y-3 text-sm">
                 <div className="flex items-start gap-3">
                   <Clock size={14} className="text-[#EB4203] mt-0.5 shrink-0" />
                   <div>
-                    <div className="font-semibold text-[#1a1a1a] text-xs uppercase tracking-wider mb-0.5">Starts</div>
+                    <div className="font-semibold text-[#1a1a1a] text-xs uppercase tracking-wider mb-0.5">{t("eventDetail.scheduleCard.starts")}</div>
                     <div className="text-[#444]">
                       {new Date(eventSchedule.startDatetime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
                     </div>
@@ -1834,7 +1842,7 @@ function EventDetailsPageContent() {
                   <div className="flex items-start gap-3">
                     <Clock size={14} className="text-[#888] mt-0.5 shrink-0" />
                     <div>
-                      <div className="font-semibold text-[#1a1a1a] text-xs uppercase tracking-wider mb-0.5">Ends</div>
+                      <div className="font-semibold text-[#1a1a1a] text-xs uppercase tracking-wider mb-0.5">{t("eventDetail.scheduleCard.ends")}</div>
                       <div className="text-[#444]">
                         {new Date(eventSchedule.endDatetime).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
                       </div>
@@ -1851,13 +1859,13 @@ function EventDetailsPageContent() {
           {/* EVENT DETAILS CARD */}
           <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm">
             <h3 className="font-display text-lg font-bold text-[#1a1a1a] mb-4 flex items-center gap-2">
-              <Info size={18} className="text-[#EB4203]" /> Event Details
+              <Info size={18} className="text-[#EB4203]" /> {t("eventDetail.detailsCard.title")}
             </h3>
             <div className="space-y-3 text-sm">
               {category?.name && (
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[#888]">
-                    <Tag size={14} /> Category
+                    <Tag size={14} /> {t("eventDetail.detailsCard.category")}
                   </span>
                   <span className="font-semibold text-[#1a1a1a]">{category.name}</span>
                 </div>
@@ -1865,7 +1873,7 @@ function EventDetailsPageContent() {
               {event.visibility && (
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[#888]">
-                    <Eye size={14} /> Visibility
+                    <Eye size={14} /> {t("eventDetail.detailsCard.visibility")}
                   </span>
                   <span className="font-semibold text-[#1a1a1a] capitalize">
                     {event.visibility.replace("_", " ").toLowerCase()}
@@ -1875,7 +1883,7 @@ function EventDetailsPageContent() {
               {(registrationCount != null || event.maxCapacity != null) && (
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[#888]">
-                    <Users size={14} /> Registered
+                    <Users size={14} /> {t("eventDetail.detailsCard.registered")}
                   </span>
                   <span className="font-semibold text-[#1a1a1a]">
                     {registrationCount ?? 0}{event.maxCapacity != null ? ` / ${event.maxCapacity.toLocaleString()}` : ""}
@@ -1885,7 +1893,7 @@ function EventDetailsPageContent() {
               {event.createdAt && (
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-[#888]">
-                    <Calendar size={14} /> Published
+                    <Calendar size={14} /> {t("eventDetail.detailsCard.published")}
                   </span>
                   <span className="font-semibold text-[#1a1a1a]">
                     {new Date(event.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

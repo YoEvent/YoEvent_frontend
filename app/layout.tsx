@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import ClientInitializer from "@/components/ClientInitializer";
+import { LanguageProvider } from "@/app/context/LanguageContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,7 +17,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "YowEvent — Event as a Service",
+  title: "YowEvent: Event as a Service",
   description: "Manage events at any scale with real-time traffic engineering",
 };
 
@@ -27,8 +28,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="antialiased">
-        <ClientInitializer />
-        {children}
+        <LanguageProvider>
+          <ClientInitializer />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   );

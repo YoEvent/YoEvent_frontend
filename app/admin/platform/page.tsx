@@ -3,8 +3,10 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Settings, Save, Percent, DollarSign, TrendingDown, ArrowDownCircle, Info } from "lucide-react";
 import { authService } from "@/app/utils/services/authService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 export default function PlatformCommissionPage() {
+  const { t } = useLanguage();
   // Commission settings
   const [baseRate, setBaseRate] = useState<string>("10.00");
   const [flatFee, setFlatFee] = useState<string>("2.00");
@@ -59,9 +61,9 @@ export default function PlatformCommissionPage() {
         premiumCommissionFlatFee: parseFloat(flatFee),
       });
       if (data.updatedAt) setUpdatedAt(data.updatedAt);
-      showToast("success", "Commission settings saved.");
+      showToast("success", t("adminPlatform.toast.settingsSaved"));
     } catch {
-      showToast("error", "Failed to save settings.");
+      showToast("error", t("adminPlatform.toast.settingsSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -72,7 +74,7 @@ export default function PlatformCommissionPage() {
     const amt = parseFloat(withdrawAmount);
     if (!amt || amt <= 0) return;
     if (revenue && amt > revenue.availableBalance) {
-      showToast("error", "Amount exceeds available balance.");
+      showToast("error", t("adminPlatform.toast.amountExceeds"));
       return;
     }
     setWithdrawing(true);
@@ -80,10 +82,10 @@ export default function PlatformCommissionPage() {
       await authService.recordPlatformWithdrawal({ amount: amt, note: withdrawNote });
       setWithdrawAmount("");
       setWithdrawNote("");
-      showToast("success", `Withdrawal of $${amt.toFixed(2)} recorded.`);
+      showToast("success", t("adminPlatform.toast.withdrawalRecorded", { amount: amt.toFixed(2) }));
       await loadRevenue();
     } catch {
-      showToast("error", "Failed to record withdrawal.");
+      showToast("error", t("adminPlatform.toast.withdrawalFailed"));
     } finally {
       setWithdrawing(false);
     }
@@ -98,7 +100,7 @@ export default function PlatformCommissionPage() {
       <div className="ml-[220px] flex-1 flex flex-col">
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center px-8 sticky top-0 z-40">
           <Settings size={18} className="text-[#FF4747] mr-3" />
-          <h1 className="font-display text-xl font-bold text-[#FF4747]">Platform Commission</h1>
+          <h1 className="font-display text-xl font-bold text-[#FF4747]">{t("adminPlatform.header.title")}</h1>
         </header>
 
         <main className="p-8 space-y-8 max-w-4xl">
@@ -107,13 +109,9 @@ export default function PlatformCommissionPage() {
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4">
             <Info size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-amber-700 leading-relaxed space-y-1">
-              <p className="font-semibold text-amber-800">Stripe does not split payments automatically</p>
+              <p className="font-semibold text-amber-800">{t("adminPlatform.notice.title")}</p>
               <p>
-                Stripe captures the <span className="font-semibold text-amber-700">full ticket price</span> from the buyer in a single
-                PaymentIntent — the platform fee is calculated and stored in the database only.
-                To automatically route the organizer's net share via Stripe, <span className="font-semibold text-amber-700">Stripe Connect</span> is required
-                (application fees on destination charges). Without it, the platform receives all funds and
-                must transfer the organizer's net amount manually. Use the withdrawal section below to track those payouts.
+                {t("adminPlatform.notice.part1")}<span className="font-semibold text-amber-700">{t("adminPlatform.notice.highlight1")}</span>{t("adminPlatform.notice.part2")}<span className="font-semibold text-amber-700">{t("adminPlatform.notice.highlight2")}</span>{t("adminPlatform.notice.part3")}
               </p>
             </div>
           </div>
@@ -122,21 +120,21 @@ export default function PlatformCommissionPage() {
           <div className="grid grid-cols-3 gap-5">
             {[
               {
-                label: "Total Collected",
+                label: t("adminPlatform.revenue.totalCollectedLabel"),
                 value: fmt(revenue?.totalCollected),
-                sub: "Sum of all platform fees on orders",
+                sub: t("adminPlatform.revenue.totalCollectedSub"),
                 color: "text-[#FF4747]",
               },
               {
-                label: "Total Withdrawn",
+                label: t("adminPlatform.revenue.totalWithdrawnLabel"),
                 value: fmt(revenue?.totalWithdrawn),
-                sub: "Recorded organizer payouts",
+                sub: t("adminPlatform.revenue.totalWithdrawnSub"),
                 color: "text-red-400",
               },
               {
-                label: "Available Balance",
+                label: t("adminPlatform.revenue.availableBalanceLabel"),
                 value: fmt(revenue?.availableBalance),
-                sub: "Collected minus withdrawn",
+                sub: t("adminPlatform.revenue.availableBalanceSub"),
                 color: "text-green-400",
               },
             ].map((card, i) => (
@@ -153,19 +151,19 @@ export default function PlatformCommissionPage() {
             <div className="space-y-6">
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 space-y-5">
                 <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2">
-                  <Percent size={16} className="text-[#FF4747]" /> Commission Rates
+                  <Percent size={16} className="text-[#FF4747]" /> {t("adminPlatform.rates.title")}
                 </h2>
 
                 {/* Info blurb */}
                 <ul className="text-[10px] text-[#555] list-disc list-inside space-y-1">
-                  <li><span className="text-[#999]">FREE &amp; BASIC</span> — percentage of each order total</li>
-                  <li><span className="text-[#999]">PREMIUM</span> — fixed flat fee per order</li>
+                  <li><span className="text-[#999]">{t("adminPlatform.rates.infoTierLabel")}</span>{t("adminPlatform.rates.infoTierDesc")}</li>
+                  <li><span className="text-[#999]">{t("adminPlatform.rates.infoPremiumLabel")}</span>{t("adminPlatform.rates.infoPremiumDesc")}</li>
                 </ul>
 
                 <form onSubmit={handleSave} className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                      FREE &amp; BASIC Rate (%)
+                      {t("adminPlatform.rates.baseRateLabel")}
                     </label>
                     <div className="relative">
                       <Percent size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555]" />
@@ -181,7 +179,7 @@ export default function PlatformCommissionPage() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1.5">
-                      PREMIUM Flat Fee ($)
+                      {t("adminPlatform.rates.flatFeeLabel")}
                     </label>
                     <div className="relative">
                       <DollarSign size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555]" />
@@ -197,7 +195,7 @@ export default function PlatformCommissionPage() {
 
                   {updatedAt && (
                     <p className="text-[10px] text-[#3a3a3a]">
-                      Last updated: {new Date(updatedAt).toLocaleString()}
+                      {t("adminPlatform.rates.lastUpdated", { date: new Date(updatedAt).toLocaleString() })}
                     </p>
                   )}
 
@@ -206,14 +204,14 @@ export default function PlatformCommissionPage() {
                     className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#F7E998] hover:bg-[#FF4747] hover:text-white disabled:opacity-50 text-[#1a1a1a] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
                     <Save size={13} />
-                    {saving ? "Saving…" : "Save Rates"}
+                    {saving ? t("adminPlatform.rates.saving") : t("adminPlatform.rates.save")}
                   </button>
                 </form>
               </div>
 
               {/* Rate preview */}
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5">
-                <p className="text-[10px] text-[#555] uppercase tracking-wider font-bold mb-3">Example on a $100 order</p>
+                <p className="text-[10px] text-[#555] uppercase tracking-wider font-bold mb-3">{t("adminPlatform.preview.title")}</p>
                 <table className="w-full text-xs">
                   <tbody className="divide-y divide-[#f0f0f0]">
                     {[
@@ -236,20 +234,19 @@ export default function PlatformCommissionPage() {
             <div className="space-y-6">
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                 <h2 className="font-display font-bold text-[#FF4747] flex items-center gap-2 mb-4">
-                  <ArrowDownCircle size={16} className="text-[#FF4747]" /> Record Withdrawal
+                  <ArrowDownCircle size={16} className="text-[#FF4747]" /> {t("adminPlatform.withdrawal.title")}
                 </h2>
                 <p className="text-[10px] text-[#555] leading-relaxed mb-4">
-                  Use this to log when you transfer the organizer's net share from your Stripe or bank account.
-                  This deducts from the Available Balance — it does not trigger a real Stripe transfer.
+                  {t("adminPlatform.withdrawal.description")}
                 </p>
                 <form onSubmit={handleWithdraw} className="space-y-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Amount ($)</label>
+                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1.5">{t("adminPlatform.withdrawal.amountLabel")}</label>
                     <div className="relative">
                       <DollarSign size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555]" />
                       <input
                         type="number" min="0.01" step="0.01"
-                        placeholder="e.g. 150.00"
+                        placeholder={t("adminPlatform.withdrawal.amountPlaceholder")}
                         value={withdrawAmount}
                         onChange={(e) => setWithdrawAmount(e.target.value)}
                         className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl pl-8 pr-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors"
@@ -258,10 +255,10 @@ export default function PlatformCommissionPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1.5">Note / Reason</label>
+                    <label className="block text-[10px] font-bold text-[#555] uppercase tracking-wider mb-1.5">{t("adminPlatform.withdrawal.noteLabel")}</label>
                     <input
                       type="text"
-                      placeholder="e.g. Bank transfer to Acme Events Ltd"
+                      placeholder={t("adminPlatform.withdrawal.notePlaceholder")}
                       value={withdrawNote}
                       onChange={(e) => setWithdrawNote(e.target.value)}
                       className="w-full bg-[#ffffff] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors"
@@ -272,22 +269,22 @@ export default function PlatformCommissionPage() {
                     className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#ffffff] hover:bg-[#2e2e2e] border border-[#3a3a3a] disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                   >
                     <TrendingDown size={13} className="text-red-400" />
-                    {withdrawing ? "Recording…" : "Record Withdrawal"}
+                    {withdrawing ? t("adminPlatform.withdrawal.recording") : t("adminPlatform.withdrawal.record")}
                   </button>
                 </form>
               </div>
 
               {/* Withdrawal history */}
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                <h2 className="text-xs font-bold text-[#555] uppercase tracking-wider mb-4">Withdrawal History</h2>
+                <h2 className="text-xs font-bold text-[#555] uppercase tracking-wider mb-4">{t("adminPlatform.withdrawal.historyTitle")}</h2>
                 {withdrawals.length === 0 ? (
-                  <p className="text-xs text-[#444] text-center py-4">No withdrawals recorded yet.</p>
+                  <p className="text-xs text-[#444] text-center py-4">{t("adminPlatform.withdrawal.empty")}</p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {[...withdrawals].reverse().map((w, i) => (
                       <div key={w.withdrawalId || i} className="flex justify-between items-start p-3 bg-white border border-[#252525] rounded-xl">
                         <div>
-                          <p className="text-xs text-[#999]">{w.note || "No note"}</p>
+                          <p className="text-xs text-[#999]">{w.note || t("adminPlatform.withdrawal.noNote")}</p>
                           <p className="text-[10px] text-[#555] mt-0.5">
                             {w.recordedAt ? new Date(w.recordedAt).toLocaleString() : "—"}
                           </p>

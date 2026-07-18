@@ -5,6 +5,7 @@ import Link from "next/link";
 import { eventService } from "@/app/utils/services/eventService";
 import { getStoredAuth } from "@/app/utils/api";
 import { MessageSquare, Check, Star, ChevronLeft } from "lucide-react";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-3 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 
@@ -12,6 +13,7 @@ export default function FeedbackPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const auth = getStoredAuth();
+  const { t, tl } = useLanguage();
 
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export default function FeedbackPage() {
       });
       setSubmitted(true);
     } catch (err: any) {
-      alert(err.message || "Failed to submit feedback. Please try again.");
+      alert(err.message || t("eventFeedback.errors.submitFailed"));
     } finally {
       setSaving(false);
     }
@@ -66,10 +68,10 @@ export default function FeedbackPage() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
             <Check size={36} className="text-green-500" />
           </div>
-          <h1 className="font-display font-black text-2xl text-[#1a1a1a] mb-2">Thank you!</h1>
-          <p className="text-[#888] text-sm mb-6">Your feedback for <strong>{event?.title}</strong> has been submitted. It helps us improve future events.</p>
+          <h1 className="font-display font-black text-2xl text-[#1a1a1a] mb-2">{t("eventFeedback.success.title")}</h1>
+          <p className="text-[#888] text-sm mb-6">{t("eventFeedback.success.messagePrefix")} <strong>{event?.title}</strong> {t("eventFeedback.success.messageSuffix")}</p>
           <Link href={`/events/${id}`} className="inline-flex items-center gap-2 px-6 py-3 bg-[#FF4747] text-white font-bold rounded-full hover:bg-[#e03e3e] transition-colors text-sm">
-            Back to Event
+            {t("eventFeedback.success.backToEvent")}
           </Link>
         </div>
       </div>
@@ -81,22 +83,22 @@ export default function FeedbackPage() {
       <div className="max-w-xl mx-auto">
 
         <Link href={`/events/${id}`} className="inline-flex items-center gap-2 text-sm text-[#888] hover:text-[#1a1a1a] transition-colors mb-8">
-          <ChevronLeft size={16} /> Back to event
+          <ChevronLeft size={16} /> {t("eventFeedback.header.backToEvent")}
         </Link>
 
         <div className="mb-8">
           <div className="flex items-center gap-2 text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-2">
-            <MessageSquare size={12} /> Feedback
+            <MessageSquare size={12} /> {t("eventFeedback.header.eyebrow")}
           </div>
-          <h1 className="font-display font-black text-3xl text-[#1a1a1a]">{event?.title || "Event Feedback"}</h1>
-          <p className="text-[#888] text-sm mt-2">Share your experience to help us improve.</p>
+          <h1 className="font-display font-black text-3xl text-[#1a1a1a]">{event?.title || t("eventFeedback.header.fallbackTitle")}</h1>
+          <p className="text-[#888] text-sm mt-2">{t("eventFeedback.header.subtitle")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
 
           {/* Star rating */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-4">Overall Rating *</label>
+            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-4">{t("eventFeedback.rating.label")}</label>
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map(n => (
                 <button
@@ -115,25 +117,18 @@ export default function FeedbackPage() {
               ))}
               {rating > 0 && (
                 <span className="ml-2 text-sm font-semibold text-[#888]">
-                  {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][rating]}
+                  {(tl("eventFeedback.rating.words") as string[])[rating]}
                 </span>
               )}
             </div>
-            {!rating && <p className="text-xs text-red-400 mt-2">Please select a rating to continue.</p>}
+            {!rating && <p className="text-xs text-red-400 mt-2">{t("eventFeedback.rating.required")}</p>}
           </div>
 
           {/* Category */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">Feedback Category</label>
+            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">{t("eventFeedback.category.label")}</label>
             <div className="flex flex-wrap gap-2">
-              {[
-                { value: "GENERAL", label: "General" },
-                { value: "ORGANIZATION", label: "Organization" },
-                { value: "CONTENT", label: "Content / Sessions" },
-                { value: "VENUE", label: "Venue / Location" },
-                { value: "NETWORKING", label: "Networking" },
-                { value: "SPEAKERS", label: "Speakers" },
-              ].map(opt => (
+              {(tl("eventFeedback.category.options") as { value: string; label: string }[]).map(opt => (
                 <button
                   key={opt.value}
                   type="button"
@@ -148,11 +143,11 @@ export default function FeedbackPage() {
 
           {/* Comment */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">Your Comments</label>
+            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-3">{t("eventFeedback.comments.label")}</label>
             <textarea
               value={comment}
               onChange={e => setComment(e.target.value)}
-              placeholder="Tell us what you liked or what could be improved..."
+              placeholder={t("eventFeedback.comments.placeholder")}
               rows={5}
               className={inp + " resize-none"}
             />
@@ -160,21 +155,21 @@ export default function FeedbackPage() {
 
           {/* Would recommend */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-4">Would you recommend this event?</label>
+            <label className="block text-xs font-semibold text-[#888] uppercase tracking-wider mb-4">{t("eventFeedback.recommend.label")}</label>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setWouldRecommend(true)}
                 className={`flex-1 py-3 rounded-xl text-sm font-bold border-2 transition-colors cursor-pointer ${wouldRecommend === true ? "border-green-500 bg-green-50 text-green-700" : "border-[#e5e7eb] text-[#888] hover:border-green-300"}`}
               >
-                👍 Yes, definitely
+                {t("eventFeedback.recommend.yes")}
               </button>
               <button
                 type="button"
                 onClick={() => setWouldRecommend(false)}
                 className={`flex-1 py-3 rounded-xl text-sm font-bold border-2 transition-colors cursor-pointer ${wouldRecommend === false ? "border-red-400 bg-red-50 text-red-600" : "border-[#e5e7eb] text-[#888] hover:border-red-300"}`}
               >
-                👎 Not really
+                {t("eventFeedback.recommend.no")}
               </button>
             </div>
           </div>
@@ -185,9 +180,9 @@ export default function FeedbackPage() {
             className="w-full py-4 bg-[#FF4747] text-white font-bold rounded-2xl hover:bg-[#e03e3e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 text-sm"
           >
             {saving ? (
-              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting...</>
+              <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t("eventFeedback.submit.submitting")}</>
             ) : (
-              <><MessageSquare size={16} /> Submit Feedback</>
+              <><MessageSquare size={16} /> {t("eventFeedback.submit.submit")}</>
             )}
           </button>
         </form>

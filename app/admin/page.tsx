@@ -10,6 +10,7 @@ import {
 import { getStoredAuth, setStoredAuth, api } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const STATUS_CLS: Record<string, string> = {
   PUBLISHED: "bg-green-50 text-green-700 border border-green-100",
@@ -20,6 +21,7 @@ const STATUS_CLS: Record<string, string> = {
 };
 
 export default function AdminPage() {
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<any>(null);
   const [tenant, setTenant] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
@@ -94,11 +96,11 @@ export default function AdminPage() {
       if (res && res.onboardingUrl) {
         window.location.href = res.onboardingUrl;
       } else {
-        alert("Failed to get Stripe connection link.");
+        alert(t("adminOverview.payouts.stripeConnectFailedAlert"));
       }
     } catch (err: any) {
       console.error("Stripe connect failed:", err);
-      alert(err.message || "Failed to initiate Stripe onboarding.");
+      alert(err.message || t("adminOverview.payouts.stripeOnboardFailedAlert"));
     } finally {
       setStripeLoading(false);
     }
@@ -168,7 +170,7 @@ export default function AdminPage() {
     ? `${profile.firstName?.charAt(0) || ""}${profile.lastName?.charAt(0) || ""}`.toUpperCase()
     : "?";
   const matchedPlan = plans.find(p => p.planId === tenant?.planId);
-  const planName    = matchedPlan?.name || tenant?.planName || "Free";
+  const planName    = matchedPlan?.name || tenant?.planName || t("adminOverview.profile.freePlanDefault");
 
   // ── Enriched events ──────────────────────────────────────────────────────────
   const enrichedEvents = events.map((ev) => {
@@ -221,9 +223,12 @@ export default function AdminPage() {
     .slice(0, 8);
 
   // ── Plan quota ───────────────────────────────────────────────────────────────
+  // Backend uses -1 as the sentinel for "unlimited" on higher-tier plans.
   const maxEvents    = planLimits?.maxEvents ?? null;
   const maxAttendees = planLimits?.maxAttendeesPerEvent ?? null;
-  const eventUsedPct = maxEvents ? Math.min(100, Math.round((events.length / maxEvents) * 100)) : null;
+  const eventsUnlimited    = maxEvents === -1;
+  const attendeesUnlimited = maxAttendees === -1;
+  const eventUsedPct = (maxEvents && !eventsUnlimited) ? Math.min(100, Math.round((events.length / maxEvents) * 100)) : null;
 
   return (
     <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
@@ -232,7 +237,7 @@ export default function AdminPage() {
 
         {/* TOPBAR */}
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">Overview</h1>
+          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminOverview.header.title")}</h1>
         </header>
 
         {loading ? (
@@ -245,10 +250,10 @@ export default function AdminPage() {
               <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={24} className="text-red-500" />
               </div>
-              <h2 className="font-display text-lg font-bold text-[#1a1a1a] mb-2">Couldn't connect to the server</h2>
-              <p className="text-sm text-[#666] mb-6">We weren't able to load your dashboard data. Check your internet connection and that the server is reachable, then try again.</p>
+              <h2 className="font-display text-lg font-bold text-[#1a1a1a] mb-2">{t("adminOverview.error.title")}</h2>
+              <p className="text-sm text-[#666] mb-6">{t("adminOverview.error.desc")}</p>
               <button onClick={loadDashboard} className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-sm font-semibold rounded-full transition-colors cursor-pointer">
-                <RefreshCw size={14} /> Retry
+                <RefreshCw size={14} /> {t("adminOverview.error.retry")}
               </button>
             </div>
           </div>
@@ -258,19 +263,19 @@ export default function AdminPage() {
             {/* ── STAT CARDS ─────────────────────────────────────────────────── */}
             <div className="grid grid-cols-5 gap-4">
               {[
-                { label: "Total Events",        value: events.length,         icon: Calendar,   color: "text-[#EB4203]",  bg: "bg-[#F7E998]/30" },
-                { label: "Published",           value: publishedEvents,       icon: BarChart2,  color: "text-green-500",  bg: "bg-green-500/10" },
-                { label: "Registrations",       value: totalRegistrations,    icon: Users,      color: "text-blue-500",   bg: "bg-blue-500/10"  },
-                { label: "Revenue (FCFA)",      value: totalRevenue > 0 ? totalRevenue.toLocaleString() : "—", icon: Ticket, color: "text-amber-500", bg: "bg-amber-500/10" },
-                { label: "Check-in Rate",       value: eligibleForCheckin > 0 ? `${checkinRate}%` : "—", icon: UserCheck, color: "text-purple-500", bg: "bg-purple-500/10" },
-              ].map(({ label, value, icon: Icon, color, bg }) => (
-                <div key={label} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 hover:shadow-sm transition-shadow">
+                { id: "totalEvents", label: t("adminOverview.stats.totalEvents"), value: events.length,         icon: Calendar,   color: "text-[#EB4203]",  bg: "bg-[#F7E998]/30" },
+                { id: "published",   label: t("adminOverview.stats.published"),   value: publishedEvents,       icon: BarChart2,  color: "text-green-500",  bg: "bg-green-500/10" },
+                { id: "registrations", label: t("adminOverview.stats.registrations"), value: totalRegistrations, icon: Users,      color: "text-blue-500",   bg: "bg-blue-500/10"  },
+                { id: "revenue",     label: t("adminOverview.stats.revenue"),      value: totalRevenue > 0 ? totalRevenue.toLocaleString() : "—", icon: Ticket, color: "text-amber-500", bg: "bg-amber-500/10" },
+                { id: "checkinRate", label: t("adminOverview.stats.checkinRate"),  value: eligibleForCheckin > 0 ? `${checkinRate}%` : "—", icon: UserCheck, color: "text-purple-500", bg: "bg-purple-500/10" },
+              ].map(({ id, label, value, icon: Icon, color, bg }) => (
+                <div key={id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 hover:shadow-sm transition-shadow">
                   <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center mb-3`}>
                     <Icon size={16} className={color} />
                   </div>
                   <div className="text-[10px] text-[#555] uppercase tracking-wider mb-1">{label}</div>
                   <div className="font-display text-2xl font-bold text-[#1a1a1a]">{value}</div>
-                  {label === "Check-in Rate" && eligibleForCheckin > 0 && (
+                  {id === "checkinRate" && eligibleForCheckin > 0 && (
                     <div className="mt-2 h-1 bg-[#e5e7eb] rounded-full overflow-hidden">
                       <div className="h-full bg-purple-500 rounded-full transition-all" style={{ width: `${checkinRate}%` }} />
                     </div>
@@ -284,7 +289,7 @@ export default function AdminPage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Clock size={15} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Upcoming Events</h2>
+                  <h2 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminOverview.upcoming.title")}</h2>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {upcomingEvents.map(({ ev, d }) => {
@@ -296,7 +301,7 @@ export default function AdminPage() {
                         <div className="flex items-start justify-between gap-2">
                           <span className="text-xs font-semibold text-[#1a1a1a] leading-snug line-clamp-2">{ev.title}</span>
                           <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${isImminent ? "bg-[#EB4203] text-white" : "bg-[#e5e7eb] text-[#555]"}`}>
-                            {days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days}d`}
+                            {days === 0 ? t("adminOverview.upcoming.today") : days === 1 ? t("adminOverview.upcoming.tomorrow") : t("adminOverview.upcoming.daysShort", { days })}
                           </span>
                         </div>
                         <div className="text-[10px] text-[#666]">
@@ -309,7 +314,7 @@ export default function AdminPage() {
                             {ev.status}
                           </span>
                           <span className="text-[10px] text-[#666] flex items-center gap-1">
-                            <Users size={10} /> {evRegs} registered
+                            <Users size={10} /> {t("adminOverview.upcoming.registered", { count: evRegs })}
                           </span>
                         </div>
                       </div>
@@ -324,8 +329,8 @@ export default function AdminPage() {
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertCircle size={15} className="text-amber-600" />
-                  <h2 className="font-display font-bold text-sm text-amber-700">Capacity Alerts</h2>
-                  <span className="ml-auto text-[10px] text-amber-600 font-semibold">{capacityAlerts.length} event{capacityAlerts.length !== 1 ? "s" : ""} nearly full</span>
+                  <h2 className="font-display font-bold text-sm text-amber-700">{t("adminOverview.capacityAlerts.title")}</h2>
+                  <span className="ml-auto text-[10px] text-amber-600 font-semibold">{t("adminOverview.capacityAlerts.nearlyFull", { count: capacityAlerts.length, plural: capacityAlerts.length !== 1 ? "s" : "" })}</span>
                 </div>
                 <div className="space-y-2.5">
                   {capacityAlerts.map(ev => (
@@ -339,7 +344,7 @@ export default function AdminPage() {
                       </div>
                       <span className={`text-xs font-bold w-12 text-right ${ev.pct! >= 100 ? "text-red-600" : "text-amber-600"}`}>{ev.pct}%</span>
                       <span className="text-[10px] text-[#666] whitespace-nowrap">{ev.registrations} / {ev.capacity}</span>
-                      <Link href="/admin/events" className="text-[10px] text-[#EB4203] hover:underline whitespace-nowrap shrink-0">Manage →</Link>
+                      <Link href="/admin/events" className="text-[10px] text-[#EB4203] hover:underline whitespace-nowrap shrink-0">{t("adminOverview.common.manage")} →</Link>
                     </div>
                   ))}
                 </div>
@@ -349,19 +354,19 @@ export default function AdminPage() {
             {/* ── SALES DISTRIBUTION ─────────────────────────────────────────── */}
             {registrations.length > 0 && (
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                <h3 className="font-display font-bold text-xs text-[#EB4203] uppercase tracking-wider mb-4">Ticket Sales Distribution</h3>
+                <h3 className="font-display font-bold text-xs text-[#EB4203] uppercase tracking-wider mb-4">{t("adminOverview.salesDistribution.title")}</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-xs text-[#555]">
-                    <span>Paid Tickets ({paidTicketsCount})</span>
-                    <span>Free Tickets ({freeTicketsCount})</span>
+                    <span>{t("adminOverview.salesDistribution.paidTickets", { count: paidTicketsCount })}</span>
+                    <span>{t("adminOverview.salesDistribution.freeTickets", { count: freeTicketsCount })}</span>
                   </div>
                   <div className="h-3 bg-[#e5e7eb] rounded-full overflow-hidden flex">
-                    <div className="h-full bg-gradient-to-r from-[#EB4203] to-amber-500 transition-all" style={{ width: `${paidPct}%` }} title={`Paid: ${paidPct}%`} />
-                    <div className="h-full bg-stone-300 transition-all" style={{ width: `${freePct}%` }} title={`Free: ${freePct}%`} />
+                    <div className="h-full bg-gradient-to-r from-[#EB4203] to-amber-500 transition-all" style={{ width: `${paidPct}%` }} title={t("adminOverview.salesDistribution.paidTooltip", { pct: paidPct })} />
+                    <div className="h-full bg-stone-300 transition-all" style={{ width: `${freePct}%` }} title={t("adminOverview.salesDistribution.freeTooltip", { pct: freePct })} />
                   </div>
                   <div className="flex justify-between text-[10px] text-[#666] tracking-wider uppercase font-semibold">
-                    <span>{paidPct}% Paid</span>
-                    <span>{freePct}% Free</span>
+                    <span>{t("adminOverview.salesDistribution.paidPct", { pct: paidPct })}</span>
+                    <span>{t("adminOverview.salesDistribution.freePct", { pct: freePct })}</span>
                   </div>
                 </div>
               </div>
@@ -373,20 +378,20 @@ export default function AdminPage() {
               {/* EVENTS */}
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                 <div className="flex items-center justify-between mb-5">
-                  <h2 className="font-display font-bold text-[#EB4203]">Your Events</h2>
-                  <Link href="/admin/events" className="text-xs text-[#EB4203] hover:underline">Manage →</Link>
+                  <h2 className="font-display font-bold text-[#EB4203]">{t("adminOverview.eventsTable.title")}</h2>
+                  <Link href="/admin/events" className="text-xs text-[#EB4203] hover:underline">{t("adminOverview.common.manage")} →</Link>
                 </div>
 
                 {enrichedEvents.length === 0 ? (
                   <div className="text-center py-12 text-[#555] text-sm">
                     <Calendar size={32} className="mx-auto mb-3 opacity-30" />
-                    No events yet.{" "}
-                    <Link href="/admin/events" className="text-[#EB4203] hover:underline">Create your first event →</Link>
+                    {t("adminOverview.eventsTable.empty")}{" "}
+                    <Link href="/admin/events" className="text-[#EB4203] hover:underline">{t("adminOverview.eventsTable.createFirst")} →</Link>
                   </div>
                 ) : (
                   <>
                     <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-3 pb-3 border-b border-[#e5e7eb] text-[10px] text-[#555] uppercase tracking-wider">
-                      <span>Event</span><span>Registrations</span><span>Fill Rate</span><span>Status</span>
+                      <span>{t("adminOverview.eventsTable.colEvent")}</span><span>{t("adminOverview.eventsTable.colRegistrations")}</span><span>{t("adminOverview.eventsTable.colFillRate")}</span><span>{t("adminOverview.eventsTable.colStatus")}</span>
                     </div>
                     <div className="divide-y divide-[#e5e7eb]">
                       {enrichedEvents.map((ev) => (
@@ -405,7 +410,7 @@ export default function AdminPage() {
                                 <span className="text-[10px] text-[#666] w-8 text-right">{ev.pct}%</span>
                               </div>
                             ) : (
-                              <span className="text-[10px] text-[#555]">No cap</span>
+                              <span className="text-[10px] text-[#555]">{t("adminOverview.eventsTable.noCap")}</span>
                             )}
                           </div>
                           <span className={`inline-flex items-center justify-center text-[10px] font-medium px-2.5 py-0.5 rounded-full ${STATUS_CLS[ev.status] || "bg-stone-100 text-stone-600 border border-stone-200"}`}>
@@ -427,14 +432,14 @@ export default function AdminPage() {
                     {initials}
                   </div>
                   <div className="text-sm font-semibold text-[#1a1a1a] mb-0.5">{displayName}</div>
-                  <div className="text-xs text-[#555] mb-5">{tenant?.type === "ORGANIZATION" ? "Organisation" : "Individual Creator"}</div>
+                  <div className="text-xs text-[#555] mb-5">{tenant?.type === "ORGANIZATION" ? t("adminOverview.profile.organisation") : t("adminOverview.profile.individual")}</div>
 
                   {[
-                    ["Account Type", tenant?.type || "—"],
-                    ["Plan",         planName],
-                    ["Industry",     tenant?.industryType || "—"],
-                    ["Status",       tenant?.status || "ACTIVE"],
-                    ["Member since", (tenant?.createdAt || profile?.createdAt)
+                    [t("adminOverview.profile.accountType"), tenant?.type || "—"],
+                    [t("adminOverview.profile.plan"),         planName],
+                    [t("adminOverview.profile.industry"),     tenant?.industryType || "—"],
+                    [t("adminOverview.profile.status"),       tenant?.status || "ACTIVE"],
+                    [t("adminOverview.profile.memberSince"), (tenant?.createdAt || profile?.createdAt)
                       ? new Date(tenant?.createdAt || profile?.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                       : "—"],
                   ].map(([k, v]) => (
@@ -446,12 +451,12 @@ export default function AdminPage() {
 
                   {tenant?.type !== "ORGANIZATION" ? (
                     <button onClick={handleUpgrade} className="w-full mt-4 py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white rounded-full text-sm font-semibold transition-colors cursor-pointer">
-                      Upgrade to Org 🚀
+                      {t("adminOverview.profile.upgradeToOrg")}
                     </button>
                   ) : (
                     <Link href="/pricing" className="w-full mt-4">
                       <button className="w-full py-2.5 bg-[#EB4203] text-white rounded-full text-sm font-semibold hover:bg-[#c23b02] transition-colors cursor-pointer">
-                        Change Plan
+                        {t("adminOverview.profile.changePlan")}
                       </button>
                     </Link>
                   )}
@@ -462,33 +467,41 @@ export default function AdminPage() {
                   <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <Shield size={14} className="text-[#EB4203]" />
-                      <h3 className="font-display font-bold text-sm text-[#1a1a1a]">Plan Usage</h3>
+                      <h3 className="font-display font-bold text-sm text-[#1a1a1a]">{t("adminOverview.planUsage.title")}</h3>
                       <span className="ml-auto text-[10px] font-semibold text-[#555] bg-[#f3f4f6] px-2 py-0.5 rounded-full">{planName}</span>
                     </div>
                     <div className="space-y-4">
                       {maxEvents !== null && (
                         <div>
                           <div className="flex justify-between text-xs text-[#555] mb-1.5">
-                            <span>Events</span>
-                            <span className="font-semibold text-[#1a1a1a]">{events.length} / {maxEvents}</span>
+                            <span>{t("adminOverview.planUsage.events")}</span>
+                            <span className="font-semibold text-[#1a1a1a]">
+                              {eventsUnlimited ? `${events.length} / ${t("adminOverview.planUsage.unlimited")}` : `${events.length} / ${maxEvents}`}
+                            </span>
                           </div>
-                          <div className="h-2 bg-[#e5e7eb] rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${eventUsedPct! >= 90 ? "bg-red-500" : eventUsedPct! >= 70 ? "bg-amber-500" : "bg-[#EB4203]"}`}
-                              style={{ width: `${eventUsedPct}%` }}
-                            />
-                          </div>
-                          {eventUsedPct! >= 80 && (
-                            <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                              {maxEvents - events.length} event slot{maxEvents - events.length !== 1 ? "s" : ""} remaining
-                            </p>
+                          {!eventsUnlimited && (
+                            <>
+                              <div className="h-2 bg-[#e5e7eb] rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${eventUsedPct! >= 90 ? "bg-red-500" : eventUsedPct! >= 70 ? "bg-amber-500" : "bg-[#EB4203]"}`}
+                                  style={{ width: `${eventUsedPct}%` }}
+                                />
+                              </div>
+                              {eventUsedPct! >= 80 && (
+                                <p className="text-[10px] text-amber-600 mt-1 font-medium">
+                                  {t("adminOverview.planUsage.slotsRemaining", { count: maxEvents - events.length, plural: maxEvents - events.length !== 1 ? "s" : "" })}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       )}
                       {maxAttendees !== null && (
                         <div className="flex justify-between text-xs text-[#555]">
-                          <span>Max attendees / event</span>
-                          <span className="font-semibold text-[#1a1a1a]">{maxAttendees.toLocaleString()}</span>
+                          <span>{t("adminOverview.planUsage.maxAttendees")}</span>
+                          <span className="font-semibold text-[#1a1a1a]">
+                            {attendeesUnlimited ? t("adminOverview.planUsage.unlimited") : maxAttendees.toLocaleString()}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -499,27 +512,27 @@ export default function AdminPage() {
                 <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 flex flex-col space-y-5">
                   <div>
                     <h3 className="font-display font-bold text-sm text-[#EB4203] mb-3 flex items-center gap-2">
-                      <CreditCard size={16} /> Stripe Payouts
+                      <CreditCard size={16} /> {t("adminOverview.payouts.stripeTitle")}
                     </h3>
                     {stripeStatus?.connected ? (
                       <div className="space-y-3">
                         <div className="flex items-center gap-2 text-green-600 text-xs font-semibold">
-                          <CheckCircle2 size={14} /> Connected
+                          <CheckCircle2 size={14} /> {t("adminOverview.payouts.connected")}
                         </div>
                         <div className="text-[10px] text-[#666] bg-stone-50 border border-stone-100 rounded-lg p-2 font-mono truncate">
-                          ID: {stripeStatus.accountId}
+                          {t("adminOverview.payouts.idLabel")} {stripeStatus.accountId}
                         </div>
                         <div className="flex flex-col gap-1.5 text-xs text-[#555]">
                           <div className="flex justify-between">
-                            <span>Charges Enabled</span>
+                            <span>{t("adminOverview.payouts.chargesEnabled")}</span>
                             <span className={stripeStatus.chargesEnabled ? "text-green-600 font-medium" : "text-amber-600 font-medium"}>
-                              {stripeStatus.chargesEnabled ? "Yes" : "No"}
+                              {stripeStatus.chargesEnabled ? t("adminOverview.payouts.yes") : t("adminOverview.payouts.no")}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Payouts Enabled</span>
+                            <span>{t("adminOverview.payouts.payoutsEnabled")}</span>
                             <span className={stripeStatus.payoutsEnabled ? "text-green-600 font-medium" : "text-amber-600 font-medium"}>
-                              {stripeStatus.payoutsEnabled ? "Yes" : "No"}
+                              {stripeStatus.payoutsEnabled ? t("adminOverview.payouts.yes") : t("adminOverview.payouts.no")}
                             </span>
                           </div>
                         </div>
@@ -528,7 +541,7 @@ export default function AdminPage() {
                       <div className="space-y-3">
                         <div className="flex items-start gap-2 text-amber-600 text-xs font-semibold leading-snug">
                           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                          <span>Disconnected. Connect Stripe to receive bank card ticket payments.</span>
+                          <span>{t("adminOverview.payouts.disconnected")}</span>
                         </div>
                         <button
                           onClick={handleStripeConnect}
@@ -536,9 +549,9 @@ export default function AdminPage() {
                           className="w-full mt-1 py-2 bg-[#EB4203] hover:bg-[#c23b02] text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
                         >
                           {stripeLoading ? (
-                            <><RefreshCw size={12} className="animate-spin" /> Connecting...</>
+                            <><RefreshCw size={12} className="animate-spin" /> {t("adminOverview.payouts.connecting")}</>
                           ) : (
-                            <>Connect Stripe 💳</>
+                            <>{t("adminOverview.payouts.connectStripe")}</>
                           )}
                         </button>
                       </div>
@@ -547,34 +560,34 @@ export default function AdminPage() {
 
                   <div className="pt-4 border-t border-[#e5e7eb]">
                     <h3 className="font-display font-bold text-sm text-[#EB4203] mb-3 flex items-center gap-2">
-                      <Smartphone size={16} /> Mobile Money (MTN / Orange)
+                      <Smartphone size={16} /> {t("adminOverview.payouts.momoTitle")}
                     </h3>
                     {tenantSettings?.payoutMomoNumber ? (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-green-600 text-xs font-semibold">
-                          <CheckCircle2 size={14} /> Active
+                          <CheckCircle2 size={14} /> {t("adminOverview.payouts.active")}
                         </div>
                         <div className="flex flex-col gap-1.5 text-xs text-[#555]">
                           <div className="flex justify-between">
-                            <span>Provider</span>
+                            <span>{t("adminOverview.payouts.provider")}</span>
                             <span className="font-medium text-[#1a1a1a] uppercase">{tenantSettings.payoutMomoProvider || "momo"}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span>Phone Number</span>
+                            <span>{t("adminOverview.payouts.phoneNumber")}</span>
                             <span className="font-medium text-[#1a1a1a]">{tenantSettings.payoutMomoNumber}</span>
                           </div>
                         </div>
-                        <Link href="/admin/seo" className="inline-block mt-1 text-[10px] text-[#EB4203] hover:underline">Modify number →</Link>
+                        <Link href="/admin/seo" className="inline-block mt-1 text-[10px] text-[#EB4203] hover:underline">{t("adminOverview.payouts.modifyNumber")} →</Link>
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-start gap-2 text-amber-600 text-xs font-semibold leading-snug">
                           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-                          <span>No Mobile Money number set for payouts.</span>
+                          <span>{t("adminOverview.payouts.noMomo")}</span>
                         </div>
                         <Link href="/admin/seo" className="block w-full">
                           <button className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-[#1a1a1a] border border-stone-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer">
-                            Set up MoMo 📱
+                            {t("adminOverview.payouts.setupMomo")}
                           </button>
                         </Link>
                       </div>
@@ -584,21 +597,21 @@ export default function AdminPage() {
 
                 {/* QUICK ACTIONS */}
                 <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                  <h3 className="font-display font-bold text-sm text-[#EB4203] mb-3">Quick Actions</h3>
+                  <h3 className="font-display font-bold text-sm text-[#EB4203] mb-3">{t("adminOverview.quickActions.title")}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { href: "/admin/events",  icon: Plus,       color: "text-[#EB4203]",  label: "Create Event" },
-                      { href: "/admin/checkin", icon: QrCode,     color: "text-blue-500",   label: "Scan Tickets" },
-                      { href: "/admin/orders",  icon: ShoppingBag,color: "text-emerald-500",label: "Manage Orders" },
+                      { href: "/admin/events",  icon: Plus,       color: "text-[#EB4203]",  label: t("adminOverview.quickActions.createEvent") },
+                      { href: "/admin/checkin", icon: QrCode,     color: "text-blue-500",   label: t("adminOverview.quickActions.scanTickets") },
+                      { href: "/admin/orders",  icon: ShoppingBag,color: "text-emerald-500",label: t("adminOverview.quickActions.manageOrders") },
                     ].map(({ href, icon: Icon, color, label }) => (
-                      <Link key={label} href={href} className="flex flex-col items-center justify-center p-3 border border-[#e5e7eb] hover:border-[#EB4203] hover:bg-orange-50/20 rounded-xl transition-all text-center">
+                      <Link key={href} href={href} className="flex flex-col items-center justify-center p-3 border border-[#e5e7eb] hover:border-[#EB4203] hover:bg-orange-50/20 rounded-xl transition-all text-center">
                         <Icon size={16} className={`${color} mb-1.5`} />
                         <span className="text-[10px] font-semibold text-[#1a1a1a]">{label}</span>
                       </Link>
                     ))}
                     <button onClick={() => window.location.reload()} className="flex flex-col items-center justify-center p-3 border border-[#e5e7eb] hover:border-[#EB4203] hover:bg-orange-50/20 rounded-xl transition-all text-center bg-transparent cursor-pointer outline-none">
                       <BarChart2 size={16} className="text-purple-500 mb-1.5" />
-                      <span className="text-[10px] font-semibold text-[#1a1a1a]">Refresh Stats</span>
+                      <span className="text-[10px] font-semibold text-[#1a1a1a]">{t("adminOverview.quickActions.refreshStats")}</span>
                     </button>
                   </div>
                 </div>
@@ -612,12 +625,12 @@ export default function AdminPage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <TrendingUp size={15} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-[#EB4203]">Revenue by Event</h2>
+                  <h2 className="font-display font-bold text-[#EB4203]">{t("adminOverview.revenueByEvent.title")}</h2>
                 </div>
                 {revenueByEvent.length === 0 || revenueByEvent.every(e => e.revenue === 0 && e.confirmedRegs === 0) ? (
                   <div className="text-center py-8 text-[#555] text-sm">
                     <TrendingUp size={28} className="mx-auto mb-2 opacity-20" />
-                    No confirmed ticket sales yet.
+                    {t("adminOverview.revenueByEvent.empty")}
                   </div>
                 ) : (
                   <div className="space-y-3.5">
@@ -630,9 +643,9 @@ export default function AdminPage() {
                           </div>
                           <div className="text-right shrink-0 ml-3">
                             <span className="text-xs font-bold text-[#1a1a1a]">
-                              {ev.revenue > 0 ? `${ev.revenue.toLocaleString()} FCFA` : "Free"}
+                              {ev.revenue > 0 ? `${ev.revenue.toLocaleString()} FCFA` : t("adminOverview.revenueByEvent.free")}
                             </span>
-                            <span className="text-[10px] text-[#666] ml-1.5">{ev.confirmedRegs} sold</span>
+                            <span className="text-[10px] text-[#666] ml-1.5">{t("adminOverview.revenueByEvent.sold", { count: ev.confirmedRegs })}</span>
                           </div>
                         </div>
                         <div className="h-1.5 bg-[#e5e7eb] rounded-full overflow-hidden">
@@ -651,12 +664,12 @@ export default function AdminPage() {
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <Activity size={15} className="text-[#EB4203]" />
-                  <h2 className="font-display font-bold text-[#EB4203]">Recent Activity</h2>
+                  <h2 className="font-display font-bold text-[#EB4203]">{t("adminOverview.recentActivity.title")}</h2>
                 </div>
                 {recentActivity.length === 0 ? (
                   <div className="text-center py-8 text-[#555] text-sm">
                     <Activity size={28} className="mx-auto mb-2 opacity-20" />
-                    No activity yet.
+                    {t("adminOverview.recentActivity.empty")}
                   </div>
                 ) : (
                   <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
@@ -675,9 +688,9 @@ export default function AdminPage() {
                             const mins = Math.floor(diff / 60000);
                             const hrs  = Math.floor(diff / 3_600_000);
                             const days = Math.floor(diff / 86_400_000);
-                            if (days > 0) return `${days}d ago`;
-                            if (hrs  > 0) return `${hrs}h ago`;
-                            return `${mins}m ago`;
+                            if (days > 0) return t("adminOverview.recentActivity.daysAgo", { count: days });
+                            if (hrs  > 0) return t("adminOverview.recentActivity.hoursAgo", { count: hrs });
+                            return t("adminOverview.recentActivity.minsAgo", { count: mins });
                           })()
                         : "—";
 
@@ -686,11 +699,11 @@ export default function AdminPage() {
                           <div className={`w-2 h-2 rounded-full ${dotColor} shrink-0`} />
                           <div className="min-w-0 flex-1">
                             <p className="text-xs text-[#1a1a1a] font-medium truncate">{name}</p>
-                            <p className="text-[10px] text-[#666] truncate">{ev?.title || "Unknown event"}</p>
+                            <p className="text-[10px] text-[#666] truncate">{ev?.title || t("adminOverview.recentActivity.unknownEvent")}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <p className={`text-[10px] font-bold ${isCheckedIn ? "text-blue-600" : isCancelled ? "text-red-500" : "text-green-600"}`}>
-                              {isCheckedIn ? "Checked in" : isCancelled ? "Cancelled" : "Registered"}
+                              {isCheckedIn ? t("adminOverview.recentActivity.checkedIn") : isCancelled ? t("adminOverview.recentActivity.cancelled") : t("adminOverview.recentActivity.registered")}
                             </p>
                             <p className="text-[10px] text-[#888]">{timeAgo}</p>
                           </div>
@@ -707,20 +720,20 @@ export default function AdminPage() {
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
                   <UserCheck size={16} className="text-blue-400" />
-                  <h2 className="font-display font-bold text-[#EB4203]">Registered Attendees</h2>
+                  <h2 className="font-display font-bold text-[#EB4203]">{t("adminOverview.attendeesTable.title")}</h2>
                 </div>
-                <span className="text-xs text-[#555]">{registrations.length} registration{registrations.length !== 1 ? "s" : ""}</span>
+                <span className="text-xs text-[#555]">{t("adminOverview.attendeesTable.count", { count: registrations.length, plural: registrations.length !== 1 ? "s" : "" })}</span>
               </div>
 
               {registrations.length === 0 ? (
                 <div className="text-center py-10 text-[#555] text-sm">
                   <Users size={28} className="mx-auto mb-2 opacity-30" />
-                  No attendees have registered yet.
+                  {t("adminOverview.attendeesTable.empty")}
                 </div>
               ) : (
                 <>
                   <div className="grid grid-cols-[2fr_2fr_2fr_1.5fr_1fr_1fr_1fr] gap-3 pb-3 border-b border-[#e5e7eb] text-[10px] text-[#555] uppercase tracking-wider">
-                    <span>Attendee</span><span>Email</span><span>Event</span><span>Ticket Type</span><span>Cost</span><span>Date</span><span>Status</span>
+                    <span>{t("adminOverview.attendeesTable.colAttendee")}</span><span>{t("adminOverview.attendeesTable.colEmail")}</span><span>{t("adminOverview.attendeesTable.colEvent")}</span><span>{t("adminOverview.attendeesTable.colTicketType")}</span><span>{t("adminOverview.attendeesTable.colCost")}</span><span>{t("adminOverview.attendeesTable.colDate")}</span><span>{t("adminOverview.attendeesTable.colStatus")}</span>
                   </div>
                   <div className="divide-y divide-[#e5e7eb] max-h-80 overflow-y-auto">
                     {registrations.map((reg: any) => {
@@ -729,7 +742,7 @@ export default function AdminPage() {
                       const tType     = ticketTypes.find((t: any) => (t.ticketId || t.id) === reg.ticketTypeId);
                       const ticketName = tType?.name || "—";
                       const ticketCost = tType
-                        ? (tType.price > 0 ? `${tType.price.toLocaleString()} ${tType.currency || "FCFA"}` : "Free")
+                        ? (tType.price > 0 ? `${tType.price.toLocaleString()} ${tType.currency || "FCFA"}` : t("adminOverview.attendeesTable.free"))
                         : "—";
 
                       return (

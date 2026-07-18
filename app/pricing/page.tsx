@@ -15,30 +15,31 @@ import {
   mapPlanNameToTier,
   type PricingPlan,
 } from "@/app/utils/pricingPlans";
+import { useLanguage } from "@/app/context/LanguageContext";
 
-const FEATURE_LABELS: Record<string, string> = {
-  BASIC_EVENT: "Event Creation",
-  TICKET_SALES: "Ticket Sales",
-  ANALYTICS: "Analytics Dashboard",
-  CUSTOM_DOMAIN: "Custom Domain",
-  EMAIL_CAMPAIGNS: "Email Campaigns",
-  NETWORKING: "Networking Tools",
-  SPONSORS: "Sponsor Management",
-  DEDICATED_SUPPORT: "Dedicated Support",
-  SLA: "Service Level Agreement",
-  ADVANCED_QUEUING: "Advanced Queuing",
-  QUEUE_ANALYTICS: "Queue Analytics",
+const FEATURE_KEYS: Record<string, string> = {
+  BASIC_EVENT: "basicEvent",
+  TICKET_SALES: "ticketSales",
+  ANALYTICS: "analytics",
+  CUSTOM_DOMAIN: "customDomain",
+  EMAIL_CAMPAIGNS: "emailCampaigns",
+  NETWORKING: "networking",
+  SPONSORS: "sponsors",
+  DEDICATED_SUPPORT: "dedicatedSupport",
+  SLA: "sla",
+  ADVANCED_QUEUING: "advancedQueuing",
+  QUEUE_ANALYTICS: "queueAnalytics",
 };
 
-function formatFeature(raw: string): string {
+function formatFeature(raw: string, t: (key: string) => string): string {
   const key = raw.trim().toUpperCase().replace(/\s+/g, "_");
-  if (FEATURE_LABELS[key]) return FEATURE_LABELS[key];
+  if (FEATURE_KEYS[key]) return t(`pricing.features.${FEATURE_KEYS[key]}`);
   return raw.trim().replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function formatLimit(value: number, unit: string): string {
-  if (value === -1 || value === undefined || value === null) return `Unlimited ${unit}`;
-  return `Up to ${value} ${unit}`;
+function formatLimit(value: number, unitLabel: string, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  if (value === -1 || value === undefined || value === null) return t("pricing.limits.unlimited", { unit: unitLabel });
+  return t("pricing.limits.upTo", { value, unit: unitLabel });
 }
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
@@ -78,11 +79,12 @@ function StripeSubscriptionForm({
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlan.planId) {
-      alert("This plan is not linked to the billing system yet. Please contact support.");
+      alert(t("pricing.stripeForm.errors.planNotLinked"));
       return;
     }
 
@@ -92,10 +94,10 @@ function StripeSubscriptionForm({
 
       if (!isMockStripe) {
         if (!stripe || !elements) {
-          throw new Error("Stripe is still loading. Please try again.");
+          throw new Error(t("pricing.stripeForm.errors.stripeLoading"));
         }
         const cardElement = elements.getElement(CardElement);
-        if (!cardElement) throw new Error("Please enter your card details.");
+        if (!cardElement) throw new Error(t("pricing.stripeForm.errors.enterCardDetails"));
 
         const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
           type: "card",
@@ -123,7 +125,7 @@ function StripeSubscriptionForm({
       onSuccess();
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Failed to create subscription. Make sure your workspace settings are configured.");
+      alert(err.message || t("pricing.stripeForm.errors.subscriptionFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -134,16 +136,16 @@ function StripeSubscriptionForm({
       {!isMockStripe ? (
         <div>
           <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">
-            Card Details
+            {t("pricing.stripeForm.cardDetailsLabel")}
           </label>
           <div className="px-4 py-3 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl">
             <CardElement options={cardElementOptions} />
           </div>
-          <p className="text-[10px] text-[#888] mt-1.5">Test card: 4242 4242 4242 4242 · any future expiry · any CVC</p>
+          <p className="text-[10px] text-[#888] mt-1.5">{t("pricing.stripeForm.testCardNote")}</p>
         </div>
       ) : (
         <p className="text-[10px] text-[#888] bg-white border border-[#e5e7eb] rounded-xl px-4 py-3">
-          Stripe mock mode — no real card required. Set <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> for live payments.
+          {t("pricing.stripeForm.mockModePrefix")} <code className="text-[#FF4747]">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code> {t("pricing.stripeForm.mockModeSuffix")}
         </p>
       )}
       <button
@@ -151,7 +153,7 @@ function StripeSubscriptionForm({
         disabled={submitting || (!isMockStripe && !stripe)}
         className="w-full py-3.5 bg-[#FF4747] hover:bg-[#e03e3e] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
       >
-        {submitting ? "Processing payment..." : `Pay ${formatCfaPrice(selectedPlan.price)} & Subscribe`}
+        {submitting ? t("pricing.stripeForm.processingPayment") : t("pricing.stripeForm.payAndSubscribe", { price: formatCfaPrice(selectedPlan.price) })}
       </button>
     </form>
   );
@@ -159,6 +161,7 @@ function StripeSubscriptionForm({
 
 export default function PricingPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [plans, setPlans] = useState<PricingPlan[]>(DEFAULT_PRICING_PLANS);
   const [loading, setLoading] = useState(true);
 
@@ -221,7 +224,7 @@ export default function PricingPage() {
     if (!currentAuth || !selectedPlan) return;
 
     setStoredAuth({ ...currentAuth, planTier: mapPlanNameToTier(selectedPlan.name) });
-    alert(`Successfully subscribed to the ${selectedPlan.name} plan!`);
+    alert(t("pricing.alerts.subscribedSuccess", { name: selectedPlan.name }));
     setShowModal(false);
     // Full reload (not router.push) so /admin's data fetch re-runs instead of reusing
     // Next.js's cached page instance, which would otherwise keep showing the old plan.
@@ -234,16 +237,16 @@ export default function PricingPage() {
     e.preventDefault();
     const currentAuth = getStoredAuth();
     if (!currentAuth?.tenantId || !selectedPlan) {
-      alert("You need an organizer workspace before subscribing. Use Upgrade to Organizer first.");
+      alert(t("pricing.alerts.needWorkspace"));
       router.push("/user/dashboard?upgrade=1");
       return;
     }
     if (!selectedPlan.planId) {
-      alert("This plan is not linked to the billing system yet. Please contact support.");
+      alert(t("pricing.alerts.planNotLinked"));
       return;
     }
     if (phoneNumber.replace(/\D/g, "").length < 9) {
-      alert("Please enter a valid phone number.");
+      alert(t("pricing.alerts.invalidPhone"));
       return;
     }
 
@@ -274,18 +277,18 @@ export default function PricingPage() {
         }
         if (status?.status === "FAILED") {
           setMomoWaiting(false);
-          alert("Mobile Money payment failed or was declined. Please try again.");
+          alert(t("pricing.alerts.momoFailed"));
           return;
         }
       }
       if (!confirmed) {
         setMomoWaiting(false);
-        alert("We're still waiting for confirmation from your Mobile Money provider. Your plan will activate automatically once the payment completes — check back shortly.");
+        alert(t("pricing.alerts.momoStillWaiting"));
       }
     } catch (err: any) {
       console.error(err);
       setMomoWaiting(false);
-      alert(err.message || "Failed to create subscription. Make sure your workspace settings are configured.");
+      alert(err.message || t("pricing.alerts.subscriptionFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -300,9 +303,9 @@ export default function PricingPage() {
       {/* HEADER */}
       <main className="max-w-6xl mx-auto px-6 py-20">
         <div className="text-center mb-16">
-          <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-4">Pricing Plans</span>
-          <h1 className="font-display text-5xl font-black tracking-tight mb-3">Honest, flexible pricing</h1>
-          <p className="text-sm text-[#666] max-w-md mx-auto">Scale your events effortlessly. Upgrade, downgrade, or cancel at any time.</p>
+          <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-4">{t("pricing.header.eyebrow")}</span>
+          <h1 className="font-display text-5xl font-black tracking-tight mb-3">{t("pricing.header.title")}</h1>
+          <p className="text-sm text-[#666] max-w-md mx-auto">{t("pricing.header.subtitle")}</p>
         </div>
 
         {/* CARDS */}
@@ -320,7 +323,7 @@ export default function PricingPage() {
               >
                 {isHighlighted && (
                   <div className="absolute top-0 right-0 bg-[#FF4747] text-white text-[9px] uppercase tracking-wider font-extrabold px-5 py-1.5 rounded-bl-2xl">
-                    Most Popular
+                    {t("pricing.card.mostPopular")}
                   </div>
                 )}
                 <div>
@@ -337,22 +340,22 @@ export default function PricingPage() {
                   <ul className="space-y-4 text-xs list-none pl-0">
                     <li className="flex items-start gap-2.5 min-w-0">
                       <span className="text-green-500 font-bold shrink-0">✓</span>
-                      <span className="min-w-0">{formatLimit(plan.maxEvents, "Events")}</span>
+                      <span className="min-w-0">{formatLimit(plan.maxEvents, t("pricing.limits.unitEvents"), t)}</span>
                     </li>
                     <li className="flex items-start gap-2.5 min-w-0">
                       <span className="text-green-500 font-bold shrink-0">✓</span>
-                      <span className="min-w-0">{formatLimit(plan.maxUsers, "Team Members")}</span>
+                      <span className="min-w-0">{formatLimit(plan.maxUsers, t("pricing.limits.unitTeamMembers"), t)}</span>
                     </li>
                     <li className="flex items-start gap-2.5 min-w-0">
                       <span className="text-green-500 font-bold shrink-0">✓</span>
-                      <span className="min-w-0">{formatLimit(plan.maxAttendeesPerEvent, "Attendees/Event")}</span>
+                      <span className="min-w-0">{formatLimit(plan.maxAttendeesPerEvent, t("pricing.limits.unitAttendees"), t)}</span>
                     </li>
-                    {(plan.featuresEnabled || "Access to basic resources")
+                    {(plan.featuresEnabled || t("pricing.features.defaultAccess"))
                       .split(",")
                       .map((feature: string, fi: number) => (
                         <li key={fi} className="flex items-start gap-2.5 min-w-0">
                           <span className="text-green-500 font-bold shrink-0">✓</span>
-                          <span className="min-w-0">{formatFeature(feature)}</span>
+                          <span className="min-w-0">{formatFeature(feature, t)}</span>
                         </li>
                       ))
                     }
@@ -368,7 +371,7 @@ export default function PricingPage() {
                         : "bg-transparent border-[1.5px] border-[#1a1a1a] text-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white"
                     }`}
                   >
-                    Choose {plan.name}
+                    {t("pricing.card.chooseButton", { name: plan.name })}
                   </button>
                 </div>
               </div>
@@ -383,28 +386,28 @@ export default function PricingPage() {
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-8 space-y-6">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-display text-2xl font-black text-[#1a1a1a]">Subscribe to {selectedPlan.name}</h3>
-                <p className="text-xs text-[#666] mt-1">Upgrade your tenant workspace plan instantly.</p>
+                <h3 className="font-display text-2xl font-black text-[#1a1a1a]">{t("pricing.modal.subscribeTitle", { name: selectedPlan.name })}</h3>
+                <p className="text-xs text-[#666] mt-1">{t("pricing.modal.subtitle")}</p>
               </div>
               <button onClick={() => { setShowModal(false); setMomoWaiting(false); }} className="text-zinc-400 hover:text-zinc-600 text-xl font-bold bg-transparent border-none cursor-pointer">✕</button>
             </div>
 
             <div className="p-4 bg-white border border-[#e5e7eb] rounded-xl flex justify-between items-center text-xs">
-              <span className="font-semibold text-[#555]">Plan price:</span>
+              <span className="font-semibold text-[#555]">{t("pricing.modal.planPriceLabel")}</span>
               <span className="font-black text-base text-[#FF4747]">{formatCfaPrice(selectedPlan.price)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
             </div>
 
             <div className="space-y-4 text-xs">
               <div>
-                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Payment Method</label>
+                <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("pricing.modal.paymentMethodLabel")}</label>
                 <select
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value as "momo" | "stripe")}
                   className="w-full px-4 py-2.5 bg-[#fcfbf9] border border-[#e5e7eb] rounded-xl text-xs text-[#1a1a1a] outline-none"
                 >
-                  <option value="momo">MTN / Orange Mobile Money</option>
+                  <option value="momo">{t("pricing.modal.optionMomo")}</option>
                   <option value="stripe">
-                    {isMockStripe ? "Stripe Card Payment (Mock Simulation)" : "Stripe Card Payment"}
+                    {isMockStripe ? t("pricing.modal.optionStripeMock") : t("pricing.modal.optionStripe")}
                   </option>
                 </select>
               </div>
@@ -413,13 +416,13 @@ export default function PricingPage() {
                 momoWaiting ? (
                   <div className="text-center py-4 space-y-3">
                     <div className="w-8 h-8 mx-auto border-2 border-[#FF4747] border-t-transparent rounded-full animate-spin" />
-                    <p className="text-[#555] font-semibold">Check your phone and confirm the USSD prompt</p>
-                    <p className="text-[10px] text-[#888]">Waiting for {phoneNumber} to confirm payment via Mobile Money…</p>
+                    <p className="text-[#555] font-semibold">{t("pricing.modal.momoWaitingTitle")}</p>
+                    <p className="text-[10px] text-[#888]">{t("pricing.modal.momoWaitingSubtitle", { phone: phoneNumber })}</p>
                   </div>
                 ) : (
                   <form onSubmit={handleMomoSubscribe} className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">Phone Number (MTN/Orange)</label>
+                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("pricing.modal.phoneLabel")}</label>
                       <input
                         type="tel"
                         required
@@ -434,7 +437,7 @@ export default function PricingPage() {
                       disabled={submitting}
                       className="w-full py-3.5 bg-[#FF4747] hover:bg-[#e03e3e] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
                     >
-                      {submitting ? "Sending USSD prompt..." : "Confirm & Subscribe"}
+                      {submitting ? t("pricing.modal.sendingUssd") : t("pricing.modal.confirmAndSubscribe")}
                     </button>
                   </form>
                 )

@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { Code2, Plus, Trash2, Eye, EyeOff, Copy, Star, AlertTriangle } from "lucide-react";
 import { api } from "@/app/utils/api";
 import { getStoredAuth } from "@/app/utils/api";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 interface ApiKey {
   keyId: string;
@@ -16,6 +17,7 @@ interface ApiKey {
 }
 
 export default function DevelopersPage() {
+  const { t } = useLanguage();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [newKeyName, setNewKeyName] = useState("");
@@ -60,9 +62,9 @@ export default function DevelopersPage() {
       setRevealedKey(res.rawKey);
       setNewKeyName("");
       await fetchKeys();
-      showToast("API key generated — save it now, it won't be shown again.");
+      showToast(t("adminDevelopers.toast.generated"));
     } catch (err: any) {
-      showToast(err?.message || "Failed to generate key.");
+      showToast(err?.message || t("adminDevelopers.toast.generateFailed"));
     } finally {
       setGenerating(false);
     }
@@ -77,9 +79,9 @@ export default function DevelopersPage() {
         setRevealedKey(null);
       }
       await fetchKeys();
-      showToast("API key revoked.");
+      showToast(t("adminDevelopers.toast.revoked"));
     } catch (err: any) {
-      showToast(err?.message || "Failed to revoke key.");
+      showToast(err?.message || t("adminDevelopers.toast.revokeFailed"));
     }
   };
 
@@ -106,18 +108,18 @@ export default function DevelopersPage() {
 
         <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center px-8 sticky top-0 z-40">
           <h1 className="font-display text-xl font-bold text-[#EB4203] flex items-center gap-2">
-            <Code2 size={20} /> Developers — API Keys
+            <Code2 size={20} /> {t("adminDevelopers.header.title")}
           </h1>
         </header>
 
         <main className="p-8 max-w-[860px] space-y-6">
           {/* Explainer */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 space-y-2">
-            <h2 className="text-sm font-bold text-[#1a1a1a]">YoEvent as a Service (EaaS)</h2>
+            <h2 className="text-sm font-bold text-[#1a1a1a]">{t("adminDevelopers.explainer.title")}</h2>
             <p className="text-xs text-[#555] leading-relaxed">
-              Use your API key to call YoEvent endpoints from your own application. Include it in the
+              {t("adminDevelopers.explainer.pre")}
               <code className="mx-1 px-1.5 py-0.5 bg-[#f3f4f6] rounded text-[#EB4203] font-mono text-[10px]">X-API-Key</code>
-              header with every request. Your plan tier determines the monthly call quota enforced on all keys.
+              {t("adminDevelopers.explainer.post")}
             </p>
             <div className="mt-3 bg-[#1a1a1a] rounded-xl px-5 py-3 font-mono text-[10px] text-green-400 leading-relaxed">
               <span className="text-[#aaa]"># Example</span><br />
@@ -132,7 +134,7 @@ export default function DevelopersPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
               <div className="flex items-center gap-2 text-amber-700 text-xs font-bold">
                 <AlertTriangle size={14} />
-                Your new API key — copy it now. It will not be shown again.
+                {t("adminDevelopers.revealedKey.banner")}
               </div>
               <div className="flex items-center gap-2">
                 <code className="flex-1 bg-white border border-amber-200 rounded-xl px-4 py-2.5 font-mono text-[11px] text-[#1a1a1a] break-all">
@@ -142,25 +144,25 @@ export default function DevelopersPage() {
                   onClick={copyKey}
                   className="shrink-0 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Copy size={12} /> {copied ? "Copied!" : "Copy"}
+                  <Copy size={12} /> {copied ? t("adminDevelopers.revealedKey.copied") : t("adminDevelopers.revealedKey.copy")}
                 </button>
               </div>
               <button
                 onClick={() => setRevealedKey(null)}
                 className="text-[10px] text-amber-600 underline cursor-pointer"
               >
-                I&apos;ve saved it, dismiss
+                {t("adminDevelopers.revealedKey.dismiss")}
               </button>
             </div>
           )}
 
           {/* Generate new key */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <h2 className="text-sm font-bold text-[#1a1a1a] mb-4">Generate New API Key</h2>
+            <h2 className="text-sm font-bold text-[#1a1a1a] mb-4">{t("adminDevelopers.generate.title")}</h2>
             <form onSubmit={handleGenerate} className="flex gap-3">
               <input
                 type="text"
-                placeholder="Key name (e.g. My App Production)"
+                placeholder={t("adminDevelopers.generate.namePlaceholder")}
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
                 className="flex-1 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#EB4203] transition-colors"
@@ -172,20 +174,20 @@ export default function DevelopersPage() {
                 disabled={generating || !newKeyName.trim()}
                 className="shrink-0 px-5 py-2.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
               >
-                <Plus size={14} /> {generating ? "Generating..." : "Generate Key"}
+                <Plus size={14} /> {generating ? t("adminDevelopers.generate.generating") : t("adminDevelopers.generate.submit")}
               </button>
             </form>
-            <p className="text-[10px] text-[#888] mt-2">Maximum 10 active keys per tenant.</p>
+            <p className="text-[10px] text-[#888] mt-2">{t("adminDevelopers.generate.limitNote")}</p>
           </div>
 
           {/* Active keys */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-            <h2 className="text-sm font-bold text-[#1a1a1a] mb-4">Active Keys ({activeKeys.length})</h2>
+            <h2 className="text-sm font-bold text-[#1a1a1a] mb-4">{t("adminDevelopers.active.title", { count: activeKeys.length })}</h2>
             {loading ? (
-              <p className="text-xs text-[#888]">Loading...</p>
+              <p className="text-xs text-[#888]">{t("adminDevelopers.active.loading")}</p>
             ) : activeKeys.length === 0 ? (
               <p className="text-xs text-[#888] py-8 text-center border border-dashed border-[#e5e7eb] rounded-xl">
-                No active API keys. Generate one above.
+                {t("adminDevelopers.active.empty")}
               </p>
             ) : (
               <div className="space-y-3">
@@ -200,31 +202,31 @@ export default function DevelopersPage() {
                         </span>
                       </div>
                       <div className="text-[9px] text-[#aaa] mt-1 font-mono">
-                        Created {new Date(key.createdAt).toLocaleDateString()}
-                        {key.lastUsedAt ? ` · Last used ${new Date(key.lastUsedAt).toLocaleDateString()}` : " · Never used"}
+                        {t("adminDevelopers.active.created", { date: new Date(key.createdAt).toLocaleDateString() })}
+                        {key.lastUsedAt ? ` · ${t("adminDevelopers.active.lastUsed", { date: new Date(key.lastUsedAt).toLocaleDateString() })}` : ` · ${t("adminDevelopers.active.neverUsed")}`}
                       </div>
                     </div>
                     {revokeConfirm === key.keyId ? (
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] text-red-600 font-semibold">Revoke?</span>
+                        <span className="text-[10px] text-red-600 font-semibold">{t("adminDevelopers.active.revokeConfirm")}</span>
                         <button
                           onClick={() => handleRevoke(key.keyId)}
                           className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-colors"
                         >
-                          Yes
+                          {t("adminDevelopers.active.yes")}
                         </button>
                         <button
                           onClick={() => setRevokeConfirm(null)}
                           className="px-3 py-1.5 bg-[#e5e7eb] hover:bg-[#d1d5db] text-[#1a1a1a] text-[10px] font-bold rounded-lg cursor-pointer transition-colors"
                         >
-                          No
+                          {t("adminDevelopers.active.no")}
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setRevokeConfirm(key.keyId)}
                         className="shrink-0 p-2 text-[#888] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                        title="Revoke key"
+                        title={t("adminDevelopers.active.revokeTitle")}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -238,7 +240,7 @@ export default function DevelopersPage() {
           {/* Revoked keys */}
           {revokedKeys.length > 0 && (
             <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-              <h2 className="text-sm font-bold text-[#aaa] mb-4">Revoked Keys ({revokedKeys.length})</h2>
+              <h2 className="text-sm font-bold text-[#aaa] mb-4">{t("adminDevelopers.revoked.title", { count: revokedKeys.length })}</h2>
               <div className="space-y-2">
                 {revokedKeys.map((key) => (
                   <div key={key.keyId} className="flex items-center justify-between p-4 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl gap-4 opacity-50">
@@ -247,7 +249,7 @@ export default function DevelopersPage() {
                       <code className="text-[10px] text-[#555] font-mono">{key.keyPrefix}••••••••••••</code>
                     </div>
                     <span className="text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100 font-semibold shrink-0">
-                      Revoked
+                      {t("adminDevelopers.revoked.badge")}
                     </span>
                   </div>
                 ))}

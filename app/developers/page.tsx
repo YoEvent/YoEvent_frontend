@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Zap, ArrowLeft } from "lucide-react";
 import Footer from "@/components/Footer";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const METHOD_STYLE: Record<string, string> = {
   GET: "bg-green-100 text-green-800",
@@ -97,6 +98,10 @@ const microservices = [
 ];
 
 export default function DevelopersPage() {
+  const { t, tl } = useLanguage();
+  const svcTranslations: { name: string; endpoints: string[] }[] = tl("developers.services");
+  const quirks: { label: string; value: string }[] = tl("developers.quirks");
+
   return (
     <div className="min-h-screen bg-[#fafafa] text-[#1a1a1a]">
 
@@ -112,14 +117,14 @@ export default function DevelopersPage() {
               <Zap size={12} className="text-white" />
             </div>
             <span className="font-display font-bold text-white text-sm">
-              Event<span className="text-[#FF4747]">aaS</span> <span className="text-white/40 font-normal">API Reference</span>
+              Event<span className="text-[#FF4747]">aaS</span> <span className="text-white/40 font-normal">{t("developers.nav.apiReference")}</span>
             </span>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <a href="http://localhost:8080/swagger-ui.html" target="_blank"
             className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FF4747] text-white px-4 py-2 rounded-full hover:bg-[#e03e3e] transition-colors cursor-pointer">
-            Open Swagger UI ⚡
+            {t("developers.nav.openSwagger")}
           </a>
         </div>
       </nav>
@@ -130,31 +135,21 @@ export default function DevelopersPage() {
         {/* HEADER */}
         <div className="mb-12">
           <div className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest font-semibold mb-4">
-            API Reference
+            {t("developers.header.badge")}
           </div>
           <h1 className="font-display text-5xl font-black tracking-tight mb-3">EventaaS API</h1>
           <p className="text-[#666] max-w-xl leading-relaxed">
-            All endpoints are served through a single API gateway at <code className="text-[#FF4747] font-mono text-sm bg-[#FF4747]/10 px-1.5 py-0.5 rounded">localhost:8080</code>.
-            Authenticate with <code className="font-mono text-sm bg-[#f5f5f5] px-1.5 py-0.5 rounded text-[#1a1a1a]">Authorization: Bearer &lt;token&gt;</code> and pass
-            <code className="font-mono text-sm bg-[#f5f5f5] px-1.5 py-0.5 rounded text-[#1a1a1a]"> X-Tenant-Id</code> on all tenant-scoped requests.
+            {t("developers.header.introBeforeGateway")} <code className="text-[#FF4747] font-mono text-sm bg-[#FF4747]/10 px-1.5 py-0.5 rounded">localhost:8080</code>{t("developers.header.introBeforeAuth")} <code className="font-mono text-sm bg-[#f5f5f5] px-1.5 py-0.5 rounded text-[#1a1a1a]">Authorization: Bearer &lt;token&gt;</code> {t("developers.header.introBeforePass")}
+            <code className="font-mono text-sm bg-[#f5f5f5] px-1.5 py-0.5 rounded text-[#1a1a1a]"> X-Tenant-Id</code> {t("developers.header.introAfterTenant")}
           </p>
 
           {/* IMPORTANT NOTES */}
           <div className="mt-6 bg-[#F7E998]/30 border border-[#F7E998] rounded-2xl p-5 text-sm space-y-1.5">
-            <div className="font-semibold text-[#1a1a1a] mb-2 text-xs uppercase tracking-wider">Field name quirks to know</div>
-            {[
-              ["Ticket quantity", "quantityAvailable (not quantity)"],
-              ["Ticket sale dates", "saleStart / saleEnd (not saleStartDate)"],
-              ["Session capacity", "maxCapacity (not capacity)"],
-              ["Poll options", "JSON string — JSON.stringify([...options])"],
-              ["Poll status", "isActive: boolean (not status: string)"],
-              ["Q&A", "session-scoped: send sessionId + questionText"],
-              ["Team member", "role: TEAM_MEMBER — position → skills, bio → availability"],
-              ["Event creator", "organizerId (not creatorId)"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex gap-2 text-xs text-[#444]">
-                <span className="font-mono text-[#FF4747] shrink-0">{k}:</span>
-                <span className="text-[#666]">{v}</span>
+            <div className="font-semibold text-[#1a1a1a] mb-2 text-xs uppercase tracking-wider">{t("developers.header.quirksTitle")}</div>
+            {quirks.map((q) => (
+              <div key={q.label} className="flex gap-2 text-xs text-[#444]">
+                <span className="font-mono text-[#FF4747] shrink-0">{q.label}:</span>
+                <span className="text-[#666]">{q.value}</span>
               </div>
             ))}
           </div>
@@ -162,12 +157,12 @@ export default function DevelopersPage() {
 
         {/* ENDPOINT TABLES */}
         <div className="space-y-8">
-          {microservices.map((ms) => (
+          {microservices.map((ms, msIndex) => (
             <div key={ms.tag} className="bg-white rounded-3xl border border-[#e5e7eb] overflow-hidden shadow-sm">
               <div className="flex justify-between items-center px-8 py-5 border-b border-[#f0f0f0]">
                 <div className="flex items-center gap-3">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: ms.color }} />
-                  <h3 className="font-display text-base font-extrabold text-[#1a1a1a]">{ms.name}</h3>
+                  <h3 className="font-display text-base font-extrabold text-[#1a1a1a]">{svcTranslations[msIndex]?.name ?? ms.name}</h3>
                 </div>
                 <span className="font-mono text-xs border rounded-full px-3 py-1"
                   style={{ color: ms.color, borderColor: `${ms.color}33`, background: `${ms.color}11` }}>
@@ -183,7 +178,7 @@ export default function DevelopersPage() {
                       </span>
                       <span className="font-mono text-xs text-[#1a1a1a] font-semibold truncate">{ep.path}</span>
                     </div>
-                    <span className="text-xs text-[#888] shrink-0 text-right">{ep.desc}</span>
+                    <span className="text-xs text-[#888] shrink-0 text-right">{svcTranslations[msIndex]?.endpoints[i] ?? ep.desc}</span>
                   </div>
                 ))}
               </div>
@@ -193,7 +188,7 @@ export default function DevelopersPage() {
 
         {/* AUTH NOTES */}
         <div className="mt-10 bg-[#0a0a0a] text-white rounded-3xl p-8">
-          <div className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-4">Required headers</div>
+          <div className="text-xs text-white/40 uppercase tracking-widest font-semibold mb-4">{t("developers.authNotes.requiredHeaders")}</div>
           <div className="font-mono text-sm space-y-2 text-white/70">
             <div><span className="text-[#F7E998]">Authorization:</span> Bearer {"<jwt-token>"}</div>
             <div><span className="text-[#F7E998]">X-Tenant-Id:</span> {"<tenant-uuid>"}</div>
@@ -201,8 +196,8 @@ export default function DevelopersPage() {
             <div><span className="text-[#F7E998]">Content-Type:</span> application/json</div>
           </div>
           <div className="mt-5 text-xs text-white/30">
-            The JWT is issued at <code className="text-white/50">/api/v1/auth/login</code>.
-            SUPER_ADMIN scope unlocks <code className="text-white/50">/platform/*</code> endpoints.
+            {t("developers.authNotes.jwtIssuedAt")} <code className="text-white/50">/api/v1/auth/login</code>.
+            {" "}{t("developers.authNotes.superAdminScope")} <code className="text-white/50">/platform/*</code> {t("developers.authNotes.endpointsSuffix")}
           </div>
         </div>
       </main>

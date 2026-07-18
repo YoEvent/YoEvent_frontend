@@ -4,10 +4,12 @@ import Sidebar from "@/components/Sidebar";
 import { eventService } from "@/app/utils/services/eventService";
 import { getStoredAuth } from "@/app/utils/api";
 import { ShoppingCart, Search, ChevronDown, Package, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 
 export default function OrdersPage() {
+  const { t } = useLanguage();
   const auth = getStoredAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
@@ -85,20 +87,20 @@ export default function OrdersPage() {
 
           {/* Header */}
           <div className="mb-8">
-            <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Admin</p>
+            <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("adminOrders.header.eyebrow")}</p>
             <h1 className="font-display font-black text-3xl text-[#1a1a1a] flex items-center gap-3">
-              <ShoppingCart size={28} className="text-[#FF4747]" /> Orders
+              <ShoppingCart size={28} className="text-[#FF4747]" /> {t("adminOrders.header.title")}
             </h1>
-            <p className="text-[#888] text-sm mt-1">View and manage all ticket orders for your events.</p>
+            <p className="text-[#888] text-sm mt-1">{t("adminOrders.header.subtitle")}</p>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: "Total Orders", value: filtered.length, color: "#6366f1" },
-              { label: "Completed", value: filtered.filter((o: any) => o.status === "COMPLETED").length, color: "#10b981" },
-              { label: "Gross Revenue", value: `${totalRevenue.toLocaleString()} FCFA`, color: "#FF4747" },
-              { label: "Platform Fees", value: `${totalFees.toLocaleString()} FCFA`, color: "#f59e0b" },
+              { label: t("adminOrders.stats.totalOrders"), value: filtered.length, color: "#6366f1" },
+              { label: t("adminOrders.stats.completed"), value: filtered.filter((o: any) => o.status === "COMPLETED").length, color: "#10b981" },
+              { label: t("adminOrders.stats.grossRevenue"), value: `${totalRevenue.toLocaleString()} FCFA`, color: "#FF4747" },
+              { label: t("adminOrders.stats.platformFees"), value: `${totalFees.toLocaleString()} FCFA`, color: "#f59e0b" },
             ].map(s => (
               <div key={s.label} className="bg-white border border-[#e5e7eb] rounded-2xl p-5">
                 <div className="font-black text-2xl" style={{ color: s.color }}>{s.value}</div>
@@ -111,21 +113,21 @@ export default function OrdersPage() {
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 mb-5 flex items-center gap-3 flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aaa]" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by order ID or user..." className={inp + " pl-9"} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("adminOrders.filters.searchPlaceholder")} className={inp + " pl-9"} />
             </div>
             <div className="relative">
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={inp + " appearance-none pr-8 w-auto"}>
-                <option value="ALL">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-                <option value="FAILED">Failed</option>
+                <option value="ALL">{t("adminOrders.filters.allStatuses")}</option>
+                <option value="PENDING">{t("adminOrders.filters.pending")}</option>
+                <option value="COMPLETED">{t("adminOrders.filters.completed")}</option>
+                <option value="CANCELLED">{t("adminOrders.filters.cancelled")}</option>
+                <option value="FAILED">{t("adminOrders.filters.failed")}</option>
               </select>
               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
             </div>
             <div className="relative">
               <select value={filterEventId} onChange={e => setFilterEventId(e.target.value)} className={inp + " appearance-none pr-8 w-auto"}>
-                <option value="ALL">All Events</option>
+                <option value="ALL">{t("adminOrders.filters.allEvents")}</option>
                 {events.map((ev: any) => (
                   <option key={ev.eventId} value={ev.eventId}>{ev.title}</option>
                 ))}
@@ -144,20 +146,20 @@ export default function OrdersPage() {
               ) : filtered.length === 0 ? (
                 <div className="py-20 text-center">
                   <Package size={40} className="mx-auto text-[#e5e7eb] mb-3" />
-                  <p className="font-bold text-[#1a1a1a]">No orders found</p>
-                  <p className="text-xs text-[#aaa] mt-1">Orders will appear here as attendees purchase tickets.</p>
+                  <p className="font-bold text-[#1a1a1a]">{t("adminOrders.empty.title")}</p>
+                  <p className="text-xs text-[#aaa] mt-1">{t("adminOrders.empty.desc")}</p>
                 </div>
               ) : (
                 <table className="w-full text-left text-sm">
                   <thead className="bg-[#fafafa] border-b border-[#f0f0f0] text-[10px] text-[#888] uppercase tracking-wider">
                     <tr>
-                      <th className="px-5 py-3">Order ID</th>
-                      <th className="px-5 py-3">Event</th>
-                      <th className="px-5 py-3">Items</th>
-                      <th className="px-5 py-3">Amount</th>
-                      <th className="px-5 py-3">Fee</th>
-                      <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3">Date</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colOrderId")}</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colEvent")}</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colItems")}</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colAmount")}</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colFee")}</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colStatus")}</th>
+                      <th className="px-5 py-3">{t("adminOrders.table.colDate")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#f5f5f5]">
@@ -166,7 +168,7 @@ export default function OrdersPage() {
                       const oItems = orderItems.filter((oi: any) => oi.orderId === (o.orderId || o.id));
                       const itemsDesc = oItems.map((oi: any) => {
                         const tt = ticketTypes.find((t: any) => t.ticketId === oi.ticketTypeId || t.ticketTypeId === oi.ticketTypeId || t.id === oi.ticketTypeId);
-                        return `${oi.quantity} x ${tt ? tt.name : "Ticket"}`;
+                        return `${oi.quantity} x ${tt ? tt.name : t("adminOrders.table.ticketFallback")}`;
                       }).join(", ");
                       return (
                         <tr key={o.orderId || o.id} className="hover:bg-[#fafafa] transition-colors">

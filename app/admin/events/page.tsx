@@ -14,17 +14,18 @@ import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { savePendingEvent } from "@/app/utils/offlineDb";
 import { useOfflineSync } from "@/app/utils/useOfflineSync";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 const EventMap = dynamic(() => import("@/components/EventMap"), { ssr: false, loading: () => <div className="w-full h-40 bg-[#f5f5f5] rounded-xl animate-pulse" /> });
 
 type EventTab = "overview" | "details" | "schedule" | "location" | "tickets" | "coupons" | "team" | "sessions" | "speakers" | "sponsors" | "registrations" | "vendors" | "announcements" | "feedback" | "live" | "email" | "sections";
 
-const TABS: { id: EventTab; label: string; icon: any }[] = [
-  { id: "overview",       label: "Overview",      icon: Globe },
-  { id: "details",        label: "Details",       icon: ImageIcon },
-  { id: "schedule",       label: "Schedule",      icon: Calendar },
-  { id: "location",       label: "Location",      icon: MapPin },
-  { id: "sections",       label: "Add Section",   icon: Layers }
+const TABS: { id: EventTab; labelKey: string; icon: any }[] = [
+  { id: "overview",       labelKey: "adminEvents.tabs.overview",  icon: Globe },
+  { id: "details",        labelKey: "adminEvents.tabs.details",   icon: ImageIcon },
+  { id: "schedule",       labelKey: "adminEvents.tabs.schedule",  icon: Calendar },
+  { id: "location",       labelKey: "adminEvents.tabs.location",  icon: MapPin },
+  { id: "sections",       labelKey: "adminEvents.tabs.sections",  icon: Layers }
 ];
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -42,6 +43,7 @@ const toLocalISOString = (dateInput?: string | Date) => {
 
 export default function EventsPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const auth = getStoredAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -281,7 +283,7 @@ export default function EventsPage() {
           eventId: selectedId,
           tenantId: auth?.tenantId
         });
-        showToast("Section updated successfully!");
+        showToast(t("adminEvents.toasts.sectionUpdated"));
         setEditingSection(null);
       } else {
         await eventService.createEventSection({
@@ -289,23 +291,23 @@ export default function EventsPage() {
           eventId: selectedId,
           tenantId: auth?.tenantId
         });
-        showToast("Section created successfully!");
+        showToast(t("adminEvents.toasts.sectionCreated"));
       }
       setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
       const secs = await eventService.getEventSections(selectedId).catch(() => []);
       setEventSections(secs || []);
     } catch (err: any) {
-      showToast(err.message || "Failed to save section");
+      showToast(err.message || t("adminEvents.toasts.sectionSaveFailed"));
     } finally {
       setSaving(false);
     }
   };
 
   const deleteSection = async (sectionId: string) => {
-    if (!confirm("Are you sure you want to delete this section?")) return;
+    if (!confirm(t("adminEvents.sections.confirmDelete"))) return;
     try {
       await eventService.deleteEventSection(sectionId);
-      showToast("Section deleted!");
+      showToast(t("adminEvents.toasts.sectionDeleted"));
       const secs = await eventService.getEventSections(selectedId).catch(() => []);
       setEventSections(secs || []);
       if (editingSection && (editingSection.sectionId === sectionId || editingSection.id === sectionId)) {
@@ -313,7 +315,7 @@ export default function EventsPage() {
         setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to delete section");
+      showToast(err.message || t("adminEvents.toasts.sectionDeleteFailed"));
     }
   };
 
@@ -323,9 +325,9 @@ export default function EventsPage() {
     if (!newTitle.trim()) return;
     const start = new Date(newStart);
     const end   = new Date(newEnd);
-    if (start < new Date()) { showToast("Start date cannot be in the past."); return; }
-    if (end <= start)        { showToast("End date must be after the start date."); return; }
-    if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast("Event must be at least 2 hours long."); return; }
+    if (start < new Date()) { showToast(t("adminEvents.toasts.startInPast")); return; }
+    if (end <= start)        { showToast(t("adminEvents.toasts.endBeforeStart")); return; }
+    if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast(t("adminEvents.toasts.minDuration")); return; }
     setSaving(true);
     const eventData = { tenantId: auth?.tenantId, organizerId: auth?.userId, title: newTitle, description: newDesc, status: "DRAFT", currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, maxCapacity: 100 };
     const scheduleData = { startDatetime: new Date(newStart).toISOString(), endDatetime: new Date(newEnd).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
@@ -336,14 +338,14 @@ export default function EventsPage() {
       setNewTitle(""); setNewDesc("");
       await loadEvents();
       await selectEvent(id);
-      showToast("Event created! Fill in the sections below.");
+      showToast(t("adminEvents.toasts.eventCreated"));
     } catch (err: any) {
       if (!navigator.onLine || err?.message?.toLowerCase().includes("network") || err?.message?.toLowerCase().includes("fetch")) {
         await savePendingEvent(eventData, scheduleData);
         setNewTitle(""); setNewDesc("");
-        showToast("Saved offline — will sync when you reconnect.");
+        showToast(t("adminEvents.toasts.savedOffline"));
       } else {
-        showToast("Error: " + err.message);
+        showToast(t("adminEvents.toasts.errorPrefix") + err.message);
       }
     }
     finally { setSaving(false); }
@@ -375,9 +377,9 @@ export default function EventsPage() {
       const evs = await eventService.getMyEvents().catch(() => []);
       const filtered = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
       setEvents(filtered);
-      showToast("Details saved!");
+      showToast(t("adminEvents.toasts.detailsSaved"));
     } catch (err: any) {
-      showToast(err.message || "Failed to save details.");
+      showToast(err.message || t("adminEvents.toasts.detailsSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -392,7 +394,7 @@ export default function EventsPage() {
         .map(e => e.trim())
         .filter(e => e.length > 0 && e.includes("@"));
       if (emails.length === 0) {
-        showToast("No valid emails found");
+        showToast(t("adminEvents.toasts.noValidEmails"));
         setSendingInvites(false);
         return;
       }
@@ -404,12 +406,12 @@ export default function EventsPage() {
           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         });
       }
-      showToast(`Successfully sent ${emails.length} invitation(s)`);
+      showToast(t("adminEvents.toasts.invitationsSent", { count: emails.length }));
       setInviteEmails("");
       const list = await eventService.getInvitations().catch(() => []);
       setInvitations((list || []).filter((inv: any) => inv.eventId === selectedId));
     } catch (err: any) {
-      showToast("Failed to send some invitations.");
+      showToast(t("adminEvents.toasts.invitationsSendFailed"));
     } finally {
       setSendingInvites(false);
     }
@@ -420,9 +422,9 @@ export default function EventsPage() {
     if (!selectedId) return;
     const start = new Date(schedForm.startDatetime);
     const end   = new Date(schedForm.endDatetime);
-    if (start < new Date()) { showToast("Start date cannot be in the past."); return; }
-    if (end <= start)        { showToast("End date must be after the start date."); return; }
-    if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast("Event must be at least 2 hours long."); return; }
+    if (start < new Date()) { showToast(t("adminEvents.toasts.startInPast")); return; }
+    if (end <= start)        { showToast(t("adminEvents.toasts.endBeforeStart")); return; }
+    if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast(t("adminEvents.toasts.minDuration")); return; }
     setSaving(true);
     try {
       if (schedule?.scheduleId || schedule?.id) {
@@ -431,9 +433,9 @@ export default function EventsPage() {
         const s = await eventService.createEventSchedule({ eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
         setSchedule(s);
       }
-      showToast("Schedule saved!");
+      showToast(t("adminEvents.toasts.scheduleSaved"));
     } catch (err: any) {
-      showToast(err.message || "Failed to save schedule.");
+      showToast(err.message || t("adminEvents.toasts.scheduleSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -443,11 +445,11 @@ export default function EventsPage() {
   const saveLocation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (detailsForm.format === "IN_PERSON" && locForm.isVirtual) {
-      showToast("Cannot add a virtual location to an In Person event. Change the format to Hybrid first.");
+      showToast(t("adminEvents.toasts.virtualOnInPerson"));
       return;
     }
     if (detailsForm.format === "VIRTUAL" && !locForm.isVirtual) {
-      showToast("Cannot add a physical venue to a Virtual event. Change the format to Hybrid first.");
+      showToast(t("adminEvents.toasts.physicalOnVirtual"));
       return;
     }
     setSaving(true);
@@ -456,15 +458,15 @@ export default function EventsPage() {
       if (editingLocation) {
         await eventService.updateEventLocation(editingLocation.locationId, payload);
         setEditingLocation(null);
-        showToast("Location updated!");
+        showToast(t("adminEvents.toasts.locationUpdated"));
       } else {
         await eventService.createEventLocation(payload);
-        showToast("Location added!");
+        showToast(t("adminEvents.toasts.locationAdded"));
       }
       setLocForm({ venueName: "", address: "", city: "", country: "Cameroon", isVirtual: false, virtualPlatform: "", virtualLink: "", latitude: 3.848, longitude: 11.502 });
       await loadEventData(selectedId);
     } catch (err: any) {
-      showToast(err.message || (editingLocation ? "Failed to update location." : "Failed to add location."));
+      showToast(err.message || (editingLocation ? t("adminEvents.toasts.locationUpdateFailed") : t("adminEvents.toasts.locationAddFailed")));
     } finally {
       setSaving(false);
     }
@@ -484,19 +486,19 @@ export default function EventsPage() {
       const usedByOthers = allocatedTicketQty - (editingTicket ? (editingTicket.quantityAvailable ?? 0) : 0);
       const allowed = maxCapacity - usedByOthers;
       if (qty > allowed) {
-        showToast(`Quantity exceeds remaining capacity. Max you can add: ${allowed} (event max: ${maxCapacity}).`);
+        showToast(t("adminEvents.toasts.quantityExceedsCapacity", { allowed, max: maxCapacity }));
         return;
       }
     }
 
     // ── Max Per Order ──
-    if (mpo < 1) { showToast("Max per order must be at least 1."); return; }
+    if (mpo < 1) { showToast(t("adminEvents.toasts.maxPerOrderMin")); return; }
     if (maxCapacity > 0 && mpo > maxCapacity) {
-      showToast(`Max per order (${mpo}) cannot exceed the event's max capacity (${maxCapacity}).`);
+      showToast(t("adminEvents.toasts.maxPerOrderExceedsCapacity", { mpo, max: maxCapacity }));
       return;
     }
     if (mpo > qty) {
-      showToast(`Max per order (${mpo}) cannot exceed the ticket quantity (${qty}).`);
+      showToast(t("adminEvents.toasts.maxPerOrderExceedsQty", { mpo, qty }));
       return;
     }
 
@@ -508,27 +510,27 @@ export default function EventsPage() {
 
     if (ticketForm.saleStart) {
       const saleStart = new Date(ticketForm.saleStart);
-      if (isSaleStartChanged && saleStart < now) { showToast("Sale start date cannot be in the past."); return; }
+      if (isSaleStartChanged && saleStart < now) { showToast(t("adminEvents.toasts.saleStartInPast")); return; }
       if (eventEnd && saleStart >= eventEnd) {
-        showToast(`Sale start must be before the event ends (${fmtDt(schedule.endDatetime)}).`);
+        showToast(t("adminEvents.toasts.saleStartBeforeEnd", { date: fmtDt(schedule.endDatetime) }));
         return;
       }
       if (ticketForm.saleEnd) {
         const saleEnd = new Date(ticketForm.saleEnd);
-        if (saleEnd <= saleStart) { showToast("Sale end must be after sale start."); return; }
+        if (saleEnd <= saleStart) { showToast(t("adminEvents.toasts.saleEndAfterStart")); return; }
         if (saleEnd.getTime() - saleStart.getTime() < 2 * 3600 * 1000) {
-          showToast("Sale window must be at least 2 hours long."); return;
+          showToast(t("adminEvents.toasts.saleWindowMin")); return;
         }
         if (eventEnd && saleEnd > eventEnd) {
-          showToast(`Sale end cannot be after the event ends (${fmtDt(schedule.endDatetime)}).`);
+          showToast(t("adminEvents.toasts.saleEndAfterEvent", { date: fmtDt(schedule.endDatetime) }));
           return;
         }
       }
     } else if (ticketForm.saleEnd) {
       const saleEnd = new Date(ticketForm.saleEnd);
-      if (isSaleEndChanged && saleEnd < now) { showToast("Sale end date cannot be in the past."); return; }
+      if (isSaleEndChanged && saleEnd < now) { showToast(t("adminEvents.toasts.saleEndInPast")); return; }
       if (eventEnd && saleEnd > eventEnd) {
-        showToast(`Sale end cannot be after the event ends (${fmtDt(schedule.endDatetime)}).`);
+        showToast(t("adminEvents.toasts.saleEndAfterEvent", { date: fmtDt(schedule.endDatetime) }));
         return;
       }
     }
@@ -551,15 +553,15 @@ export default function EventsPage() {
       if (editingTicket) {
         await eventService.updateTicketType(editingTicket.ticketId, payload);
         setEditingTicket(null);
-        showToast("Ticket updated!");
+        showToast(t("adminEvents.toasts.ticketUpdated"));
       } else {
         await eventService.createTicketType(payload);
-        showToast("Ticket type added!");
+        showToast(t("adminEvents.toasts.ticketAdded"));
       }
       setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
       await loadEventData(selectedId);
     } catch (err: any) {
-      showToast(err.message || (editingTicket ? "Failed to update ticket." : "Failed to add ticket."));
+      showToast(err.message || (editingTicket ? t("adminEvents.toasts.ticketUpdateFailed") : t("adminEvents.toasts.ticketAddFailed")));
     } finally {
       setSaving(false);
     }
@@ -583,14 +585,14 @@ export default function EventsPage() {
       if (editingMember) {
         await eventService.updateNetworking(editingMember.connectionId, payload);
         setEditingMember(null);
-        showToast("Team member updated!");
+        showToast(t("adminEvents.toasts.memberUpdated"));
       } else {
         await eventService.createNetworking(payload);
-        showToast("Team member added!");
+        showToast(t("adminEvents.toasts.memberAdded"));
       }
       setTeamForm({ name: "", position: "", bio: "", photoUrl: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingMember ? "Failed to update team member." : "Failed to add team member."); }
+    } catch { showToast(editingMember ? t("adminEvents.toasts.memberUpdateFailed") : t("adminEvents.toasts.memberAddFailed")); }
     finally { setTeamLoading(false); }
   };
 
@@ -598,7 +600,7 @@ export default function EventsPage() {
   const saveSession = async (e: React.FormEvent) => {
     e.preventDefault();
     if (maxCapacity > 0 && Number(sessionForm.capacity) > maxCapacity) {
-      showToast(`Session capacity cannot exceed the event's max capacity of ${maxCapacity}.`);
+      showToast(t("adminEvents.toasts.sessionCapacityExceeded", { max: maxCapacity }));
       return;
     }
     setSaving(true);
@@ -618,15 +620,15 @@ export default function EventsPage() {
       if (editingSession) {
         await eventService.updateSession(editingSession.sessionId, payload);
         setEditingSession(null);
-        showToast("Session updated!");
+        showToast(t("adminEvents.toasts.sessionUpdated"));
       } else {
         await eventService.createSession(payload);
-        showToast("Session added!");
+        showToast(t("adminEvents.toasts.sessionAdded"));
       }
       setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
       await loadEventData(selectedId);
     } catch (err: any) {
-      showToast(err.message || (editingSession ? "Failed to update session." : "Failed to add session."));
+      showToast(err.message || (editingSession ? t("adminEvents.toasts.sessionUpdateFailed") : t("adminEvents.toasts.sessionAddFailed")));
     } finally {
       setSaving(false);
     }
@@ -637,7 +639,7 @@ export default function EventsPage() {
     e.preventDefault();
     if (!trackForm.name.trim()) return;
     if (maxCapacity > 0 && Number(trackForm.capacity) > maxCapacity) {
-      showToast(`Track capacity cannot exceed the event's max capacity of ${maxCapacity}.`);
+      showToast(t("adminEvents.toasts.trackCapacityExceeded", { max: maxCapacity }));
       return;
     }
     setSaving(true);
@@ -653,15 +655,15 @@ export default function EventsPage() {
       if (editingTrack) {
         await eventService.updateTrack(editingTrack.trackId || editingTrack.id, payload);
         setEditingTrack(null);
-        showToast("Track updated!");
+        showToast(t("adminEvents.toasts.trackUpdated"));
       } else {
         await eventService.createTrack(payload);
-        showToast("Track created!");
+        showToast(t("adminEvents.toasts.trackCreated"));
       }
       setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
       await loadEventData(selectedId);
     } catch (err: any) {
-      showToast(err.message || "Failed to save track.");
+      showToast(err.message || t("adminEvents.toasts.trackSaveFailed"));
     } finally {
       setSaving(false);
     }
@@ -681,21 +683,21 @@ export default function EventsPage() {
       if (editingPoll) {
         await eventService.updatePoll(editingPoll.pollId, payload);
         setEditingPoll(null);
-        showToast("Poll updated!");
+        showToast(t("adminEvents.toasts.pollUpdated"));
       } else {
         await eventService.createPoll(payload);
-        showToast("Poll created!");
+        showToast(t("adminEvents.toasts.pollCreated"));
       }
       setPollForm({ question: "", options: ["", ""] });
       await loadEventData(selectedId);
-    } catch { showToast(editingPoll ? "Failed to update poll." : "Failed to create poll."); }
+    } catch { showToast(editingPoll ? t("adminEvents.toasts.pollUpdateFailed") : t("adminEvents.toasts.pollCreateFailed")); }
     finally { setSaving(false); }
   };
 
   // ── Add Q&A ──
   const addQA = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!qaForm.sessionId) { showToast("Please select a session for this question."); return; }
+    if (!qaForm.sessionId) { showToast(t("adminEvents.toasts.selectSessionFirst")); return; }
     setSaving(true);
     try {
       await eventService.createQaQuestion({
@@ -708,8 +710,8 @@ export default function EventsPage() {
       });
       setQaForm({ questionText: "", isAnonymous: false, sessionId: qaForm.sessionId });
       await loadEventData(selectedId);
-      showToast("Question added!");
-    } catch { showToast("Failed to add question."); }
+      showToast(t("adminEvents.toasts.questionAdded"));
+    } catch { showToast(t("adminEvents.toasts.questionAddFailed")); }
     finally { setSaving(false); }
   };
 
@@ -721,8 +723,8 @@ export default function EventsPage() {
       await eventService.createEmailCampaign({ eventId: selectedId, tenantId: auth?.tenantId, subject: emailForm.subject, body: emailForm.body, targetAudience: emailForm.targetAudience, scheduledAt: emailForm.scheduledAt ? new Date(emailForm.scheduledAt).toISOString() : undefined, status: "SCHEDULED" });
       setEmailForm({ subject: "", body: "", targetAudience: "ALL_REGISTRANTS", scheduledAt: "" });
       await loadEventData(selectedId);
-      showToast("Campaign scheduled!");
-    } catch { showToast("Failed to schedule campaign."); }
+      showToast(t("adminEvents.toasts.campaignScheduled"));
+    } catch { showToast(t("adminEvents.toasts.campaignScheduleFailed")); }
     finally { setSaving(false); }
   };
 
@@ -735,14 +737,14 @@ export default function EventsPage() {
       if (editingSponsor) {
         await eventService.updateSponsor(editingSponsor.sponsorId || editingSponsor.id, { ...payload, status: editingSponsor.status || "APPROVED" });
         setEditingSponsor(null);
-        showToast("Sponsor updated!");
+        showToast(t("adminEvents.toasts.sponsorUpdated"));
       } else {
         await eventService.createSponsor({ ...payload, status: "APPROVED" });
-        showToast("Sponsor added!");
+        showToast(t("adminEvents.toasts.sponsorAdded"));
       }
       setSponsorForm({ name: "", email: "", website: "", logoUrl: "", packageId: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingSponsor ? "Failed to update sponsor." : "Failed to add sponsor."); }
+    } catch { showToast(editingSponsor ? t("adminEvents.toasts.sponsorUpdateFailed") : t("adminEvents.toasts.sponsorAddFailed")); }
     finally { setSaving(false); }
   };
 
@@ -757,8 +759,8 @@ export default function EventsPage() {
         status,
       });
       await loadEventData(selectedId);
-      showToast(`Sponsor ${status === "APPROVED" ? "approved" : "rejected"}!`);
-    } catch { showToast("Failed to update sponsor status."); }
+      showToast(status === "APPROVED" ? t("adminEvents.toasts.sponsorApproved") : t("adminEvents.toasts.sponsorRejected"));
+    } catch { showToast(t("adminEvents.toasts.sponsorStatusFailed")); }
   };
 
   // ── Save sponsorship package ──
@@ -776,8 +778,8 @@ export default function EventsPage() {
       });
       setSponsorPkgForm({ name: "", description: "", price: 0, benefits: "", maxSponsors: 0, applicationStart: "", applicationEnd: "" });
       await loadEventData(selectedId);
-      showToast("Package created!");
-    } catch { showToast("Failed to create package."); }
+      showToast(t("adminEvents.toasts.packageCreated"));
+    } catch { showToast(t("adminEvents.toasts.packageCreateFailed")); }
     finally { setSaving(false); }
   };
 
@@ -798,14 +800,14 @@ export default function EventsPage() {
       if (editingVolunteerOpening) {
         await eventService.updateVolunteerOpening(editingVolunteerOpening.openingId || editingVolunteerOpening.id, payload);
         setEditingVolunteerOpening(null);
-        showToast("Volunteer opening updated!");
+        showToast(t("adminEvents.toasts.volunteerOpeningUpdated"));
       } else {
         await eventService.createVolunteerOpening(payload);
-        showToast("Volunteer opening created!");
+        showToast(t("adminEvents.toasts.volunteerOpeningCreated"));
       }
       setVolunteerOpeningForm({ title: "", description: "", requirements: "", applicationStart: "", applicationEnd: "", maxVolunteers: 0 });
       await loadEventData(selectedId);
-    } catch { showToast("Failed to save volunteer opening."); }
+    } catch { showToast(t("adminEvents.toasts.volunteerOpeningSaveFailed")); }
     finally { setSaving(false); }
   };
 
@@ -819,8 +821,8 @@ export default function EventsPage() {
         status,
       });
       await loadEventData(selectedId);
-      showToast(`Volunteer application ${status === "APPROVED" ? "approved" : "rejected"}!`);
-    } catch { showToast("Failed to update application status."); }
+      showToast(status === "APPROVED" ? t("adminEvents.toasts.volunteerApplicationApproved") : t("adminEvents.toasts.volunteerApplicationRejected"));
+    } catch { showToast(t("adminEvents.toasts.volunteerApplicationStatusFailed")); }
   };
 
   // ── Save speaker ──
@@ -842,14 +844,14 @@ export default function EventsPage() {
       if (editingSpeaker) {
         await eventService.updateSessionSpeaker(editingSpeaker.speakerId || editingSpeaker.id, payload);
         setEditingSpeaker(null);
-        showToast("Speaker updated!");
+        showToast(t("adminEvents.toasts.speakerUpdated"));
       } else {
         await eventService.createSessionSpeaker(payload);
-        showToast("Speaker added!");
+        showToast(t("adminEvents.toasts.speakerAdded"));
       }
       setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingSpeaker ? "Failed to update speaker." : "Failed to add speaker."); }
+    } catch { showToast(editingSpeaker ? t("adminEvents.toasts.speakerUpdateFailed") : t("adminEvents.toasts.speakerAddFailed")); }
     finally { setSaving(false); }
   };
 
@@ -862,14 +864,14 @@ export default function EventsPage() {
       if (editingCoupon) {
         await eventService.updateCoupon(editingCoupon.couponId || editingCoupon.id, payload);
         setEditingCoupon(null);
-        showToast("Coupon updated!");
+        showToast(t("adminEvents.toasts.couponUpdated"));
       } else {
         await eventService.createCoupon(payload);
-        showToast("Coupon created!");
+        showToast(t("adminEvents.toasts.couponCreated"));
       }
       setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100, expiryDate: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingCoupon ? "Failed to update coupon." : "Failed to create coupon."); }
+    } catch { showToast(editingCoupon ? t("adminEvents.toasts.couponUpdateFailed") : t("adminEvents.toasts.couponCreateFailed")); }
     finally { setSaving(false); }
   };
 
@@ -882,14 +884,14 @@ export default function EventsPage() {
       if (editingExhibitor) {
         await eventService.updateExhibitor(editingExhibitor.exhibitorId || editingExhibitor.id, { ...payload, status: editingExhibitor.status || "APPROVED" });
         setEditingExhibitor(null);
-        showToast("Exhibitor updated!");
+        showToast(t("adminEvents.toasts.exhibitorUpdated"));
       } else {
         await eventService.createExhibitor({ ...payload, status: "APPROVED" });
-        showToast("Exhibitor added!");
+        showToast(t("adminEvents.toasts.exhibitorAdded"));
       }
       setExhibitorForm({ name: "", email: "", website: "", logoUrl: "", boothNumber: "", locationId: "" });
       await loadEventData(selectedId);
-    } catch { showToast(editingExhibitor ? "Failed to update exhibitor." : "Failed to add exhibitor."); }
+    } catch { showToast(editingExhibitor ? t("adminEvents.toasts.exhibitorUpdateFailed") : t("adminEvents.toasts.exhibitorAddFailed")); }
     finally { setSaving(false); }
   };
 
@@ -904,8 +906,8 @@ export default function EventsPage() {
         status,
       });
       await loadEventData(selectedId);
-      showToast(`Vendor ${status === "APPROVED" ? "approved" : "rejected"}!`);
-    } catch { showToast("Failed to update vendor status."); }
+      showToast(status === "APPROVED" ? t("adminEvents.toasts.vendorApproved") : t("adminEvents.toasts.vendorRejected"));
+    } catch { showToast(t("adminEvents.toasts.vendorStatusFailed")); }
   };
 
   // ── Save announcement ──
@@ -917,14 +919,14 @@ export default function EventsPage() {
       if (editingAnnouncement) {
         await eventService.updateAnnouncement(editingAnnouncement.announcementId || editingAnnouncement.id, payload);
         setEditingAnnouncement(null);
-        showToast("Announcement updated!");
+        showToast(t("adminEvents.toasts.announcementUpdated"));
       } else {
         await eventService.createAnnouncement(payload);
-        showToast("Announcement sent!");
+        showToast(t("adminEvents.toasts.announcementSent"));
       }
       setAnnouncementForm({ title: "", content: "", type: "GENERAL" });
       await loadEventData(selectedId);
-    } catch { showToast(editingAnnouncement ? "Failed to update." : "Failed to send announcement."); }
+    } catch { showToast(editingAnnouncement ? t("adminEvents.toasts.announcementUpdateFailed") : t("adminEvents.toasts.announcementSendFailed")); }
     finally { setSaving(false); }
   };
 
@@ -937,8 +939,8 @@ export default function EventsPage() {
       const clonedId = cloned.eventId || (cloned as any).id;
       await loadEvents();
       await selectEvent(clonedId);
-      showToast("Event cloned! A draft copy has been created.");
-    } catch { showToast("Failed to clone event."); }
+      showToast(t("adminEvents.toasts.eventCloned"));
+    } catch { showToast(t("adminEvents.toasts.eventCloneFailed")); }
     finally { setSaving(false); }
   };
 
@@ -969,8 +971,8 @@ export default function EventsPage() {
       const evs = await eventService.getMyEvents().catch(() => []);
       const filtered = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
       setEvents(filtered);
-      showToast(`Event status set to ${newStatus}!`);
-    } catch { showToast("Failed to update status."); }
+      showToast(t("adminEvents.toasts.statusSetTo", { status: newStatus }));
+    } catch { showToast(t("adminEvents.toasts.statusUpdateFailed")); }
     finally { setSaving(false); }
   };
 
@@ -988,9 +990,9 @@ export default function EventsPage() {
   const handleCheckIn = async (regId: string) => {
     try {
       await eventService.checkInRegistration(regId);
-      showToast("Checked in successfully!");
+      showToast(t("adminEvents.toasts.checkedInSuccess"));
       await loadRegistrations();
-    } catch (err: any) { showToast(err.message || "Check-in failed."); }
+    } catch (err: any) { showToast(err.message || t("adminEvents.toasts.checkInFailed")); }
   };
 
   // Completion status for each tab — drives dots in tab bar
@@ -1043,15 +1045,15 @@ export default function EventsPage() {
         {/* ── LEFT: Event list ── */}
         <aside className="w-72 bg-white border-r border-[#e5e7eb] flex flex-col h-screen sticky top-0">
           <div className="p-5 border-b border-[#e5e7eb]">
-            <h2 className="font-display font-black text-[#1a1a1a] text-base mb-4">Events</h2>
+            <h2 className="font-display font-black text-[#1a1a1a] text-base mb-4">{t("adminEvents.sidebar.title")}</h2>
             <button onClick={() => { setShowNew(true); setSelectedId(""); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer">
-              <Plus size={14} /> New Event
+              <Plus size={14} /> {t("adminEvents.sidebar.newEvent")}
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto py-2">
             {events.length === 0 ? (
-              <div className="px-5 py-8 text-center text-xs text-[#aaa]">No events yet. Create your first one!</div>
+              <div className="px-5 py-8 text-center text-xs text-[#aaa]">{t("adminEvents.sidebar.empty")}</div>
             ) : events.map(ev => (
               <button key={ev.eventId} onClick={() => selectEvent(ev.eventId)}
                 className={`w-full text-left px-5 py-4 border-b border-[#f5f5f5] hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedId === ev.eventId ? "bg-[#fff5f5] border-l-2 border-l-[#FF4747]" : ""}`}>
@@ -1071,20 +1073,20 @@ export default function EventsPage() {
           {showNew && (
             <div className="flex-1 p-8">
               <div className="max-w-2xl">
-                <h1 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">Create New Event</h1>
-                <p className="text-sm text-[#888] mb-8">Start with the basics — you can fill in all details after.</p>
+                <h1 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">{t("adminEvents.createForm.heading")}</h1>
+                <p className="text-sm text-[#888] mb-8">{t("adminEvents.createForm.subtitle")}</p>
                 <form onSubmit={handleCreateEvent} className="bg-white border border-[#e5e7eb] rounded-3xl p-8 space-y-5">
                   <div>
-                    <label className={label}>Event Title *</label>
-                    <input required placeholder="e.g. Tech Summit Yaoundé 2026" value={newTitle} onChange={e => setNewTitle(e.target.value)} className={inp} />
+                    <label className={label}>{t("adminEvents.createForm.titleLabel")}</label>
+                    <input required placeholder={t("adminEvents.createForm.titlePlaceholder")} value={newTitle} onChange={e => setNewTitle(e.target.value)} className={inp} />
                   </div>
                   <div>
-                    <label className={label}>Short Description</label>
-                    <textarea placeholder="A brief overview of the event..." value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={3} className={inp + " resize-none"} />
+                    <label className={label}>{t("adminEvents.createForm.descLabel")}</label>
+                    <textarea placeholder={t("adminEvents.createForm.descPlaceholder")} value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={3} className={inp + " resize-none"} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className={label}>Start Date & Time *</label>
+                      <label className={label}>{t("adminEvents.createForm.startLabel")}</label>
                       <input
                         type="datetime-local"
                         value={newStart}
@@ -1099,7 +1101,7 @@ export default function EventsPage() {
                       />
                     </div>
                     <div>
-                      <label className={label}>End Date & Time *</label>
+                      <label className={label}>{t("adminEvents.createForm.endLabel")}</label>
                       <input
                         type="datetime-local"
                         value={newEnd}
@@ -1111,7 +1113,7 @@ export default function EventsPage() {
                     </div>
                   </div>
                   <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center py-3"}>
-                    {saving ? "Creating..." : <><Plus size={15} /> Create Event</>}
+                    {saving ? t("adminEvents.createForm.creating") : <><Plus size={15} /> {t("adminEvents.createForm.submit")}</>}
                   </button>
                 </form>
               </div>
@@ -1128,32 +1130,32 @@ export default function EventsPage() {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${selectedEvent?.status === "PUBLISHED" ? "bg-green-100 text-green-700" : "bg-[#f5f5f5] text-[#888]"}`}>{selectedEvent?.status}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {tab === "details"       && <button onClick={saveDetails}  disabled={saving} className={saveBtn}><Save size={13} />{saving ? "Saving…" : "Save Details"}</button>}
-                  {tab === "schedule"      && <button onClick={saveSchedule} disabled={saving} className={saveBtn}><Save size={13} />{saving ? "Saving…" : "Save Schedule"}</button>}
-                  {tab === "location"      && <button onClick={() => locFormRef.current?.requestSubmit()}     disabled={saving} className={saveBtn}>{editingLocation ? <><Save size={13} />{saving ? "Saving…" : "Save Location"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Location"}</>}</button>}
-                  {tab === "tickets"       && <button onClick={() => ticketFormRef.current?.requestSubmit()}  disabled={saving} className={saveBtn}>{editingTicket ? <><Save size={13} />{saving ? "Saving…" : "Save Ticket"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Ticket"}</>}</button>}
-                  {tab === "coupons"       && <button onClick={() => couponFormRef.current?.requestSubmit()}  disabled={saving} className={saveBtn}>{editingCoupon ? <><Save size={13} />{saving ? "Saving…" : "Save Coupon"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Coupon"}</>}</button>}
-                  {tab === "team"          && <button onClick={() => teamFormRef.current?.requestSubmit()}    disabled={teamLoading} className={saveBtn}>{editingMember ? <><Save size={13} />{teamLoading ? "Saving…" : "Save Member"}</> : <><Plus size={13} />{teamLoading ? "Adding…" : "Add Member"}</>}</button>}
-                  {tab === "sessions"      && <button onClick={() => sessionFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? "Saving…" : "Save Session"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Session"}</>}</button>}
-                  {tab === "speakers"      && <button onClick={() => speakerFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? "Saving…" : "Save Speaker"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Speaker"}</>}</button>}
-                  {tab === "sponsors"      && <button onClick={() => sponsorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? "Saving…" : "Save Sponsor"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Sponsor"}</>}</button>}
-                  {tab === "registrations" && <button onClick={loadRegistrations} disabled={registrationsLoading} className={saveBtn}><ScanLine size={13} />{registrationsLoading ? "Loading…" : "Refresh"}</button>}
-                  {tab === "vendors"        && <button onClick={() => exhibitorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? "Saving…" : "Save Exhibitor"}</> : <><Plus size={13} />{saving ? "Adding…" : "Add Exhibitor"}</>}</button>}
-                  {tab === "announcements"  && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? "Saving…" : "Save"}</> : <><Megaphone size={13} />{saving ? "Posting…" : "Post Announcement"}</>}</button>}
-                  {tab === "live"          && <button onClick={() => pollFormRef.current?.requestSubmit()}    disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? "Saving…" : "Save Poll"}</> : <><Plus size={13} />{saving ? "Creating…" : "Add Poll"}</>}</button>}
-                  {tab === "email"         && <button onClick={() => emailFormRef.current?.requestSubmit()}   disabled={saving} className={saveBtn}><Mail size={13} />{saving ? "Saving…" : "Schedule Email"}</button>}
-                  {tab === "sections"      && <button onClick={saveSection}                   disabled={saving} className={saveBtn}><Save size={13} />{saving ? "Saving…" : editingSection ? "Save Section" : "Add Section"}</button>}
+                  {tab === "details"       && <button onClick={saveDetails}  disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveDetails")}</button>}
+                  {tab === "schedule"      && <button onClick={saveSchedule} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSchedule")}</button>}
+                  {tab === "location"      && <button onClick={() => locFormRef.current?.requestSubmit()}     disabled={saving} className={saveBtn}>{editingLocation ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveLocation")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addLocation")}</>}</button>}
+                  {tab === "tickets"       && <button onClick={() => ticketFormRef.current?.requestSubmit()}  disabled={saving} className={saveBtn}>{editingTicket ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveTicket")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addTicket")}</>}</button>}
+                  {tab === "coupons"       && <button onClick={() => couponFormRef.current?.requestSubmit()}  disabled={saving} className={saveBtn}>{editingCoupon ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveCoupon")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addCoupon")}</>}</button>}
+                  {tab === "team"          && <button onClick={() => teamFormRef.current?.requestSubmit()}    disabled={teamLoading} className={saveBtn}>{editingMember ? <><Save size={13} />{teamLoading ? t("adminEvents.common.saving") : t("adminEvents.header.saveMember")}</> : <><Plus size={13} />{teamLoading ? t("adminEvents.common.adding") : t("adminEvents.header.addMember")}</>}</button>}
+                  {tab === "sessions"      && <button onClick={() => sessionFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSession")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSession")}</>}</button>}
+                  {tab === "speakers"      && <button onClick={() => speakerFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSpeaker")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSpeaker")}</>}</button>}
+                  {tab === "sponsors"      && <button onClick={() => sponsorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSponsor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSponsor")}</>}</button>}
+                  {tab === "registrations" && <button onClick={loadRegistrations} disabled={registrationsLoading} className={saveBtn}><ScanLine size={13} />{registrationsLoading ? t("adminEvents.common.loading") : t("adminEvents.header.refresh")}</button>}
+                  {tab === "vendors"        && <button onClick={() => exhibitorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveExhibitor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addExhibitor")}</>}</button>}
+                  {tab === "announcements"  && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.save")}</> : <><Megaphone size={13} />{saving ? t("adminEvents.common.posting") : t("adminEvents.header.postAnnouncement")}</>}</button>}
+                  {tab === "live"          && <button onClick={() => pollFormRef.current?.requestSubmit()}    disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.savePoll")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.creating") : t("adminEvents.header.addPoll")}</>}</button>}
+                  {tab === "email"         && <button onClick={() => emailFormRef.current?.requestSubmit()}   disabled={saving} className={saveBtn}><Mail size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.scheduleEmail")}</button>}
+                  {tab === "sections"      && <button onClick={saveSection}                   disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : editingSection ? t("adminEvents.header.saveSection") : t("adminEvents.header.addSection")}</button>}
                 </div>
               </header>
 
               {/* Tabs */}
               <div className="bg-white border-b border-[#e5e7eb] px-4 flex gap-1 overflow-x-auto shrink-0 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-                {TABS.map(({ id, label: lbl, icon: Icon }) => {
+                {TABS.map(({ id, labelKey, icon: Icon }) => {
                   const status = id === "overview" ? null : tabStatus(id);
                   return (
                     <button key={id} onClick={() => setTab(id)}
                       className={`flex items-center gap-2 px-4 py-3.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${tab === id ? "border-[#FF4747] text-[#FF4747]" : "border-transparent text-[#888] hover:text-[#1a1a1a]"}`}>
-                      <Icon size={14} />{lbl}
+                      <Icon size={14} />{t(labelKey)}
                       {status === "done"    && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
                       {status === "partial" && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
                       {status === "empty"   && <span className="w-1.5 h-1.5 rounded-full bg-[#e5e7eb] shrink-0" />}

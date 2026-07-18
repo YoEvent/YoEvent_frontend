@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { CheckCircle, XCircle, Users, Handshake, ChevronDown, Building2, Star, Plus, Trash2, Pencil, Save, Image as ImageIcon, Phone, Globe, Mail, User } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
+import { useLanguage } from "@/app/context/LanguageContext";
 
 type Tab = "sponsors" | "vendors" | "volunteers";
 
@@ -19,6 +20,7 @@ const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wi
 const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer disabled:opacity-50";
 
 export default function ApplicationsPage() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("sponsors");
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -125,16 +127,16 @@ export default function ApplicationsPage() {
     const id = sponsor.sponsorId || sponsor.id;
     const acceptedCount = sponsors.filter(s => s.status === "ACCEPTED").length;
     if (status === "ACCEPTED" && acceptedCount >= maxSponsors) {
-      showToast("error", `Maximum sponsor limit (${maxSponsors}) already reached.`);
+      showToast("error", t("adminApplications.toasts.maxSponsorsReached", { max: maxSponsors }));
       return;
     }
     setActionLoading(id);
     try {
       await eventService.updateSponsor(id, { ...sponsor, status });
       setSponsors(prev => prev.map(s => (s.sponsorId === id || s.id === id) ? { ...s, status } : s));
-      showToast("success", `Sponsor ${status === "ACCEPTED" ? "accepted" : "rejected"}.`);
+      showToast("success", status === "ACCEPTED" ? t("adminApplications.toasts.sponsorAccepted") : t("adminApplications.toasts.sponsorRejected"));
     } catch {
-      showToast("error", "Action failed.");
+      showToast("error", t("adminApplications.toasts.actionFailed"));
     } finally {
       setActionLoading(null);
     }
@@ -150,10 +152,11 @@ export default function ApplicationsPage() {
         roleId: part.role?.id,
         status: status
       });
-      showToast("success", `Participant status updated to ${status}.`);
+      const statusLabel = status === "confirmed" ? t("adminApplications.toasts.statusConfirmed") : t("adminApplications.toasts.statusRejected");
+      showToast("success", t("adminApplications.toasts.participantStatusUpdated", { status: statusLabel }));
       await loadApplications(selectedEventId);
     } catch {
-      showToast("error", "Action failed.");
+      showToast("error", t("adminApplications.toasts.actionFailed"));
     } finally {
       setActionLoading(null);
     }
