@@ -36,6 +36,7 @@ export default function AdminPage() {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [tenantSettings, setTenantSettings] = useState<any>(null);
   const [planLimits, setPlanLimits] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
 
   const loadDashboard = () => {
     const auth = getStoredAuth();
@@ -55,8 +56,9 @@ export default function AdminPage() {
       authService.stripeStatus(auth.tenantId).catch(() => ({ connected: false })),
       authService.getMyTenantSettings().catch(() => null),
       authService.getMyPlanLimits().catch(() => null),
+      eventService.getOrders().catch(() => []),
     ])
-      .then(async ([userData, tenantData, eventsData, analyticsData, regsData, plansData, ticketTypesData, stripeData, settingsData, limitsData]) => {
+      .then(async ([userData, tenantData, eventsData, analyticsData, regsData, plansData, ticketTypesData, stripeData, settingsData, limitsData, ordersData]) => {
         setProfile(userData);
         setTenant(tenantData);
         setEvents(eventsData || []);
@@ -67,6 +69,11 @@ export default function AdminPage() {
         setStripeStatus(stripeData || { connected: false });
         setTenantSettings(settingsData);
         setPlanLimits(limitsData);
+
+        const myEvents = (eventsData || []);
+        const myEventIds = new Set(myEvents.map((e: any) => e.eventId || e.id));
+        const myOrders = (ordersData || []).filter((o: any) => !o.eventId || myEventIds.has(o.eventId));
+        setOrders(myOrders);
 
         const uniqueIds = [...new Set((regsData || []).map((r: any) => r.userId as string))];
         const fetched = await Promise.all(
@@ -141,11 +148,10 @@ export default function AdminPage() {
   // ── Core metrics ────────────────────────────────────────────────────────────
   const totalRegistrations = registrations.length;
   const publishedEvents    = events.filter(e => e.status === "PUBLISHED" || e.status === "ACTIVE").length;
-  const totalRevenue       = registrations.reduce((sum, reg) => {
-    if (reg.status !== "CONFIRMED" && reg.status !== "CHECKED_IN") return sum;
-    const tType = ticketTypes.find((t: any) => (t.ticketId || t.id) === reg.ticketTypeId);
-    return sum + Number(tType?.price || 0);
-  }, 0);
+  const completedOrders    = orders.filter((o) => o.status === "COMPLETED");
+  const grossRev           = completedOrders.reduce((sum, o) => sum + (parseFloat(o.totalAmount) || 0), 0);
+  const platformFees       = completedOrders.reduce((sum, o) => sum + (parseFloat(o.platformFee) || 0), 0);
+  const totalRevenue       = grossRev - platformFees;
 
   let paidTicketsCount = 0;
   let freeTicketsCount = 0;
@@ -203,15 +209,13 @@ export default function AdminPage() {
   // ── Revenue per event ────────────────────────────────────────────────────────
   const revenueByEvent = events
     .map(ev => {
-      const evRegs = registrations.filter(r =>
+      const evOrders = orders.filter(o => o.eventId === ev.eventId && o.status === "COMPLETED");
+      const revenue = evOrders.reduce((sum, o) => sum + (parseFloat(o.totalAmount) || 0) - (parseFloat(o.platformFee) || 0), 0);
+      const confirmedRegs = registrations.filter(r => 
         (r.eventId === ev.eventId || r.event?.eventId === ev.eventId) &&
         (r.status === "CONFIRMED" || r.status === "CHECKED_IN")
-      );
-      const revenue = evRegs.reduce((sum, reg) => {
-        const tType = ticketTypes.find((t: any) => (t.ticketId || t.id) === reg.ticketTypeId);
-        return sum + Number(tType?.price || 0);
-      }, 0);
-      return { ...ev, revenue, confirmedRegs: evRegs.length };
+      ).length;
+      return { ...ev, revenue, confirmedRegs };
     })
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);

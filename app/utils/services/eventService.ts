@@ -220,7 +220,8 @@ export const eventService = {
   getRegistrationsByEvent: (eventId: string) => api.get<any[]>(`api/v1/registrations/event/${eventId}`),
   createRegistration: (data: any) => api.post<any>("api/v1/registrations", data),
   getRegistrationById: (id: string) => api.get<any>(`api/v1/registrations/${id}`),
-  checkInRegistration: (id: string) => api.post<any>(`api/v1/registrations/${id}/checkin`),
+  checkInRegistration: (id: string, sessionId: string) => api.post<any>(`api/v1/registrations/${id}/checkin?sessionId=${sessionId}`),
+  getSessionCheckins: (sessionId: string) => api.get<any[]>(`api/v1/registrations/session/${sessionId}/checkins`),
 
   // Orders
   getOrders: () => api.get<T.OrderResponse[]>("api/v1/orders"),
@@ -307,5 +308,13 @@ export const eventService = {
   getAssignmentsByLocation: (locationId: string) => api.get<any[]>(`api/v1/assignments/location/${locationId}`),
   createAssignment: (data: any) => api.post<any>("api/v1/assignments", data),
   updateAssignment: (id: string, data: any) => api.put<any>(`api/v1/assignments/${id}`, data),
-  deleteAssignment: (id: string) => api.delete<void>(`api/v1/assignments/${id}`)
+  deleteAssignment: (id: string) => api.delete<void>(`api/v1/assignments/${id}`),
+
+  // Room Asset Allocations
+  getRoomAssetAllocations: () => api.get<any[]>("api/v1/room-asset-allocations"),
+  getRoomAssetAllocationsByRoom: (roomId: string) => api.get<any[]>(`api/v1/room-asset-allocations/room/${roomId}`),
+  getRoomAssetAllocationsByResource: (resourceId: string) => api.get<any[]>(`api/v1/room-asset-allocations/resource/${resourceId}`),
+  createRoomAssetAllocation: (data: any) => api.post<any>("api/v1/room-asset-allocations", data),
+  updateRoomAssetAllocation: (id: string, data: any) => api.put<any>(`api/v1/room-asset-allocations/${id}`, data),
+  deleteRoomAssetAllocation: (id: string) => api.delete<void>(`api/v1/room-asset-allocations/${id}`)
 };

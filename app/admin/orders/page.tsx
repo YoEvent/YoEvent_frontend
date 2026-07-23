@@ -2,12 +2,13 @@
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { eventService } from "@/app/utils/services/eventService";
+import { paymentService } from "@/app/utils/services/paymentService";
 import { getStoredAuth } from "@/app/utils/api";
-import { ShoppingCart, Search, ChevronDown, Package, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ShoppingCart, Search, ChevronDown, Package, CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
 import { useLanguage } from "@/app/context/LanguageContext";
-
+ 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
-
+ 
 export default function OrdersPage() {
   const { t } = useLanguage();
   const auth = getStoredAuth();
@@ -19,16 +20,18 @@ export default function OrdersPage() {
   const [filterEventId, setFilterEventId] = useState("ALL");
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
-
+  const [refunds, setRefunds] = useState<any[]>([]);
+ 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [evs, ords, items, tickets] = await Promise.all([
+        const [evs, ords, items, tickets, refundsList] = await Promise.all([
           eventService.getMyEvents().catch(() => []),
           eventService.getOrders().catch(() => []),
           eventService.getOrderItems().catch(() => []),
           eventService.getTicketTypes().catch(() => []),
+          paymentService.getRefunds().catch(() => []),
         ]);
         const myEvents = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
         setEvents(myEvents);
@@ -37,6 +40,7 @@ export default function OrdersPage() {
         setOrders(myOrders);
         setOrderItems(items || []);
         setTicketTypes(tickets || []);
+        setRefunds(refundsList || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -201,7 +205,61 @@ export default function OrdersPage() {
               )}
             </div>
           </div>
-
+ 
+          {/* Refunds Table */}
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm mt-8">
+            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
+              <DollarSign size={18} className="text-red-500" /> {t("adminProject.refunds.title") || "Refunds"}
+            </h2>
+            <div className="overflow-x-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-10 text-[#aaa]">
+                  <div className="w-6 h-6 border-2 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin" />
+                </div>
+              ) : refunds.length === 0 ? (
+                <div className="py-10 text-center text-xs text-[#888]">
+                  {t("adminProject.refunds.empty") || "No refunds found."}
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#fafafa] border-b border-[#f0f0f0] text-[10px] text-[#888] uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3">{t("adminProject.refunds.colRefundId") || "Refund ID"}</th>
+                      <th className="px-5 py-3">{t("adminProject.refunds.colPaymentId") || "Payment ID"}</th>
+                      <th className="px-5 py-3">{t("adminProject.refunds.colAmount") || "Amount"}</th>
+                      <th className="px-5 py-3">{t("adminProject.refunds.colReason") || "Reason"}</th>
+                      <th className="px-5 py-3">{t("adminProject.refunds.colProcessedAt") || "Processed At"}</th>
+                      <th className="px-5 py-3">{t("adminProject.refunds.colStatus") || "Status"}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f5f5f5] text-xs text-[#222]">
+                    {refunds.map((r, idx) => {
+                      const amount = parseFloat(r.amount) || 0;
+                      return (
+                        <tr key={`${r.refundId || idx}-${idx}`} className="hover:bg-[#fafafa] transition-colors">
+                          <td className="px-5 py-4 font-mono text-[10px] text-[#666]">{r.refundId?.substring(0, 12)}...</td>
+                          <td className="px-5 py-4 font-mono text-[10px] text-[#666]">{r.paymentId?.substring(0, 12)}...</td>
+                          <td className="px-5 py-4 font-bold text-[#1a1a1a]">{amount.toLocaleString()} FCFA</td>
+                          <td className="px-5 py-4 text-[#555]">{r.reason || t("adminProject.refunds.noReason") || "No reason"}</td>
+                          <td className="px-5 py-4 text-[#888]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
+                          <td className="px-5 py-4">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                r.status === "SUCCESSFUL" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                              }`}
+                            >
+                              {r.status || "PENDING"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+ 
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ export default function RegisterPage() {
 
   const [event, setEvent] = useState<any>(null);
   const [tickets, setTickets] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<Step>("select");
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
@@ -42,12 +43,14 @@ export default function RegisterPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [ev, tix] = await Promise.all([
+        const [ev, tix, sess] = await Promise.all([
           eventService.getEventById(id, { skipAuth: true }),
           eventService.getTicketTypes(id, { skipAuth: true }),
+          eventService.getSessions({ skipAuth: true }).catch(() => []),
         ]);
         setEvent(ev);
         setTickets((tix || []).filter((tk: any) => (tk.quantityAvailable ?? 0) > (tk.quantitySold ?? 0)));
+        setSessions((sess || []).filter((s: any) => s.eventId === id || s.event?.eventId === id));
       } catch { setError(t("eventRegister.errors.loadFailed")); }
       finally { setLoading(false); }
     };
@@ -220,6 +223,16 @@ export default function RegisterPage() {
                               {remaining < 20 && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{t("eventRegister.select.leftCount", { count: remaining })}</span>}
                             </div>
                             {tk.description && <p className="text-xs text-[#888] mt-1.5 ml-6">{tk.description}</p>}
+                             {((tk.sessionIds && tk.sessionIds.length > 0) || tk.sessionId) && (() => {
+                               const ids = tk.sessionIds || (tk.sessionId ? [tk.sessionId] : []);
+                               const scopedSessions = sessions.filter((s: any) => ids.includes(s.sessionId || s.id));
+                               const titles = scopedSessions.map((s: any) => s.title).join(", ");
+                               return (
+                                 <p className="text-[10px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-0.5 mt-1.5 ml-6 inline-block">
+                                   Valid for: {titles || "specific sessions"}
+                                 </p>
+                               );
+                             })()}
                             {tk.saleEnd && <p className="text-[10px] text-[#aaa] mt-1 ml-6">{t("eventRegister.select.saleEnds", { date: new Date(tk.saleEnd).toLocaleDateString() })}</p>}
                           </div>
                           <div className="shrink-0 text-right">

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck, TrendingUp, TrendingDown, Minus, AlertCircle, Check } from "lucide-react";
 import { api, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
 import { useLanguage } from "@/app/context/LanguageContext";
 
@@ -237,14 +237,31 @@ export default function SuperAdminPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [loadingClaims, setLoadingClaims] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "plans" | "tenants" | "users">("overview");
-
+  const [activeTab, setActiveTab] = useState<"overview" | "plans" | "tenants" | "users" | "finances">("overview");
+ 
   // Data states
   const [plans, setPlans] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
-
+ 
+  // Platform commission settings
+  const [commissionSettings, setCommissionSettings] = useState({
+    baseCommissionRate: 10,
+    premiumCommissionFlatFee: 2,
+    payoutProvider: "stripe",
+    payoutStripeAccountId: "",
+    payoutMomoNumber: ""
+  });
+  const [savingCommission, setSavingCommission] = useState(false);
+ 
+  // Platform withdrawal request
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalNote, setWithdrawalNote] = useState("");
+  const [withdrawingPlatform, setWithdrawingPlatform] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState("");
+  const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
+ 
   // Forms / Modals
   const [editingPlan, setEditingPlan] = useState<any | null>(null);
   const [creatingPlan, setCreatingPlan] = useState(false);
@@ -255,35 +272,46 @@ export default function SuperAdminPage() {
     maxEvents: 5,
     maxUsers: 2,
     maxAttendeesPerEvent: 100,
-    featuresEnabled: "BASIC_EVENT"
+    featuresEnabled: "BASIC_EVENT",
+    commissionType: "PERCENTAGE",
+    commissionRate: 10
   });
-
+ 
   // Search/Filters
   const [tenantSearch, setTenantSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
-
+ 
   // Pagination — Tenants Directory
   const TENANTS_PER_PAGE = 10;
   const [tenantPage, setTenantPage] = useState(1);
-
+ 
   // Pagination — Users Directory
   const USERS_PER_PAGE = 10;
   const [userPage, setUserPage] = useState(1);
-
+ 
   // Tenant attendees modal
   const [viewingTenant, setViewingTenant] = useState<any | null>(null);
   const [tenantRegistrations, setTenantRegistrations] = useState<any[]>([]);
-
+ 
   // Platform finance (vraies données)
-  const [platformRevenue, setPlatformRevenue] = useState<{ totalCollected: number; totalWithdrawn: number; availableBalance: number } | null>(null);
+  const [platformRevenue, setPlatformRevenue] = useState<{
+    totalCollected: number;
+    totalWithdrawn: number;
+    availableBalance: number;
+    stripeBalance?: {
+      available?: Record<string, number>;
+      pending?: Record<string, number>;
+      error?: string;
+    };
+  } | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [txWindow, setTxWindow] = useState<TxWindow>("24h");
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
-
+ 
   // Registrations — chargées une seule fois globalement (réutilisées par la
   // modale "Attendees" et par le widget "Top tenants" de l'Overview)
   const [registrations, setRegistrations] = useState<any[]>([]);
-
+ 
   // Fenêtre du graphique de croissance (widget G)
   const [growthWindow, setGrowthWindow] = useState<GrowthWindow>("week");
 
@@ -340,7 +368,11 @@ export default function SuperAdminPage() {
         console.error("Failed to load platform withdrawals:", err);
         return [];
       }),
-    ]).then(([plansData, tenantsData, usersData, revenueData, paymentsData, registrationsData, withdrawalsData]) => {
+      api.get<any>("/api/v1/platforms/commission").catch((err) => {
+        console.error("Failed to load platform commission settings:", err);
+        return null;
+      }),
+    ]).then(([plansData, tenantsData, usersData, revenueData, paymentsData, registrationsData, withdrawalsData, commissionData]) => {
       setPlans(plansData || []);
       setTenants(tenantsData || []);
       setUsers(usersData || []);
@@ -348,6 +380,15 @@ export default function SuperAdminPage() {
       setPayments(paymentsData || []);
       setRegistrations(registrationsData || []);
       setWithdrawals(withdrawalsData || []);
+      if (commissionData) {
+        setCommissionSettings({
+          baseCommissionRate: commissionData.baseCommissionRate ?? 10,
+          premiumCommissionFlatFee: commissionData.premiumCommissionFlatFee ?? 2,
+          payoutProvider: commissionData.payoutProvider ?? "stripe",
+          payoutStripeAccountId: commissionData.payoutStripeAccountId ?? "",
+          payoutMomoNumber: commissionData.payoutMomoNumber ?? ""
+        });
+      }
     }).finally(() => {
       setLoadingData(false);
     });
@@ -444,15 +485,18 @@ export default function SuperAdminPage() {
     e.preventDefault();
     if (!editingPlan) return;
     try {
-      const data = await api.put<any>(`/api/v1/subscriptionplans/${editingPlan.planId}`, {
-        name: editingPlan.name,
-        price: editingPlan.price,
-        billingCycle: editingPlan.billingCycle,
-        maxEvents: editingPlan.maxEvents,
-        maxUsers: editingPlan.maxUsers,
-        maxAttendeesPerEvent: editingPlan.maxAttendeesPerEvent,
-        featuresEnabled: editingPlan.featuresEnabled
-      });
+      const sanitized = {
+        name: editingPlan.name || "",
+        price: Number.isNaN(editingPlan.price) || editingPlan.price === null || editingPlan.price === undefined ? 0 : editingPlan.price,
+        billingCycle: editingPlan.billingCycle || "MONTHLY",
+        maxEvents: Number.isNaN(editingPlan.maxEvents) || editingPlan.maxEvents === null || editingPlan.maxEvents === undefined ? -1 : editingPlan.maxEvents,
+        maxUsers: Number.isNaN(editingPlan.maxUsers) || editingPlan.maxUsers === null || editingPlan.maxUsers === undefined ? -1 : editingPlan.maxUsers,
+        maxAttendeesPerEvent: Number.isNaN(editingPlan.maxAttendeesPerEvent) || editingPlan.maxAttendeesPerEvent === null || editingPlan.maxAttendeesPerEvent === undefined ? -1 : editingPlan.maxAttendeesPerEvent,
+        featuresEnabled: editingPlan.featuresEnabled || "",
+        commissionType: editingPlan.commissionType || "PERCENTAGE",
+        commissionRate: Number.isNaN(editingPlan.commissionRate) || editingPlan.commissionRate === null || editingPlan.commissionRate === undefined ? 0 : Number(editingPlan.commissionRate)
+      };
+      const data = await api.put<any>(`/api/v1/subscriptionplans/${editingPlan.planId}`, sanitized);
       setPlans((prev) => prev.map((p) => p.planId === data.planId ? data : p));
       setEditingPlan(null);
     } catch (err) {
@@ -463,7 +507,18 @@ export default function SuperAdminPage() {
   const createPlan = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = await api.post<any>("/api/v1/subscriptionplans", planForm);
+      const sanitizedForm = {
+        name: planForm.name || "",
+        price: Number.isNaN(planForm.price) || planForm.price === null || planForm.price === undefined ? 0 : planForm.price,
+        billingCycle: planForm.billingCycle || "MONTHLY",
+        maxEvents: Number.isNaN(planForm.maxEvents) || planForm.maxEvents === null || planForm.maxEvents === undefined ? -1 : planForm.maxEvents,
+        maxUsers: Number.isNaN(planForm.maxUsers) || planForm.maxUsers === null || planForm.maxUsers === undefined ? -1 : planForm.maxUsers,
+        maxAttendeesPerEvent: Number.isNaN(planForm.maxAttendeesPerEvent) || planForm.maxAttendeesPerEvent === null || planForm.maxAttendeesPerEvent === undefined ? -1 : planForm.maxAttendeesPerEvent,
+        featuresEnabled: planForm.featuresEnabled || "BASIC_EVENT",
+        commissionType: planForm.commissionType || "PERCENTAGE",
+        commissionRate: Number.isNaN(planForm.commissionRate) || planForm.commissionRate === null || planForm.commissionRate === undefined ? 0 : planForm.commissionRate
+      };
+      const data = await api.post<any>("/api/v1/subscriptionplans", sanitizedForm);
       setPlans((prev) => [...prev, data]);
       setCreatingPlan(false);
       setPlanForm({
@@ -473,7 +528,9 @@ export default function SuperAdminPage() {
         maxEvents: 5,
         maxUsers: 2,
         maxAttendeesPerEvent: 100,
-        featuresEnabled: "BASIC_EVENT"
+        featuresEnabled: "BASIC_EVENT",
+        commissionType: "PERCENTAGE",
+        commissionRate: 10
       });
     } catch (err) {
       console.error("Failed to create pricing plan:", err);
@@ -538,6 +595,65 @@ export default function SuperAdminPage() {
       console.error("Failed to delete user:", err);
     }
   };
+ 
+  const handleSaveCommission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingCommission(true);
+    try {
+      const res = await api.put<any>("/api/v1/platforms/commission", {
+        baseCommissionRate: Number(commissionSettings.baseCommissionRate),
+        premiumCommissionFlatFee: Number(commissionSettings.premiumCommissionFlatFee),
+        payoutProvider: commissionSettings.payoutProvider,
+        payoutStripeAccountId: commissionSettings.payoutStripeAccountId,
+        payoutMomoNumber: commissionSettings.payoutMomoNumber
+      });
+      setCommissionSettings({
+        baseCommissionRate: res.baseCommissionRate ?? 10,
+        premiumCommissionFlatFee: res.premiumCommissionFlatFee ?? 2,
+        payoutProvider: res.payoutProvider ?? "stripe",
+        payoutStripeAccountId: res.payoutStripeAccountId ?? "",
+        payoutMomoNumber: res.payoutMomoNumber ?? ""
+      });
+      alert("Platform finance settings updated successfully!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to update platform settings: " + (err.message || "Network error"));
+    } finally {
+      setSavingCommission(false);
+    }
+  };
+ 
+  const handlePlatformWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWithdrawalError("");
+    setWithdrawalSuccess(false);
+    const amountNum = parseFloat(withdrawalAmount);
+    if (Number.isNaN(amountNum) || amountNum <= 0) {
+      setWithdrawalError("Please enter an amount greater than 0.");
+      return;
+    }
+    setWithdrawingPlatform(true);
+    try {
+      await api.post("/api/v1/platform/withdrawals", {
+        amount: amountNum,
+        note: withdrawalNote
+      });
+      const [rev, wds] = await Promise.all([
+        api.get<any>("/api/v1/platform/revenue"),
+        api.get<any[]>("/api/v1/platform/withdrawals")
+      ]);
+      setPlatformRevenue(rev);
+      setWithdrawals(wds);
+      setWithdrawalAmount("");
+      setWithdrawalNote("");
+      setWithdrawalSuccess(true);
+    } catch (err: any) {
+      console.error(err);
+      setWithdrawalError(err.message || "Withdrawal failed. Check balance or method configuration.");
+    } finally {
+      setWithdrawingPlatform(false);
+    }
+  };
 
   if (loadingClaims) {
     return (
@@ -597,6 +713,7 @@ export default function SuperAdminPage() {
             { id: "plans", label: t("superAdmin.sidebar.navPlans"), icon: Layers },
             { id: "tenants", label: t("superAdmin.sidebar.navTenants"), icon: Building },
             { id: "users", label: t("superAdmin.sidebar.navUsers"), icon: Users },
+            { id: "finances", label: "Finances", icon: ShieldCheck },
           ].map(({ id, label, icon: Icon }) => {
             const active = activeTab === id;
             return (
@@ -629,7 +746,7 @@ export default function SuperAdminPage() {
           </a>
         </div>
       </aside>
-
+ 
       {/* MAIN CONTAINER */}
       <div className="ml-[230px] flex-1 flex flex-col">
         {/* HEADER */}
@@ -638,7 +755,8 @@ export default function SuperAdminPage() {
             {(activeTab === "overview" ? t("superAdmin.sidebar.navOverview")
               : activeTab === "plans" ? t("superAdmin.sidebar.navPlans")
                 : activeTab === "tenants" ? t("superAdmin.sidebar.navTenants")
-                  : t("superAdmin.sidebar.navUsers"))} {t("superAdmin.header.administration")}
+                  : activeTab === "users" ? t("superAdmin.sidebar.navUsers")
+                    : "Finances")} {t("superAdmin.header.administration")}
           </h1>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg px-3 py-1.5 text-xs text-zinc-400 font-medium">
@@ -701,118 +819,90 @@ export default function SuperAdminPage() {
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-[2fr_1.2fr] gap-6">
-                    {/* TRANSACTIONS PLATEFORME */}
-                    <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-display font-bold text-[#EB4203] text-sm">Transactions Plateforme</h3>
-                        <div className="flex items-center gap-1 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg p-0.5">
-                          {(["24h", "week", "month"] as TxWindow[]).map((w) => (
-                            <button
-                              key={w}
-                              onClick={() => setTxWindow(w)}
-                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${txWindow === w ? "bg-[#EB4203] text-white" : "text-zinc-500 hover:text-[#1a1a1a]"
-                                }`}
-                            >
-                              {w === "24h" ? "24h" : w === "week" ? "Semaine" : "Mois"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <p className="text-[10px] text-zinc-500 mb-4">
-                        {TX_WINDOW_CONFIG[txWindow].label} · comparé à la période équivalente précédente
-                      </p>
-
-                      <div className="h-64 overflow-y-auto space-y-6 pr-1">
-                        {sortedCurrencies.length === 0 ? (
-                          <div className="h-full flex items-center justify-center text-zinc-500 text-xs text-center">
-                            Aucune transaction réussie sur la période sélectionnée.
-                          </div>
-                        ) : (
-                          sortedCurrencies.map((currency) => {
-                            const stats = txStatsByCurrency[currency];
-                            const hasPrevious = stats.previousTotal > 0;
-                            const changePercent = hasPrevious
-                              ? ((stats.currentTotal - stats.previousTotal) / stats.previousTotal) * 100
-                              : null;
-                            const isNew = !hasPrevious && stats.currentTotal > 0;
-                            const isFlat = stats.currentTotal === 0 && stats.previousTotal === 0;
-
-                            return (
-                              <div key={currency} className="space-y-2">
-                                <div className="flex items-end justify-between gap-3">
-                                  <div>
-                                    <div className="text-2xl font-bold text-[#1a1a1a] font-display leading-tight">
-                                      {formatAmount(stats.currentTotal)}{" "}
-                                      <span className="text-xs font-medium text-zinc-500">{currency}</span>
-                                    </div>
-                                    <div className="text-[10px] text-zinc-500 mt-0.5">
-                                      Période précédente : {formatAmount(stats.previousTotal)} {currency}
-                                    </div>
-                                  </div>
-                                  <span
-                                    className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${isFlat
-                                        ? "bg-zinc-100 text-zinc-500"
-                                        : isNew
-                                          ? "bg-blue-50 text-blue-600"
-                                          : changePercent !== null && changePercent >= 0
-                                            ? "bg-green-50 text-green-700"
-                                            : "bg-red-50 text-red-600"
-                                      }`}
-                                  >
-                                    {isFlat ? (
-                                      <Minus size={11} />
-                                    ) : isNew ? (
-                                      <TrendingUp size={11} />
-                                    ) : changePercent !== null && changePercent >= 0 ? (
-                                      <TrendingUp size={11} />
-                                    ) : (
-                                      <TrendingDown size={11} />
-                                    )}
-                                    {isFlat ? "—" : isNew ? "Nouveau" : `${changePercent!.toFixed(1)}%`}
-                                  </span>
-                                </div>
-                                <Sparkline current={stats.currentSeries} previous={stats.previousSeries} />
-                                <div className="flex items-center gap-4 text-[9px] text-zinc-500">
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-3 h-[2px] bg-[#EB4203] inline-block" /> Période actuelle
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-3 h-[2px] inline-block" style={{ borderTop: "2px dashed #9ca3af" }} /> Période précédente
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
+                  {/* TRANSACTIONS PLATEFORME */}
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-display font-bold text-[#EB4203] text-sm">Transactions Plateforme</h3>
+                      <div className="flex items-center gap-1 bg-[#f9fafb] border border-[#e5e7eb] rounded-lg p-0.5">
+                        {(["24h", "week", "month"] as TxWindow[]).map((w) => (
+                          <button
+                            key={w}
+                            onClick={() => setTxWindow(w)}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${txWindow === w ? "bg-[#EB4203] text-white" : "text-zinc-500 hover:text-[#1a1a1a]"
+                              }`}
+                          >
+                            {w === "24h" ? "24h" : w === "week" ? "Semaine" : "Mois"}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    {/* MICROSERVICES HEALTH */}
-                    <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                      <h3 className="font-display font-bold text-[#EB4203] text-sm mb-4">Platform Services Health : TO CONNECT</h3>
-                      <div className="space-y-4">
-                        {[
-                          { name: "YowEvent Gateway", port: 8080, status: t("superAdmin.overview.healthy") },
-                          { name: "Auth Service", port: 8081, status: t("superAdmin.overview.healthy") },
-                          { name: "Event Service", port: 8082, status: t("superAdmin.overview.healthy") },
-                          { name: "Ticketing Service", port: 8083, status: t("superAdmin.overview.healthy") },
-                          { name: "Payment Service", port: 8084, status: t("superAdmin.overview.healthy") },
-                          { name: "Notification Service", port: 8085, status: t("superAdmin.overview.healthy") }
-                        ].map((srv) => (
-                          <div key={srv.name} className="flex justify-between items-center py-2.5 border-b border-[#e5e7eb]/40 text-xs">
-                            <div>
-                              <span className="text-[#1a1a1a] font-medium block">{srv.name}</span>
-                              <span className="text-zinc-500 text-[10px]">{t("superAdmin.overview.portLabel", { port: srv.port })}</span>
+                    <p className="text-[10px] text-zinc-500 mb-4">
+                      {TX_WINDOW_CONFIG[txWindow].label} · comparé à la période équivalente précédente
+                    </p>
+
+                    <div className="h-64 overflow-y-auto space-y-6 pr-1">
+                      {sortedCurrencies.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-zinc-500 text-xs text-center">
+                          Aucune transaction réussie sur la période sélectionnée.
+                        </div>
+                      ) : (
+                        sortedCurrencies.map((currency) => {
+                          const stats = txStatsByCurrency[currency];
+                          const hasPrevious = stats.previousTotal > 0;
+                          const changePercent = hasPrevious
+                            ? ((stats.currentTotal - stats.previousTotal) / stats.previousTotal) * 100
+                            : null;
+                          const isNew = !hasPrevious && stats.currentTotal > 0;
+                          const isFlat = stats.currentTotal === 0 && stats.previousTotal === 0;
+
+                          return (
+                            <div key={currency} className="space-y-2">
+                              <div className="flex items-end justify-between gap-3">
+                                <div>
+                                  <div className="text-2xl font-bold text-[#1a1a1a] font-display leading-tight">
+                                    {formatAmount(stats.currentTotal)}{" "}
+                                    <span className="text-xs font-medium text-zinc-500">{currency}</span>
+                                  </div>
+                                  <div className="text-[10px] text-zinc-500 mt-0.5">
+                                    Période précédente : {formatAmount(stats.previousTotal)} {currency}
+                                  </div>
+                                </div>
+                                <span
+                                  className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${isFlat
+                                      ? "bg-zinc-100 text-zinc-500"
+                                      : isNew
+                                        ? "bg-blue-50 text-blue-600"
+                                        : changePercent !== null && changePercent >= 0
+                                          ? "bg-green-50 text-green-700"
+                                          : "bg-red-50 text-red-600"
+                                    }`}
+                                >
+                                  {isFlat ? (
+                                    <Minus size={11} />
+                                  ) : isNew ? (
+                                    <TrendingUp size={11} />
+                                  ) : changePercent !== null && changePercent >= 0 ? (
+                                    <TrendingUp size={11} />
+                                  ) : (
+                                    <TrendingDown size={11} />
+                                  )}
+                                  {isFlat ? "—" : isNew ? "Nouveau" : `${changePercent!.toFixed(1)}%`}
+                                </span>
+                              </div>
+                              <Sparkline current={stats.currentSeries} previous={stats.previousSeries} />
+                              <div className="flex items-center gap-4 text-[9px] text-zinc-500">
+                                <span className="flex items-center gap-1">
+                                  <span className="w-3 h-[2px] bg-[#EB4203] inline-block" /> Période actuelle
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <span className="w-3 h-[2px] inline-block" style={{ borderTop: "2px dashed #9ca3af" }} /> Période précédente
+                                </span>
+                              </div>
                             </div>
-                            <span className="flex items-center gap-1.5 text-xs text-green-400 font-bold bg-green-500/10 px-2.5 py-0.5 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                              {srv.status}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
 
@@ -949,6 +1039,7 @@ export default function SuperAdminPage() {
                           <th className="p-4 pl-6">{t("superAdmin.plans.colPlanName")}</th>
                           <th className="p-4">{t("superAdmin.plans.colMonthlyPrice")}</th>
                           <th className="p-4">{t("superAdmin.plans.colBillingCycle")}</th>
+                          <th className="p-4 text-center">Commission</th>
                           <th className="p-4 text-center">{t("superAdmin.plans.colMaxEvents")}</th>
                           <th className="p-4 text-center">{t("superAdmin.plans.colMaxUsers")}</th>
                           <th className="p-4 text-center">{t("superAdmin.plans.colMaxAttendees")}</th>
@@ -962,6 +1053,9 @@ export default function SuperAdminPage() {
                             <td className="p-4 pl-6 font-bold text-[#1a1a1a]">{plan.name}</td>
                             <td className="p-4">${plan.price.toFixed(2)}</td>
                             <td className="p-4"><span className="bg-stone-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-stone-600">{plan.billingCycle}</span></td>
+                            <td className="p-4 text-center font-semibold">
+                              {plan.commissionType === "FLAT" ? `$${Number(plan.commissionRate || 0).toFixed(2)} Flat` : `${plan.commissionRate || 10}%`}
+                            </td>
                             <td className="p-4 text-center">{plan.maxEvents === -1 ? t("superAdmin.plans.unlimited") : plan.maxEvents}</td>
                             <td className="p-4 text-center">{plan.maxUsers === -1 ? t("superAdmin.plans.unlimited") : plan.maxUsers}</td>
                             <td className="p-4 text-center">{plan.maxAttendeesPerEvent === -1 ? t("superAdmin.plans.unlimited") : plan.maxAttendeesPerEvent}</td>
@@ -1002,7 +1096,7 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPlanName")}</label>
                               <input
                                 type="text" required
-                                value={planForm.name}
+                                value={planForm.name ?? ""}
                                 onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
                                 placeholder="ENTERPRISE"
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
@@ -1012,8 +1106,11 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPrice")}</label>
                               <input
                                 type="number" required min="0" step="0.01"
-                                value={planForm.price}
-                                onChange={(e) => setPlanForm({ ...planForm, price: parseFloat(e.target.value) })}
+                                value={Number.isNaN(planForm.price) || planForm.price === null || planForm.price === undefined ? "" : planForm.price}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPlanForm({ ...planForm, price: val === "" ? NaN : parseFloat(val) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
@@ -1023,7 +1120,7 @@ export default function SuperAdminPage() {
                             <div>
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formBillingCycle")}</label>
                               <select
-                                value={planForm.billingCycle}
+                                value={planForm.billingCycle ?? "MONTHLY"}
                                 onChange={(e) => setPlanForm({ ...planForm, billingCycle: e.target.value })}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               >
@@ -1036,8 +1133,11 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxEvents")}</label>
                               <input
                                 type="number" required min="-1"
-                                value={planForm.maxEvents}
-                                onChange={(e) => setPlanForm({ ...planForm, maxEvents: parseInt(e.target.value) })}
+                                value={Number.isNaN(planForm.maxEvents) || planForm.maxEvents === null || planForm.maxEvents === undefined ? "" : planForm.maxEvents}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPlanForm({ ...planForm, maxEvents: val === "" ? NaN : parseInt(val, 10) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
@@ -1048,8 +1148,11 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxUsers")}</label>
                               <input
                                 type="number" required min="-1"
-                                value={planForm.maxUsers}
-                                onChange={(e) => setPlanForm({ ...planForm, maxUsers: parseInt(e.target.value) })}
+                                value={Number.isNaN(planForm.maxUsers) || planForm.maxUsers === null || planForm.maxUsers === undefined ? "" : planForm.maxUsers}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPlanForm({ ...planForm, maxUsers: val === "" ? NaN : parseInt(val, 10) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
@@ -1057,22 +1160,51 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxAttendees")}</label>
                               <input
                                 type="number" required min="-1"
-                                value={planForm.maxAttendeesPerEvent}
-                                onChange={(e) => setPlanForm({ ...planForm, maxAttendeesPerEvent: parseInt(e.target.value) })}
+                                value={Number.isNaN(planForm.maxAttendeesPerEvent) || planForm.maxAttendeesPerEvent === null || planForm.maxAttendeesPerEvent === undefined ? "" : planForm.maxAttendeesPerEvent}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPlanForm({ ...planForm, maxAttendeesPerEvent: val === "" ? NaN : parseInt(val, 10) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
 
-                          <div>
+                           <div>
                             <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formAuthorizedFeaturesCreate")}</label>
                             <input
                               type="text" required
-                              value={planForm.featuresEnabled}
+                              value={planForm.featuresEnabled ?? ""}
                               onChange={(e) => setPlanForm({ ...planForm, featuresEnabled: e.target.value })}
                               placeholder="BASIC_EVENT,TICKET_SALES,ANALYTICS"
                               className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                             />
+                          </div>
+ 
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Type de Commission</label>
+                              <select
+                                value={planForm.commissionType ?? "PERCENTAGE"}
+                                onChange={(e) => setPlanForm({ ...planForm, commissionType: e.target.value })}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 font-semibold"
+                              >
+                                <option value="PERCENTAGE">Pourcentage (%)</option>
+                                <option value="FLAT">Frais Fixes ($)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Valeur Commission</label>
+                              <input
+                                type="number" required min="0" step="0.01"
+                                value={Number.isNaN(planForm.commissionRate) || planForm.commissionRate === null || planForm.commissionRate === undefined ? "" : planForm.commissionRate}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPlanForm({ ...planForm, commissionRate: val === "" ? NaN : parseFloat(val) });
+                                }}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                              />
+                            </div>
                           </div>
 
                           <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
@@ -1109,7 +1241,7 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPlanName")}</label>
                               <input
                                 type="text" required
-                                value={editingPlan.name}
+                                value={editingPlan.name ?? ""}
                                 onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
@@ -1118,8 +1250,11 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formPrice")}</label>
                               <input
                                 type="number" required min="0" step="0.01"
-                                value={editingPlan.price}
-                                onChange={(e) => setEditingPlan({ ...editingPlan, price: parseFloat(e.target.value) })}
+                                value={Number.isNaN(editingPlan.price) || editingPlan.price === null || editingPlan.price === undefined ? "" : editingPlan.price}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingPlan({ ...editingPlan, price: val === "" ? NaN : parseFloat(val) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
@@ -1129,7 +1264,7 @@ export default function SuperAdminPage() {
                             <div>
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formBillingCycle")}</label>
                               <select
-                                value={editingPlan.billingCycle}
+                                value={editingPlan.billingCycle ?? "MONTHLY"}
                                 onChange={(e) => setEditingPlan({ ...editingPlan, billingCycle: e.target.value })}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               >
@@ -1142,8 +1277,11 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxEvents")}</label>
                               <input
                                 type="number" required min="-1"
-                                value={editingPlan.maxEvents}
-                                onChange={(e) => setEditingPlan({ ...editingPlan, maxEvents: parseInt(e.target.value) })}
+                                value={Number.isNaN(editingPlan.maxEvents) || editingPlan.maxEvents === null || editingPlan.maxEvents === undefined ? "" : editingPlan.maxEvents}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingPlan({ ...editingPlan, maxEvents: val === "" ? NaN : parseInt(val, 10) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
@@ -1154,8 +1292,11 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxUsers")}</label>
                               <input
                                 type="number" required min="-1"
-                                value={editingPlan.maxUsers}
-                                onChange={(e) => setEditingPlan({ ...editingPlan, maxUsers: parseInt(e.target.value) })}
+                                value={Number.isNaN(editingPlan.maxUsers) || editingPlan.maxUsers === null || editingPlan.maxUsers === undefined ? "" : editingPlan.maxUsers}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingPlan({ ...editingPlan, maxUsers: val === "" ? NaN : parseInt(val, 10) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
@@ -1163,21 +1304,50 @@ export default function SuperAdminPage() {
                               <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formMaxAttendees")}</label>
                               <input
                                 type="number" required min="-1"
-                                value={editingPlan.maxAttendeesPerEvent}
-                                onChange={(e) => setEditingPlan({ ...editingPlan, maxAttendeesPerEvent: parseInt(e.target.value) })}
+                                value={Number.isNaN(editingPlan.maxAttendeesPerEvent) || editingPlan.maxAttendeesPerEvent === null || editingPlan.maxAttendeesPerEvent === undefined ? "" : editingPlan.maxAttendeesPerEvent}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingPlan({ ...editingPlan, maxAttendeesPerEvent: val === "" ? NaN : parseInt(val, 10) });
+                                }}
                                 className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                               />
                             </div>
                           </div>
 
-                          <div>
+                           <div>
                             <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">{t("superAdmin.plans.formAuthorizedFeaturesEdit")}</label>
                             <input
                               type="text" required
-                              value={editingPlan.featuresEnabled}
+                              value={editingPlan.featuresEnabled ?? ""}
                               onChange={(e) => setEditingPlan({ ...editingPlan, featuresEnabled: e.target.value })}
                               className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
                             />
+                          </div>
+ 
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Type de Commission</label>
+                              <select
+                                value={editingPlan.commissionType ?? "PERCENTAGE"}
+                                onChange={(e) => setEditingPlan({ ...editingPlan, commissionType: e.target.value })}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 font-semibold"
+                              >
+                                <option value="PERCENTAGE">Pourcentage (%)</option>
+                                <option value="FLAT">Frais Fixes ($)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Valeur Commission</label>
+                              <input
+                                type="number" required min="0" step="0.01"
+                                value={Number.isNaN(editingPlan.commissionRate) || editingPlan.commissionRate === null || editingPlan.commissionRate === undefined ? "" : editingPlan.commissionRate}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setEditingPlan({ ...editingPlan, commissionRate: val === "" ? NaN : parseFloat(val) });
+                                }}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                              />
+                            </div>
                           </div>
 
                           <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
@@ -1414,6 +1584,261 @@ export default function SuperAdminPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+ 
+              {/* FINANCES TAB */}
+              {activeTab === "finances" && (
+                <div className="space-y-6">
+                  {/* FINANCIAL METRIC BOXES */}
+                  <div className="grid grid-cols-3 gap-5">
+                    {[
+                      {
+                        label: "Solde Disponible (Commission)",
+                        value: platformRevenue ? `${formatAmount(platformRevenue.availableBalance)} XAF` : "—",
+                        desc: "Fonds prêts à être retirés",
+                        icon: ShieldCheck,
+                        color: "text-emerald-500"
+                      },
+                      {
+                        label: "Total Collecté",
+                        value: platformRevenue ? `${formatAmount(platformRevenue.totalCollected)} XAF` : "—",
+                        desc: "Total des commissions sur ventes",
+                        icon: TrendingUp,
+                        color: "text-amber-500"
+                      },
+                      {
+                        label: "Total Retiré",
+                        value: platformRevenue ? `${formatAmount(platformRevenue.totalWithdrawn)} XAF` : "—",
+                        desc: "Historique cumulé des retraits",
+                        icon: TrendingDown,
+                        color: "text-rose-500"
+                      }
+                    ].map((m: any) => (
+                      <div key={m.label} className="bg-white border border-[#e5e7eb] shadow-sm rounded-2xl p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <span className="text-[#666] text-xs font-semibold uppercase tracking-wider">{m.label}</span>
+                          <m.icon className={m.color} size={18} />
+                        </div>
+                        <div className="text-2xl font-bold text-[#1a1a1a] font-display mb-1">{m.value}</div>
+                        <div className="text-xs text-zinc-500">{m.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+ 
+                  {/* STRIPE LIVE BALANCE CARD */}
+                  {platformRevenue && platformRevenue.stripeBalance && (
+                    <div className="bg-white border border-[#e5e7eb] shadow-sm rounded-2xl p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b border-[#e5e7eb] pb-3">
+                        <div>
+                          <h3 className="font-display font-bold text-zinc-900 text-sm flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            Solde Stripe En Direct (Compte Principal YowEvent)
+                          </h3>
+                          <p className="text-[11px] text-zinc-500 mt-0.5">Flux de trésorerie réel en direct de l'API Stripe.</p>
+                        </div>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Live API</span>
+                      </div>
+ 
+                      {platformRevenue.stripeBalance.error ? (
+                        <div className="text-xs text-red-650 bg-red-50/50 border border-red-100 p-3.5 rounded-xl">
+                          Impossible de charger le solde Stripe : {platformRevenue.stripeBalance.error}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          {/* AVAILABLE FUNDS */}
+                          <div className="bg-[#f9fafb] border border-[#e5e7eb] p-4 rounded-xl space-y-3">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">Fonds Disponibles (Prêts à être virés)</span>
+                            <div className="space-y-2">
+                              {Object.entries(platformRevenue.stripeBalance.available || {}).length === 0 ? (
+                                <div className="text-xs text-zinc-400">0.00 USD</div>
+                              ) : (
+                                Object.entries(platformRevenue.stripeBalance.available || {}).map(([currency, amount]) => (
+                                  <div key={currency} className="flex justify-between items-baseline border-b border-[#e5e7eb]/40 pb-1.5 last:border-0 last:pb-0">
+                                    <span className="text-lg font-bold text-zinc-900">{amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase">{currency}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+ 
+                          {/* PENDING FUNDS */}
+                          <div className="bg-[#f9fafb] border border-[#e5e7eb] p-4 rounded-xl space-y-3">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block">Fonds En Attente (Traitement Stripe)</span>
+                            <div className="space-y-2">
+                              {Object.entries(platformRevenue.stripeBalance.pending || {}).length === 0 ? (
+                                <div className="text-xs text-zinc-400">0.00 USD</div>
+                              ) : (
+                                Object.entries(platformRevenue.stripeBalance.pending || {}).map(([currency, amount]) => (
+                                  <div key={currency} className="flex justify-between items-baseline border-b border-[#e5e7eb]/40 pb-1.5 last:border-0 last:pb-0">
+                                    <span className="text-sm font-semibold text-zinc-650">{amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase">{currency}</span>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+ 
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* SECTION 1: METHODE DE RETRAIT DE LA PLATEFORME */}
+                    <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-6">
+                      <div>
+                        <h3 className="font-display font-bold text-[#EB4203] text-sm mb-1">Configuration des Retraits</h3>
+                        <p className="text-xs text-zinc-500">Configurez l'endroit où les fonds de la plateforme YowEvent (votre part de commission) seront transférés.</p>
+                      </div>
+ 
+                      <form onSubmit={handleSaveCommission} className="space-y-4 text-xs">
+                        <div>
+                          <label className="block text-zinc-500 font-semibold mb-1.5">Fournisseur de Paiement (Payout Provider)</label>
+                          <select
+                            value={commissionSettings.payoutProvider}
+                            onChange={(e) => setCommissionSettings({ ...commissionSettings, payoutProvider: e.target.value })}
+                            className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 font-semibold"
+                          >
+                            <option value="stripe">Virement Stripe (Direct main account balance)</option>
+                            <option value="momo">Campay / Mobile Money (MoMo)</option>
+                          </select>
+                        </div>
+ 
+                        {commissionSettings.payoutProvider === "stripe" && (
+                          <div className="p-3.5 bg-amber-50/50 border border-amber-200/60 rounded-xl text-zinc-600 space-y-1.5">
+                            <h4 className="font-semibold text-zinc-900 flex items-center gap-1.5">
+                              <ShieldCheck size={14} className="text-amber-500" />
+                              Compte Stripe Principal Connecté
+                            </h4>
+                            <p className="text-[11px] leading-relaxed">
+                              En tant que propriétaire du compte Stripe principal de YowEvent, vos fonds de commission y sont collectés directement. Les retraits via Stripe initieront des transferts automatiques vers votre compte bancaire enregistré.
+                            </p>
+                          </div>
+                        )}
+ 
+                        {commissionSettings.payoutProvider === "momo" && (
+                          <div>
+                            <label className="block text-zinc-500 font-semibold mb-1.5">Numéro Mobile Money (MTN / Orange)</label>
+                            <input
+                              type="text"
+                              placeholder="6XXXXXXXX"
+                              value={commissionSettings.payoutMomoNumber}
+                              onChange={(e) => setCommissionSettings({ ...commissionSettings, payoutMomoNumber: e.target.value })}
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                            />
+                            <p className="text-[10px] text-zinc-400 mt-1">Numéro de téléphone mobile money local de destination pour les fonds retirés.</p>
+                          </div>
+                        )}
+ 
+                        <button
+                          type="submit"
+                          disabled={savingCommission}
+                          className="w-full py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center block"
+                        >
+                          {savingCommission ? "Enregistrement..." : "Sauvegarder les Paramètres de Retrait"}
+                        </button>
+                      </form>
+                    </div>
+ 
+                    {/* SECTION 2: DEMANDE DE RETRAIT */}
+                    <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="font-display font-bold text-[#EB4203] text-sm mb-1">Effectuer un Retrait</h3>
+                          <p className="text-xs text-zinc-500">Transférez les fonds de la plateforme vers votre compte Stripe ou MoMo configuré.</p>
+                        </div>
+ 
+                        {withdrawalError && (
+                          <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs flex items-center gap-2">
+                            <AlertCircle size={14} className="shrink-0" />
+                            <span>{withdrawalError}</span>
+                          </div>
+                        )}
+ 
+                        {withdrawalSuccess && (
+                          <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-xs flex items-center gap-2">
+                            <Check size={14} className="shrink-0" />
+                            <span>Retrait effectué et enregistré avec succès !</span>
+                          </div>
+                        )}
+ 
+                        <form onSubmit={handlePlatformWithdraw} className="space-y-4 text-xs">
+                          <div>
+                            <label className="block text-zinc-500 font-semibold mb-1.5">Montant à retirer (XAF)</label>
+                            <input
+                              type="number"
+                              required
+                              min="1"
+                              placeholder="Ex: 50000"
+                              value={withdrawalAmount}
+                              onChange={(e) => setWithdrawalAmount(e.target.value)}
+                              className="w-full px-4 py-2.5 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 text-base font-bold"
+                            />
+                            <p className="text-[10px] text-zinc-400 mt-1">
+                              Solde actuel disponible : <span className="font-bold text-[#1a1a1a]">{platformRevenue ? formatAmount(platformRevenue.availableBalance) : 0} XAF</span>
+                            </p>
+                          </div>
+ 
+                          <div>
+                            <label className="block text-zinc-500 font-semibold mb-1.5">Note de retrait / Justificatif</label>
+                            <textarea
+                              rows={3}
+                              placeholder="Ex: Virement des commissions mensuelles vers le compte principal de la structure"
+                              value={withdrawalNote}
+                              onChange={(e) => setWithdrawalNote(e.target.value)}
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 resize-none"
+                            />
+                          </div>
+ 
+                          <button
+                            type="submit"
+                            disabled={withdrawingPlatform}
+                            className="w-full py-2.5 bg-[#EB4203] hover:bg-[#EB4203]/90 text-white font-bold rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-center block text-xs uppercase tracking-wider"
+                          >
+                            {withdrawingPlatform ? "Traitement en cours..." : "Lancer le virement de fonds"}
+                          </button>
+                        </form>
+                      </div>
+ 
+                      <div className="text-[10px] text-zinc-400 mt-4 bg-zinc-50 border border-zinc-100 rounded-xl p-3 leading-relaxed">
+                        <strong>Remarque :</strong> Les transferts via Stripe sont assujettis aux délais bancaires standards (2 à 5 jours ouvrés). Les transactions Mobile Money via Campay sont immédiates sous réserve de provisionnement de l'API.
+                      </div>
+                    </div>
+                  </div>
+ 
+                  {/* HISTORIQUE DES RETRAITS DE LA PLATEFORME */}
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
+                    <h3 className="font-display font-bold text-[#EB4203] text-sm mb-4">Historique des Payouts</h3>
+                    {withdrawals.length === 0 ? (
+                      <div className="text-xs text-zinc-500 text-center py-8">Aucun retrait n'a encore été enregistré sur la plateforme.</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
+                              <th className="p-3 pl-4">ID Retrait</th>
+                              <th className="p-3">Montant</th>
+                              <th className="p-3">Note / Justificatif</th>
+                              <th className="p-3 pr-4 text-right">Date & Heure</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#e5e7eb] text-[#222]">
+                            {withdrawals.map((w: any) => (
+                              <tr key={w.withdrawalId} className="hover:bg-zinc-50 transition-colors">
+                                <td className="p-3 pl-4 font-mono text-[10px] text-zinc-400">{w.withdrawalId}</td>
+                                <td className="p-3 font-bold text-[#1a1a1a]">{formatAmount(w.amount)} XAF</td>
+                                <td className="p-3 text-zinc-600 italic truncate max-w-xs" title={w.note}>{w.note || "Aucune note"}</td>
+                                <td className="p-3 pr-4 text-right text-zinc-500">
+                                  {w.recordedAt ? new Date(w.recordedAt).toLocaleString("fr-FR") : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </>

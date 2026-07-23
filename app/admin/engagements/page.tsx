@@ -34,6 +34,7 @@ export default function EngagementsPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
 
   // Polls data
   const [polls, setPolls] = useState<any[]>([]);
@@ -105,7 +106,7 @@ export default function EngagementsPage() {
   const loadEngagementData = async (eventId: string) => {
     setLoading(true);
     try {
-      const [analyticsList, logsList, feedbacksList, ordersList, pollsList, sessionsList, announcementsList] = await Promise.all([
+      const [analyticsList, logsList, feedbacksList, ordersList, pollsList, sessionsList, announcementsList, registrationsList] = await Promise.all([
         api.get<any[]>("/api/v1/eventanalyticss").catch(() => []),
         api.get<any[]>("/api/v1/auditlogs").catch(() => []),
         api.get<any[]>("/api/v1/feedbacks").catch(() => []),
@@ -113,6 +114,7 @@ export default function EngagementsPage() {
         eventService.getPolls().catch(() => []),
         eventService.getSessions().catch(() => []),
         eventService.getAnnouncements().catch(() => []),
+        eventService.getRegistrationsByEvent(eventId).catch(() => []),
       ]);
 
       const byEvent = (item: any) => item.eventId === eventId || item.event?.eventId === eventId;
@@ -123,6 +125,7 @@ export default function EngagementsPage() {
       setOrders(ordersList.filter(byEvent));
       setPolls(pollsList.filter(byEvent));
       setAnnouncements(announcementsList.filter(byEvent));
+      setRegistrations(registrationsList || []);
       
       const eventSessions = sessionsList.filter(byEvent);
       setSessions(eventSessions);
@@ -338,11 +341,12 @@ export default function EngagementsPage() {
   };
 
   // Performance computations
-  const totalRegs = analytics.reduce((sum, item) => sum + (item.totalRegistrations || 0), 0);
-  const totalCheckins = analytics.reduce((sum, item) => sum + (item.totalCheckIns || 0), 0);
-  const totalRev = analytics.reduce((sum, item) => sum + (item.totalRevenue || 0), 0);
+  const totalRegs = registrations.length;
+  const totalCheckins = registrations.filter((r: any) => r.status === "CHECKED_IN").length;
   const totalViews = analytics.reduce((sum, item) => sum + (item.pageViews || 0), 0);
-  const totalPlatformFee = orders.reduce((sum, o) => sum + (parseFloat(o.platformFee) || 0), 0);
+  const completedOrders = orders.filter((o: any) => o.status === "COMPLETED");
+  const totalRev = completedOrders.reduce((sum, o) => sum + (parseFloat(o.totalAmount) || 0), 0);
+  const totalPlatformFee = completedOrders.reduce((sum, o) => sum + (parseFloat(o.platformFee) || 0), 0);
   const netPayout = totalRev - totalPlatformFee;
 
   const activeEvent = events.find((e) => e.eventId === selectedEventId || e.id === selectedEventId);

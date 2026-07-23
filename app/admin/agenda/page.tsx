@@ -25,7 +25,7 @@ export default function AgendaPage() {
     endTime: "",
     capacity: 50,
     trackId: "",
-    locationId: "",
+    roomId: "",
   });
 
   const [tracks, setTracks] = useState<any[]>([]);
@@ -33,13 +33,18 @@ export default function AgendaPage() {
   const [trackForm, setTrackForm] = useState({
     name: "",
     description: "",
-    capacity: 50,
     locationId: "",
+    eventScheduleId: "",
   });
 
   const [locations, setLocations] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [customSessionTypes, setCustomSessionTypes] = useState<string[]>([]);
+  const [showAddCustomSessionType, setShowAddCustomSessionType] = useState(false);
+  const [newCustomSessionType, setNewCustomSessionType] = useState("");
 
   const sessionFormRef = useRef<HTMLFormElement>(null);
   const trackFormRef = useRef<HTMLFormElement>(null);
@@ -68,11 +73,13 @@ export default function AgendaPage() {
   const fetchAgendaConfig = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const [sessionsList, tracksList, locationsList, assignmentsList] = await Promise.all([
+      const [sessionsList, tracksList, locationsList, assignmentsList, roomsList, schedulesList] = await Promise.all([
         eventService.getSessions().catch(() => []),
         eventService.getTracks().catch(() => []),
         eventService.getEventLocations().catch(() => []),
         eventService.getAssignmentsByEvent(eventId).catch(() => []),
+        eventService.getRoomsByEvent(eventId).catch(() => []),
+        eventService.getEventSchedules().catch(() => []),
       ]);
 
       const eventSessions = (sessionsList || []).filter((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
@@ -85,6 +92,10 @@ export default function AgendaPage() {
       setLocations(eventLocations);
 
       setAssignments(assignmentsList || []);
+      setRooms(roomsList || []);
+
+      const eventSchedules = (schedulesList || []).filter((sc: any) => sc.eventId === eventId || sc.event?.eventId === eventId);
+      setSchedules(eventSchedules);
     } catch (err) {
       console.error("Failed to load agenda config:", err);
     }
@@ -114,7 +125,7 @@ export default function AgendaPage() {
       endTime: sessionForm.endTime ? new Date(sessionForm.endTime).toISOString() : undefined,
       maxCapacity: Number(sessionForm.capacity),
       isRecorded: false,
-      locationId: sessionForm.locationId || undefined,
+      roomId: sessionForm.roomId || undefined,
     };
     try {
       if (editingSession) {
@@ -125,7 +136,7 @@ export default function AgendaPage() {
         await eventService.createSession(payload);
         showToast(t("adminAgenda.toasts.sessionAdded"));
       }
-      setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
+      setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", roomId: "" });
       await fetchAgendaConfig(selectedEventId);
     } catch (err: any) {
       showToast(err.message || t("adminAgenda.toasts.sessionSaveFailed"));
@@ -145,8 +156,8 @@ export default function AgendaPage() {
         tenantId: auth?.tenantId,
         name: trackForm.name,
         description: trackForm.description || undefined,
-        capacity: trackForm.capacity || undefined,
         locationId: trackForm.locationId || undefined,
+        eventScheduleId: trackForm.eventScheduleId || undefined,
       };
       if (editingTrack) {
         await eventService.updateTrack(editingTrack.trackId || editingTrack.id, payload);
@@ -156,7 +167,7 @@ export default function AgendaPage() {
         await eventService.createTrack(payload);
         showToast(t("adminAgenda.toasts.trackCreated"));
       }
-      setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+      setTrackForm({ name: "", description: "", locationId: "", eventScheduleId: "" });
       await fetchAgendaConfig(selectedEventId);
     } catch (err: any) {
       showToast(err.message || t("adminAgenda.toasts.trackSaveFailed"));
@@ -171,7 +182,7 @@ export default function AgendaPage() {
       await eventService.deleteSession(id);
       if (editingSession?.sessionId === id || editingSession?.id === id) {
         setEditingSession(null);
-        setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
+        setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", roomId: "" });
       }
       await fetchAgendaConfig(selectedEventId);
       showToast(t("adminAgenda.toasts.sessionDeleted"));
@@ -186,7 +197,7 @@ export default function AgendaPage() {
       await eventService.deleteTrack(id);
       if (editingTrack?.trackId === id || editingTrack?.id === id) {
         setEditingTrack(null);
-        setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+        setTrackForm({ name: "", description: "", locationId: "", eventScheduleId: "" });
       }
       await fetchAgendaConfig(selectedEventId);
       showToast(t("adminAgenda.toasts.trackDeleted"));
@@ -223,7 +234,125 @@ export default function AgendaPage() {
 
         <main className="p-8 space-y-8 max-w-[1400px]">
           {/* Main 2-column Layout */}
-          <div className="grid lg:grid-cols-[1.8fr_1.2fr] gap-8">
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Tracks Column */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-base font-bold text-[#1a1a1a] flex items-center gap-2">
+                  <Calendar size={18} className="text-[#FF4747]" /> {t("adminAgenda.tracks.heading")}
+                </h2>
+              </div>
+ 
+              {tracks.length > 0 ? (
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                  {tracks.map((tr) => (
+                    <div 
+                      key={tr.trackId || tr.id} 
+                      className={`bg-white border rounded-2xl p-5 flex items-start gap-4 transition-all hover:border-[#FF4747]/30 ${editingTrack?.trackId === tr.trackId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-[#FF4747]/10 flex items-center justify-center shrink-0">
+                        <Calendar size={18} className="text-[#FF4747]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm text-[#1a1a1a] truncate">{tr.name}</div>
+                        {tr.description && <div className="text-xs text-[#888] mt-0.5 line-clamp-1">{tr.description}</div>}
+                        
+                        <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
+                          {(() => {
+                            const sc = schedules.find(s => (s.scheduleId || s.id) === tr.eventScheduleId);
+                            return sc?.startDatetime ? (
+                              <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 rounded font-medium">
+                                {new Date(sc.startDatetime).toLocaleDateString()}
+                              </span>
+                            ) : null;
+                          })()}
+                          {locations.find(loc => loc.locationId === tr.locationId) && (
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded font-medium">
+                              {locations.find(loc => loc.locationId === tr.locationId)?.type === "VIRTUAL" 
+                                ? locations.find(loc => loc.locationId === tr.locationId)?.virtualPlatform 
+                                : locations.find(loc => loc.locationId === tr.locationId)?.venueName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setEditingTrack(tr);
+                            setTrackForm({
+                              name: tr.name || "",
+                              description: tr.description || "",
+                              locationId: tr.locationId || "",
+                              eventScheduleId: tr.eventScheduleId || "",
+                            });
+                            trackFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }} 
+                          className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
+                        >
+                          <Pencil size={9} /> {t("adminAgenda.sessions.edit") || "Edit"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTrack(tr.trackId || tr.id)}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                        >
+                          <Trash2 size={9} /> {t("adminAgenda.sessions.delete") || "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-white border border-dashed border-[#e5e7eb] rounded-3xl text-xs text-[#888] italic">{t("adminAgenda.tracks.empty")}</div>
+              )}
+ 
+              {/* Add Track Form */}
+              <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="font-bold text-sm text-[#1a1a1a]">{editingTrack ? t("adminAgenda.tracks.editTitle") : t("adminAgenda.tracks.newTitle")}</h3>
+                  {editingTrack && (
+                    <button type="button" onClick={() => { setEditingTrack(null); setTrackForm({ name: "", description: "", locationId: "", eventScheduleId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminAgenda.tracks.cancelEdit")}</button>
+                  )}
+                </div>
+                <form ref={trackFormRef} onSubmit={saveTrack} className="space-y-4">
+                  <div>
+                    <label className={label}>{t("adminAgenda.tracks.nameLabel")}</label>
+                    <input required placeholder={t("adminAgenda.tracks.namePlaceholder")} value={trackForm.name} onChange={e => setTrackForm(f => ({ ...f, name: e.target.value }))} className={inp} />
+                  </div>
+                  <div>
+                    <label className={label}>{t("adminAgenda.tracks.descriptionLabel")}</label>
+                    <input placeholder={t("adminAgenda.tracks.descriptionPlaceholder")} value={trackForm.description} onChange={e => setTrackForm(f => ({ ...f, description: e.target.value }))} className={inp} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={label}>{t("adminAgenda.tracks.locationLabel")}</label>
+                      <select value={trackForm.locationId} onChange={e => setTrackForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
+                        <option value="">{t("adminAgenda.tracks.selectLocationOption")}</option>
+                        {locations.map(loc => (
+                          <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={label}>{t("adminAgenda.tracks.dayLabel")}</label>
+                      <select value={trackForm.eventScheduleId} onChange={e => setTrackForm(f => ({ ...f, eventScheduleId: e.target.value }))} className={inp}>
+                        <option value="">{t("adminAgenda.tracks.noDayOption")}</option>
+                        {schedules.map(sc => (
+                          <option key={sc.scheduleId || sc.id} value={sc.scheduleId || sc.id}>
+                            {sc.startDatetime ? new Date(sc.startDatetime).toLocaleDateString() : (sc.scheduleId || sc.id)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
+                    <Plus size={13} /> {editingTrack ? (saving ? t("adminAgenda.tracks.saving") : t("adminAgenda.tracks.save")) : (saving ? t("adminAgenda.tracks.creating") : t("adminAgenda.tracks.add"))}
+                  </button>
+                </form>
+              </div>
+            </div>
+
             {/* Sessions Column */}
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -291,10 +420,10 @@ export default function AgendaPage() {
                               endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "",
                               capacity: s.maxCapacity || 50,
                               trackId: s.trackId || "",
-                              locationId: s.locationId || "",
+                              roomId: s.roomId || "",
                             });
                             sessionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }} 
+                          }}
                           className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
                         >
                           <Pencil size={9} /> {t("adminAgenda.sessions.edit")}
@@ -311,10 +440,10 @@ export default function AgendaPage() {
                               endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "",
                               capacity: s.maxCapacity || 50,
                               trackId: s.trackId || "",
-                              locationId: s.locationId || "",
+                              roomId: s.roomId || "",
                             });
                             sessionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }} 
+                          }}
                           className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-blue-500 hover:text-blue-500 transition-colors cursor-pointer"
                         >
                           <Copy size={9} /> {t("adminAgenda.sessions.duplicate")}
@@ -339,7 +468,7 @@ export default function AgendaPage() {
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSession ? t("adminAgenda.sessionForm.editTitle") : t("adminAgenda.sessionForm.addTitle")}</h3>
                   {editingSession && (
-                    <button type="button" onClick={() => { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminAgenda.sessionForm.cancelEdit")}</button>
+                    <button type="button" onClick={() => { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", roomId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminAgenda.sessionForm.cancelEdit")}</button>
                   )}
                 </div>
                 <form ref={sessionFormRef} onSubmit={saveSession} className="space-y-4">
@@ -354,9 +483,30 @@ export default function AgendaPage() {
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className={label}>{t("adminAgenda.sessionForm.typeLabel")}</label>
-                      <select value={sessionForm.type} onChange={e => setSessionForm(f => ({ ...f, type: e.target.value }))} className={inp}>
-                        {["TALK", "WORKSHOP", "PANEL", "NETWORKING", "BREAK", "OTHER"].map(typeOption => <option key={typeOption} value={typeOption}>{t(`adminAgenda.sessions.types.${typeOption}`)}</option>)}
-                      </select>
+                      <div className="flex gap-1">
+                        <select value={sessionForm.type} onChange={e => setSessionForm(f => ({ ...f, type: e.target.value }))} className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors">
+                          {["TALK", "WORKSHOP", "PANEL", "NETWORKING", "BREAK", "OTHER"].map(typeOption => (
+                            <option key={typeOption} value={typeOption}>{t(`adminAgenda.sessions.types.${typeOption}`) || typeOption}</option>
+                          ))}
+                          {customSessionTypes.map(typeOption => (
+                            <option key={typeOption} value={typeOption}>{typeOption}</option>
+                          ))}
+                        </select>
+                        <button type="button" onClick={() => setShowAddCustomSessionType(!showAddCustomSessionType)} className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-[#e5e7eb] rounded-xl text-xs font-bold shrink-0 cursor-pointer">+</button>
+                      </div>
+                      {showAddCustomSessionType && (
+                        <div className="mt-2 p-3 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl space-y-2">
+                          <input placeholder={t("adminAgenda.sessionForm.customTypePlaceholder") || "e.g. Q&A, Fireside"} value={newCustomSessionType} onChange={e => setNewCustomSessionType(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
+                          <button type="button" onClick={() => {
+                            if (newCustomSessionType.trim()) {
+                              setCustomSessionTypes(prev => [...prev, newCustomSessionType.trim()]);
+                              setSessionForm(f => ({ ...f, type: newCustomSessionType.trim() }));
+                              setNewCustomSessionType("");
+                              setShowAddCustomSessionType(false);
+                            }
+                          }} className="w-full py-1 bg-black text-white text-xs font-bold rounded-lg hover:bg-stone-800">{t("adminAgenda.sessionForm.addType") || "Add Type"}</button>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className={label}>{t("adminAgenda.sessionForm.startTimeLabel")}</label>
@@ -367,7 +517,7 @@ export default function AgendaPage() {
                       <input type="datetime-local" value={sessionForm.endTime} onChange={e => setSessionForm(f => ({ ...f, endTime: e.target.value }))} className={inp} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={label}>{t("adminAgenda.sessionForm.capacityLabel")}</label>
                       <input type="number" min={1} value={sessionForm.capacity} onChange={e => setSessionForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
@@ -379,107 +529,18 @@ export default function AgendaPage() {
                         {tracks.map(tr => <option key={tr.trackId || tr.id} value={tr.trackId || tr.id}>{tr.name}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <label className={label}>{t("adminAgenda.sessionForm.locationLabel")}</label>
-                      <select value={sessionForm.locationId} onChange={e => setSessionForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                        <option value="">{t("adminAgenda.sessionForm.allLocationsOption")}</option>
-                        {locations.map(loc => (
-                          <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                        ))}
-                      </select>
-                    </div>
+                  </div>
+                  <div>
+                    <label className={label}>{t("adminAgenda.sessionForm.roomLabel")}</label>
+                    <select value={sessionForm.roomId} onChange={e => setSessionForm(f => ({ ...f, roomId: e.target.value }))} className={inp}>
+                      <option value="">{t("adminAgenda.sessionForm.noRoomOption")}</option>
+                      {rooms.map(rm => (
+                        <option key={rm.roomId || rm.id} value={rm.roomId || rm.id}>{rm.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <button type="submit" disabled={saving} className={saveBtn}>
                     <Save size={13} /> {editingSession ? (saving ? t("adminAgenda.sessionForm.saving") : t("adminAgenda.sessionForm.save")) : (saving ? t("adminAgenda.sessionForm.adding") : t("adminAgenda.sessionForm.add"))}
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            {/* Tracks Column */}
-            <div className="space-y-6">
-              <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 space-y-4">
-                <div>
-                  <h3 className="font-bold text-sm text-[#1a1a1a] flex items-center gap-2">
-                    <Calendar size={16} className="text-[#FF4747]" /> {t("adminAgenda.tracks.heading")}
-                  </h3>
-                  <p className="text-[10px] text-[#888] mt-0.5">{t("adminAgenda.tracks.description")}</p>
-                </div>
-
-                {tracks.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {tracks.map(tr => (
-                      <div key={tr.trackId || tr.id} className={`p-3 bg-[#fafafa] border rounded-xl flex items-center justify-between gap-3 transition-colors ${editingTrack?.trackId === tr.trackId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#f0f0f0]"}`}>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-xs text-[#1a1a1a] truncate">{tr.name}</div>
-                          {tr.description && <div className="text-[10px] text-[#888] truncate">{tr.description}</div>}
-                          {tr.capacity && <div className="text-[9px] text-[#aaa] mt-0.5">{t("adminAgenda.tracks.capacity", { count: tr.capacity })}</div>}
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingTrack(tr);
-                              setTrackForm({
-                                name: tr.name || "",
-                                description: tr.description || "",
-                                capacity: tr.capacity || 50,
-                                locationId: tr.locationId || "",
-                              });
-                            }}
-                            className="p-1 text-[#555] hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer"
-                            title={t("adminAgenda.tracks.editTooltip")}
-                          >
-                            <Pencil size={11} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteTrack(tr.trackId || tr.id)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title={t("adminAgenda.tracks.deleteTooltip")}
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-[#fafafa] border border-dashed border-[#e5e7eb] rounded-xl text-[11px] text-[#aaa] italic">{t("adminAgenda.tracks.empty")}</div>
-                )}
-
-                <form ref={trackFormRef} onSubmit={saveTrack} className="border-t border-[#f0f0f0] pt-4 space-y-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-semibold text-xs text-[#1a1a1a]">{editingTrack ? t("adminAgenda.tracks.editTitle") : t("adminAgenda.tracks.newTitle")}</h4>
-                    {editingTrack && (
-                      <button type="button" onClick={() => { setEditingTrack(null); setTrackForm({ name: "", description: "", capacity: 50, locationId: "" }); }} className="text-[10px] text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminAgenda.tracks.cancelEdit")}</button>
-                    )}
-                  </div>
-                  <div>
-                    <label className={label}>{t("adminAgenda.tracks.nameLabel")}</label>
-                    <input required placeholder={t("adminAgenda.tracks.namePlaceholder")} value={trackForm.name} onChange={e => setTrackForm(f => ({ ...f, name: e.target.value }))} className={inp} />
-                  </div>
-                  <div>
-                    <label className={label}>{t("adminAgenda.tracks.descriptionLabel")}</label>
-                    <input placeholder={t("adminAgenda.tracks.descriptionPlaceholder")} value={trackForm.description} onChange={e => setTrackForm(f => ({ ...f, description: e.target.value }))} className={inp} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className={label}>{t("adminAgenda.tracks.capacityLabel")}</label>
-                      <input type="number" min={1} value={trackForm.capacity} onChange={e => setTrackForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
-                    </div>
-                    <div>
-                      <label className={label}>{t("adminAgenda.tracks.locationLabel")}</label>
-                      <select value={trackForm.locationId} onChange={e => setTrackForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                        <option value="">{t("adminAgenda.tracks.selectLocationOption")}</option>
-                        {locations.map(loc => (
-                          <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
-                    <Plus size={13} /> {editingTrack ? (saving ? t("adminAgenda.tracks.saving") : t("adminAgenda.tracks.save")) : (saving ? t("adminAgenda.tracks.creating") : t("adminAgenda.tracks.add"))}
                   </button>
                 </form>
               </div>

@@ -363,22 +363,26 @@ function RegisterFormContent() {
 
       <main className="flex-1 grid md:grid-cols-2">
         {/* LEFT */}
-        <div className="bg-white px-14 py-16 flex flex-col justify-center">
-          <div className="relative z-10">
-            <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs text-[#FF4747] uppercase tracking-widest mb-8">{t("registerPage.left.badge")}</span>
-            <h2 className="font-display text-4xl font-bold text-[#1a1a1a] leading-[1.15] tracking-tight mb-5">
-              {t("registerPage.left.headline1")}<br /><em className="italic text-[#FF4747]">{t("registerPage.left.headline2")}</em>
+        <div className="relative overflow-hidden bg-[#0A0A0C] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#291717] via-[#0A0A0C] to-[#0A0A0C] px-16 py-16 flex flex-col justify-center border-r border-[#1a1a24]/40">
+          {/* Subtle grid mesh overlay */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+          
+          <div className="relative z-10 max-w-sm mx-auto">
+            <span className="inline-block bg-[#FF4747]/10 border border-[#FF4747]/30 rounded-full px-4 py-1.5 text-[10px] font-bold text-[#FF4747] uppercase tracking-widest mb-8">{t("registerPage.left.badge")}</span>
+            <h2 className="font-display text-4xl font-extrabold text-white leading-[1.15] tracking-tight mb-5">
+              {t("registerPage.left.headline1")}<br /><span className="italic text-[#FF4747] font-semibold">{t("registerPage.left.headline2")}</span>
             </h2>
-            <p className="text-sm text-[#666] leading-relaxed max-w-sm mb-12">{t("registerPage.left.subtitle")}</p>
+            <p className="text-xs text-zinc-400 leading-relaxed mb-12">{t("registerPage.left.subtitle")}</p>
+            
             <div className="space-y-6">
               {(["🎟", "🔒", "📊", "⚡"] as const).map((icon, i) => {
                 const item = (tl("registerPage.left.features") as { title: string; desc: string }[])[i];
                 return (
                   <div key={item.title} className="flex items-start gap-4">
-                    <div className="w-9 h-9 rounded-xl bg-[#f5f5f5] flex items-center justify-center text-base flex-shrink-0 shadow-sm">{icon}</div>
+                    <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-lg flex-shrink-0 shadow-inner">{icon}</div>
                     <div>
-                      <div className="text-sm font-medium text-[#1a1a1a] mb-0.5">{item.title}</div>
-                      <div className="text-xs text-[#777]">{item.desc}</div>
+                      <div className="text-xs font-semibold text-zinc-200 mb-1">{item.title}</div>
+                      <div className="text-[11px] text-zinc-500 leading-normal">{item.desc}</div>
                     </div>
                   </div>
                 );
@@ -388,7 +392,8 @@ function RegisterFormContent() {
         </div>
 
         {/* RIGHT */}
-        <div className="bg-white px-14 py-12 flex flex-col justify-center">
+        <div className="bg-[#f8f9fa] flex items-center justify-center px-6 py-12">
+          <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.02)] max-w-md w-full">
           {showPayment ? (
             <div>
               {!paymentSuccess && !momoWaiting && (
@@ -644,8 +649,9 @@ function RegisterFormContent() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
+  </div>
   );
 }
 

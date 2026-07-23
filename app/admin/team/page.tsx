@@ -31,6 +31,7 @@ export default function TeamPage() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const [eventLocations, setEventLocations] = useState<any[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
 
@@ -44,9 +45,15 @@ export default function TeamPage() {
   // Inline forms
   const [showAddRole, setShowAddRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
-  
+
+  const [showAddOrg, setShowAddOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
+
   const [showQuickSession, setShowQuickSession] = useState(false);
   const [quickSession, setQuickSession] = useState({ title: "", startTime: "", endTime: "", locationId: "" });
+
+  // Event days (derived from the event's schedule, so only real event days are selectable)
+  const [eventDays, setEventDays] = useState<{ value: string; label: string }[]>([]);
 
   // Availability form state
   const [availDay, setAvailDay] = useState("Monday");
@@ -65,18 +72,19 @@ export default function TeamPage() {
     phone: "",
     roleId: "a0000000-0000-0000-0000-000000000002", // Staff member
     organizationId: "",
-    newCompanyName: "",
     jobTitle: "",
     bio: "",
     photoUrl: "",
     sessionId: "",
     locationId: "",
+    eventLocationId: "",
     task: "",
     team: "",
     shiftStart: "",
     shiftEnd: "",
     hours: "",
     notes: "",
+    assignmentStatus: "ACTIVE",
     availabilitySlots: [] as { id: string; day: string; startTime: string; endTime: string }[],
   });
 
@@ -124,6 +132,9 @@ export default function TeamPage() {
         const startTimeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         const endTimeStr = new Date(sess.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
         
+        const room = locations.find(loc => loc.roomId === sess.roomId);
+        const resolvedEventLocationId = room ? room.locationId : "";
+
         setForm(f => {
           const slotExists = f.availabilitySlots.some(slot => slot.day === dayName && slot.startTime === startTimeStr && slot.endTime === endTimeStr);
           const newSlots = slotExists ? f.availabilitySlots : [...f.availabilitySlots, { id: Math.random().toString(), day: dayName, startTime: startTimeStr, endTime: endTimeStr }];
@@ -132,31 +143,59 @@ export default function TeamPage() {
             ...f,
             shiftStart: sStart,
             shiftEnd: sEnd,
+            locationId: sess.roomId || f.locationId,
+            eventLocationId: resolvedEventLocationId || f.eventLocationId,
             availabilitySlots: newSlots
           };
         });
       }
     }
-  }, [form.sessionId, sessions]);
+  }, [form.sessionId, sessions, locations]);
+
+  // Default the availability day picker to the first real event day once loaded
+  useEffect(() => {
+    if (eventDays.length > 0 && !eventDays.some(d => d.value === availDay)) {
+      setAvailDay(eventDays[0].value);
+    }
+  }, [eventDays]);
 
   const loadData = async (eventId: string) => {
     setLoading(true);
     try {
-      const [partsList, assignsList, sessList, locsList, orgsList, rolesList] = await Promise.all([
+      const [partsList, assignsList, sessList, locsList, orgsList, rolesList, schedList, evLocsList] = await Promise.all([
         eventService.getParticipantsByEvent(eventId).catch(() => []),
         eventService.getAssignmentsByEvent(eventId).catch(() => []),
         eventService.getSessions().catch(() => []),
         eventService.getRoomsByEvent(eventId).catch(() => []),
         eventService.getOrganizations().catch(() => []),
         eventService.getRoles().catch(() => []),
+        eventService.getEventSchedules().catch(() => []),
+        eventService.getEventLocations().catch(() => []),
       ]);
 
       setParticipants(partsList || []);
       setAssignments(assignsList || []);
       setSessions((sessList || []).filter((s: any) => (s.eventId || s.event?.eventId) === eventId));
       setLocations(locsList || []);
+      setEventLocations((evLocsList || []).filter((l: any) => l.eventId === eventId || l.event?.eventId === eventId));
       setOrganizations(orgsList || []);
       setRoles(rolesList || []);
+
+      const eventSchedules = (schedList || [])
+        .filter((s: any) => (s.eventId || s.event?.eventId) === eventId)
+        .sort((a: any, b: any) => new Date(a.startDatetime).getTime() - new Date(b.startDatetime).getTime());
+
+      const seenDays = new Set<string>();
+      const days: { value: string; label: string }[] = [];
+      eventSchedules.forEach((s: any) => {
+        const date = new Date(s.startDatetime);
+        const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+        if (!seenDays.has(dayName)) {
+          seenDays.add(dayName);
+          days.push({ value: dayName, label: date.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" }) });
+        }
+      });
+      setEventDays(days);
     } catch (err) {
       console.error(err);
     } finally {
@@ -183,6 +222,24 @@ export default function TeamPage() {
       setNewRoleName("");
     } catch {
       showToast(t("adminTeam.toast.roleCreateFailed"));
+    }
+  };
+
+  const handleAddOrg = async () => {
+    if (!newOrgName.trim()) return;
+    try {
+      const created = await eventService.createOrganization({
+        name: newOrgName,
+        type: "company"
+      });
+      showToast(t("adminTeam.toast.orgCreated", { name: created.name }));
+      const list = await eventService.getOrganizations().catch(() => []);
+      setOrganizations(list || []);
+      setForm(f => ({ ...f, organizationId: created.id }));
+      setShowAddOrg(false);
+      setNewOrgName("");
+    } catch {
+      showToast(t("adminTeam.toast.orgCreateFailed"));
     }
   };
 
@@ -233,23 +290,13 @@ export default function TeamPage() {
     setSaving(true);
 
     try {
-      // 1. Resolve organization if any
-      let finalOrgId = form.organizationId;
-      if (form.newCompanyName.trim()) {
-        const org = await eventService.createOrganization({
-          name: form.newCompanyName,
-          type: "company"
-        });
-        finalOrgId = org.id;
-      }
-
-      // 2. Create/Update Person
+      // 1. Create/Update Person
       const personPayload = {
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
         phone: form.phone,
-        organizationId: finalOrgId || undefined,
+        organizationId: form.organizationId || undefined,
         jobTitle: form.jobTitle || undefined,
         bio: form.bio || undefined,
         profilePhoto: form.photoUrl || undefined
@@ -257,7 +304,7 @@ export default function TeamPage() {
 
       const person = await eventService.createPerson(personPayload);
 
-      // 3. Create/Update EventParticipant
+      // 2. Create/Update EventParticipant
       const participantPayload = {
         eventId: selectedEventId,
         personId: person.id,
@@ -274,17 +321,19 @@ export default function TeamPage() {
         participantRes = await eventService.createParticipant(participantPayload);
       }
 
-      // 4. Create/Update Assignment
-      if (form.task.trim() || form.locationId || form.shiftStart || form.shiftEnd || form.sessionId) {
+      // 3. Create/Update Assignment
+      if (form.task.trim() || form.locationId || form.eventLocationId || form.shiftStart || form.shiftEnd || form.sessionId) {
         const assignmentPayload = {
           eventParticipantId: participantRes.id,
           locationId: form.locationId || undefined,
+          eventLocationId: form.eventLocationId || undefined,
           sessionId: form.sessionId || undefined,
           task: form.task || undefined,
           team: form.team || undefined,
           shiftStart: form.shiftStart ? new Date(form.shiftStart).toISOString() : undefined,
           shiftEnd: form.shiftEnd ? new Date(form.shiftEnd).toISOString() : undefined,
-          hours: form.hours ? parseFloat(form.hours) : undefined
+          hours: form.hours ? parseFloat(form.hours) : undefined,
+          status: form.assignmentStatus || "ACTIVE"
         };
 
         if (editingAssignment) {
@@ -304,18 +353,19 @@ export default function TeamPage() {
         phone: "",
         roleId: "a0000000-0000-0000-0000-000000000002",
         organizationId: "",
-        newCompanyName: "",
         jobTitle: "",
         bio: "",
         photoUrl: "",
         sessionId: "",
         locationId: "",
+        eventLocationId: "",
         task: "",
         team: "",
         shiftStart: "",
         shiftEnd: "",
         hours: "",
         notes: "",
+        assignmentStatus: "ACTIVE",
         availabilitySlots: []
       });
       await loadData(selectedEventId);
@@ -464,18 +514,19 @@ export default function TeamPage() {
                               phone: p.person?.phone || "",
                               roleId: p.role?.id || "a0000000-0000-0000-0000-000000000002",
                               organizationId: p.person?.organization?.id || "",
-                              newCompanyName: "",
                               jobTitle: p.person?.jobTitle || "",
                               bio: p.person?.bio || "",
                               photoUrl: p.person?.profilePhoto || "",
                               sessionId: ass?.sessionId || "",
                               locationId: ass?.location?.roomId || "",
+                              eventLocationId: ass?.eventLocationId || "",
                               task: ass?.task || "",
                               team: ass?.team || "",
                               shiftStart: ass?.shiftStart ? ass.shiftStart.substring(0, 16) : "",
                               shiftEnd: ass?.shiftEnd ? ass.shiftEnd.substring(0, 16) : "",
                               hours: ass?.hours?.toString() || "",
                               notes: p.notes || "",
+                              assignmentStatus: ass?.status || "ACTIVE",
                               availabilitySlots: slots
                             });
                             formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -521,7 +572,16 @@ export default function TeamPage() {
                               assigns.map((ass, idx) => (
                                 <div key={idx} className="bg-stone-50 border border-[#e5e7eb] rounded-xl p-2.5 space-y-1 text-xs">
                                   {ass.sessionId && <div className="text-red-500 font-bold flex items-center gap-1"><Mic size={10} /> {t("adminTeam.list.sessionPrefix", { title: sessions.find(s => (s.sessionId || s.id) === ass.sessionId)?.title || t("adminTeam.list.presentationFallback") })}</div>}
-                                  {ass.location && <div className="text-blue-600 font-semibold flex items-center gap-1"><MapPin size={10} /> {t("adminTeam.list.roomPrefix", { name: ass.location.name })}</div>}
+                                  {(ass.eventLocationName || ass.locationName) && (
+                                     <div className="text-blue-600 font-semibold flex items-center gap-1">
+                                       <MapPin size={10} />
+                                       <span>
+                                         {ass.eventLocationName || ""}
+                                         {ass.eventLocationName && ass.locationName && " — "}
+                                         {ass.locationName || ""}
+                                       </span>
+                                     </div>
+                                   )}
                                   {ass.task && <div className="text-[#1a1a1a] font-medium">{t("adminTeam.list.taskPrefix", { task: ass.task })}</div>}
                                   {(ass.shiftStart || ass.shiftEnd) && (
                                     <div className="text-[9px] text-[#888] flex items-center gap-1"><Clock size={10} /> {t("adminTeam.list.shiftPrefix", { start: ass.shiftStart ? new Date(ass.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "", end: ass.shiftEnd ? new Date(ass.shiftEnd).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "" })}</div>
@@ -555,7 +615,6 @@ export default function TeamPage() {
                       phone: "",
                       roleId: "a0000000-0000-0000-0000-000000000002",
                       organizationId: "",
-                      newCompanyName: "",
                       jobTitle: "",
                       bio: "",
                       photoUrl: "",
@@ -567,6 +626,7 @@ export default function TeamPage() {
                       shiftEnd: "",
                       hours: "",
                       notes: "",
+                      assignmentStatus: "ACTIVE",
                       availabilitySlots: []
                     });
                   }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">{t("adminTeam.form.cancelEdit")}</button>
@@ -609,21 +669,27 @@ export default function TeamPage() {
                 {/* Job / Bio / Org */}
                 <div className="border-t border-[#f0f0f0] pt-4 space-y-4">
                   <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">{t("adminTeam.form.jobMetadataHeading")}</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className={label}>{t("adminTeam.form.jobTitleLabel")}</label><input placeholder={t("adminTeam.form.jobTitlePlaceholder")} value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} className={inp} /></div>
-                    <div>
-                      <label className={label}>{t("adminTeam.form.affiliatedCompany")}</label>
-                      <select value={form.organizationId} onChange={e => setForm(f => ({ ...f, organizationId: e.target.value }))} className={inp}>
-                        <option value="">{t("adminTeam.form.selectOrganization")}</option>
-                        {organizations.map(o => (
-                          <option key={o.id} value={o.id}>{o.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                  <div><label className={label}>{t("adminTeam.form.jobTitleLabel")}</label><input placeholder={t("adminTeam.form.jobTitlePlaceholder")} value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} className={inp} /></div>
+
                   <div>
-                    <label className={label}>{t("adminTeam.form.newOrgNameLabel")}</label>
-                    <input placeholder={t("adminTeam.form.newOrgNamePlaceholder")} value={form.newCompanyName} onChange={e => setForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className={label}>{t("adminTeam.form.affiliatedCompany")}</label>
+                      <button type="button" onClick={() => setShowAddOrg(!showAddOrg)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">{t("adminTeam.form.addOrg")}</button>
+                    </div>
+
+                    {showAddOrg && (
+                      <div className="flex gap-2 mb-3 bg-[#fafafa] p-3 rounded-xl border border-[#e5e7eb]">
+                        <input placeholder={t("adminTeam.form.newOrgNamePlaceholder")} value={newOrgName} onChange={e => setNewOrgName(e.target.value)} className={inp + " py-1.5"} />
+                        <button type="button" onClick={handleAddOrg} className="px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-lg hover:bg-[#e03e3e]">{t("adminTeam.form.save")}</button>
+                      </div>
+                    )}
+
+                    <select value={form.organizationId} onChange={e => setForm(f => ({ ...f, organizationId: e.target.value }))} className={inp}>
+                      <option value="">{t("adminTeam.form.selectOrganization")}</option>
+                      {organizations.map(o => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
                   </div>
                   <div><label className={label}>{t("adminTeam.form.bioLabel")}</label><textarea placeholder={t("adminTeam.form.bioPlaceholder")} value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
                 </div>
@@ -636,13 +702,11 @@ export default function TeamPage() {
                     <div className="flex-1 min-w-[120px]">
                       <label className={label}>{t("adminTeam.form.dayLabel")}</label>
                       <select value={availDay} onChange={e => setAvailDay(e.target.value)} className={inp + " py-1.5"}>
-                        <option value="Monday">{t("adminTeam.days.monday")}</option>
-                        <option value="Tuesday">{t("adminTeam.days.tuesday")}</option>
-                        <option value="Wednesday">{t("adminTeam.days.wednesday")}</option>
-                        <option value="Thursday">{t("adminTeam.days.thursday")}</option>
-                        <option value="Friday">{t("adminTeam.days.friday")}</option>
-                        <option value="Saturday">{t("adminTeam.days.saturday")}</option>
-                        <option value="Sunday">{t("adminTeam.days.sunday")}</option>
+                        {eventDays.length > 0 ? (
+                          eventDays.map(d => <option key={d.value} value={d.value}>{d.label}</option>)
+                        ) : (
+                          <option value="Monday">{t("adminTeam.days.monday")}</option>
+                        )}
                         <option value="All Days">{t("adminTeam.days.allDays")}</option>
                       </select>
                     </div>
@@ -720,6 +784,34 @@ export default function TeamPage() {
                     </select>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={label}>Event Location</label>
+                      <select value={form.eventLocationId} onChange={e => setForm(f => ({ ...f, eventLocationId: e.target.value, locationId: "" }))} className={inp}>
+                        <option value="">— Select Location —</option>
+                        {eventLocations.map(el => (
+                          <option key={el.locationId || el.id} value={el.locationId || el.id}>
+                            {el.venueName || el.virtualPlatform || "Unnamed Location"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={label}>Room / Hall</label>
+                      <select value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
+                        <option value="">— Select Room —</option>
+                        {locations
+                          .filter(loc => !form.eventLocationId || loc.locationId === form.eventLocationId)
+                          .map(loc => (
+                            <option key={loc.roomId} value={loc.roomId}>
+                              {loc.name} {loc.roomNumber ? `(${loc.roomNumber})` : ""}
+                            </option>
+                          ))
+                        }
+                      </select>
+                    </div>
+                  </div>
+
                   {conflictWarning && (
                     <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl p-3.5 flex items-start gap-2">
                       <AlertTriangle size={15} className="shrink-0 mt-0.5" />
@@ -728,21 +820,14 @@ export default function TeamPage() {
                   )}
 
                   <div className="grid grid-cols-2 gap-4">
+                    <div><label className={label}>{t("adminTeam.form.shiftTaskNote")}</label><input placeholder={t("adminTeam.form.shiftTaskPlaceholder")} value={form.task} onChange={e => setForm(f => ({ ...f, task: e.target.value }))} className={inp} /></div>
                     <div>
-                      <label className={label}>{t("adminTeam.form.roomLocationOverride")}</label>
-                      <select value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                        <option value="">{t("adminTeam.form.selectRoom")}</option>
-                        {locations.map(loc => (
-                          <option key={loc.roomId} value={loc.roomId}>{loc.name}</option>
-                        ))}
+                      <label className={label}>{t("adminTeam.form.assignmentStatus")}</label>
+                      <select value={form.assignmentStatus} onChange={e => setForm(f => ({ ...f, assignmentStatus: e.target.value }))} className={inp}>
+                        <option value="ACTIVE">{t("adminTeam.form.assignmentStatusActive")}</option>
+                        <option value="ENDED">{t("adminTeam.form.assignmentStatusEnded")}</option>
                       </select>
                     </div>
-                    <div><label className={label}>{t("adminTeam.form.shiftTaskNote")}</label><input placeholder={t("adminTeam.form.shiftTaskPlaceholder")} value={form.task} onChange={e => setForm(f => ({ ...f, task: e.target.value }))} className={inp} /></div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className={label}>{t("adminTeam.form.shiftStartOverride")}</label><input type="datetime-local" value={form.shiftStart} onChange={e => setForm(f => ({ ...f, shiftStart: e.target.value }))} className={inp} /></div>
-                    <div><label className={label}>{t("adminTeam.form.shiftEndOverride")}</label><input type="datetime-local" value={form.shiftEnd} onChange={e => setForm(f => ({ ...f, shiftEnd: e.target.value }))} className={inp} /></div>
                   </div>
                 </div>
 

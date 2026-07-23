@@ -29,6 +29,7 @@ export default function ProjectPage() {
   const [refunds, setRefunds] = useState<any[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [schedule, setSchedule] = useState<any>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
 
   // Forms
   const [editingTicket, setEditingTicket] = useState<any>(null);
@@ -40,6 +41,7 @@ export default function ProjectPage() {
     saleStart: toLocalISOString(new Date()),
     saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
     maxPerOrder: 5,
+    sessionIds: [] as string[],
   });
 
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
@@ -77,21 +79,35 @@ export default function ProjectPage() {
   const fetchEventDetails = async (eventId: string) => {
     if (!eventId) return;
     try {
-      const [ticketsList, couponsList, ordersList, refundsList, schedsList] = await Promise.all([
+      const [ticketsList, couponsList, ordersList, refundsList, schedsList, sessionsList] = await Promise.all([
         eventService.getTicketTypes(),
         eventService.getCoupons(),
         eventService.getOrders(),
         paymentService.getRefunds().catch(() => []),
         eventService.getEventSchedules().catch(() => []),
+        eventService.getSessions().catch(() => []),
       ]);
 
       setTicketTypes((ticketsList || []).filter((t) => t.eventId === eventId));
       setCoupons((couponsList || []).filter((c) => c.eventId === eventId));
       setOrders((ordersList || []).filter((o) => o.eventId === eventId));
       setRefunds(refundsList || []);
-      
-      const sched = (schedsList || []).find((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
-      setSchedule(sched || null);
+      setSessions((sessionsList || []).filter((s: any) => s.eventId === eventId || s.event?.eventId === eventId));
+
+      const eventScheds = (schedsList || []).filter((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
+      if (eventScheds.length > 0) {
+        const starts = eventScheds.map((s: any) => new Date(s.startDatetime).getTime()).filter((n) => !isNaN(n));
+        const ends = eventScheds.map((s: any) => new Date(s.endDatetime).getTime()).filter((n) => !isNaN(n));
+        const overallStart = starts.length > 0 ? new Date(Math.min(...starts)).toISOString() : eventScheds[0].startDatetime;
+        const overallEnd = ends.length > 0 ? new Date(Math.max(...ends)).toISOString() : eventScheds[0].endDatetime;
+        setSchedule({
+          startDatetime: overallStart,
+          endDatetime: overallEnd,
+          timezone: eventScheds[0].timezone,
+        });
+      } else {
+        setSchedule(null);
+      }
     } catch (err) {
       console.error("Failed to load details:", err);
     }
@@ -114,6 +130,7 @@ export default function ProjectPage() {
         saleStart: toLocalISOString(new Date()),
         saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
         maxPerOrder: 5,
+        sessionIds: [],
       });
       setCouponForm({ code: "", type: "PERCENTAGE", value: 10, maxUses: 100 });
     }
@@ -153,14 +170,8 @@ export default function ProjectPage() {
     }
 
     // ── Sale dates ──
-    const origSaleStart = editingTicket?.saleStart ? toLocalISOString(editingTicket.saleStart) : "";
-    const origSaleEnd = editingTicket?.saleEnd ? toLocalISOString(editingTicket.saleEnd) : "";
-    const isSaleStartChanged = !editingTicket || ticketForm.saleStart !== origSaleStart;
-    const isSaleEndChanged = !editingTicket || ticketForm.saleEnd !== origSaleEnd;
-
     if (ticketForm.saleStart) {
       const saleStart = new Date(ticketForm.saleStart);
-      if (isSaleStartChanged && saleStart < now) { showToast(t("adminProject.toast.saleStartPast")); return; }
       if (eventEnd && saleStart >= eventEnd) {
         showToast(t("adminProject.toast.saleStartAfterEvent"));
         return;
@@ -178,7 +189,6 @@ export default function ProjectPage() {
       }
     } else if (ticketForm.saleEnd) {
       const saleEnd = new Date(ticketForm.saleEnd);
-      if (isSaleEndChanged && saleEnd < now) { showToast(t("adminProject.toast.saleEndPast")); return; }
       if (eventEnd && saleEnd > eventEnd) {
         showToast(t("adminProject.toast.saleEndAfterEvent"));
         return;
@@ -198,6 +208,7 @@ export default function ProjectPage() {
         saleStart: ticketForm.saleStart ? new Date(ticketForm.saleStart).toISOString() : undefined,
         saleEnd: ticketForm.saleEnd ? new Date(ticketForm.saleEnd).toISOString() : undefined,
         maxPerOrder: mpo,
+        sessionIds: ticketForm.sessionIds,
       };
 
       if (editingTicket) {
@@ -209,14 +220,15 @@ export default function ProjectPage() {
         showToast(t("adminProject.toast.ticketAdded"));
       }
 
-      setTicketForm({ 
-        name: "", 
-        description: "", 
-        price: 0, 
+      setTicketForm({
+        name: "",
+        description: "",
+        price: 0,
         quantityAvailable: 100,
         saleStart: toLocalISOString(new Date()),
         saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-        maxPerOrder: 5
+        maxPerOrder: 5,
+        sessionIds: [],
       });
       await fetchEventDetails(selectedEventId);
     } catch (err) {
@@ -241,6 +253,7 @@ export default function ProjectPage() {
           saleStart: toLocalISOString(new Date()),
           saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
           maxPerOrder: 5,
+          sessionIds: [],
         });
       }
       await fetchEventDetails(selectedEventId);
@@ -406,7 +419,6 @@ export default function ProjectPage() {
                     <input
                       type="datetime-local"
                       value={ticketForm.saleStart}
-                      min={toLocalISOString(new Date())}
                       max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -424,7 +436,6 @@ export default function ProjectPage() {
                     <input
                       type="datetime-local"
                       value={ticketForm.saleEnd}
-                      min={ticketForm.saleStart ? toLocalISOString(new Date(new Date(ticketForm.saleStart).getTime() + 2 * 3600 * 1000)) : toLocalISOString(new Date())}
                       max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
                       onChange={(e) => setTicketForm({ ...ticketForm, saleEnd: e.target.value })}
                       className={inp}
@@ -448,6 +459,37 @@ export default function ProjectPage() {
                     <p className="text-[10px] mt-1 text-[#888]">{t("adminProject.tickets.maxPerOrderHelp")}</p>
                   </div>
                 </div>
+                {sessions.length > 0 && (
+                  <div>
+                    <label className={label}>{t("adminProject.tickets.sessionScopeLabel")}</label>
+                    <p className="text-[10px] text-[#888] mb-2">Select which sessions this ticket can be used to check in. Leave empty for all sessions (General Admission).</p>
+                    <div className="grid grid-cols-2 gap-2 border border-[#e5e7eb] rounded-xl p-3 max-h-40 overflow-y-auto bg-[#fafafa]">
+                      {sessions.map((s: any) => {
+                        const sId = s.sessionId || s.id;
+                        const checked = (ticketForm.sessionIds || []).includes(sId);
+                        return (
+                          <label key={sId} className="flex items-center gap-2 text-xs font-semibold text-[#555] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setTicketForm(f => {
+                                  const currentIds = f.sessionIds || [];
+                                  const nextIds = currentIds.includes(sId)
+                                    ? currentIds.filter(id => id !== sId)
+                                    : [...currentIds, sId];
+                                  return { ...f, sessionIds: nextIds };
+                                });
+                              }}
+                              className="rounded text-[#FF4747] focus:ring-[#FF4747]"
+                            />
+                            <span className="truncate">{s.title}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="submit"
@@ -469,6 +511,7 @@ export default function ProjectPage() {
                           saleStart: toLocalISOString(new Date()),
                           saleEnd: toLocalISOString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
                           maxPerOrder: 5,
+                          sessionIds: [],
                         });
                       }}
                       className="px-4 py-2.5 bg-stone-100 text-[#555] hover:bg-stone-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
@@ -505,6 +548,7 @@ export default function ProjectPage() {
                               saleStart: tk.saleStart ? toLocalISOString(tk.saleStart) : toLocalISOString(new Date()),
                               saleEnd: tk.saleEnd ? toLocalISOString(tk.saleEnd) : toLocalISOString(new Date()),
                               maxPerOrder: tk.maxPerOrder || 5,
+                              sessionIds: tk.sessionIds || [],
                             });
                             ticketFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                           }} className="p-1 text-[#555] hover:bg-stone-100 rounded-md transition-colors cursor-pointer">
@@ -641,117 +685,11 @@ export default function ProjectPage() {
                 {coupons.length === 0 && (
                   <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">{t("adminProject.coupons.empty")}</div>
                 )}
-              </div>
             </div>
           </div>
-
-          {/* ORDERS */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
-            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <DollarSign size={18} className="text-[#EB4203]" /> {t("adminProject.orders.title")}
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#1a1a1a]">
-                <thead className="bg-[#f9fafb] text-[10px] text-[#555] uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4 rounded-l-xl">{t("adminProject.orders.colOrderId")}</th>
-                    <th className="p-4">{t("adminProject.orders.colDate")}</th>
-                    <th className="p-4">{t("adminProject.orders.colGross")}</th>
-                    <th className="p-4">{t("adminProject.orders.colDiscount")}</th>
-                    <th className="p-4 text-red-600/70">{t("adminProject.orders.colPlatformFee")}</th>
-                    <th className="p-4 text-green-600/70">{t("adminProject.orders.colNet")}</th>
-                    <th className="p-4 rounded-r-xl">{t("adminProject.orders.colStatus")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#e5e7eb]">
-                  {orders.map((o, idx) => {
-                    const gross = parseFloat(o.totalAmount) || 0;
-                    const fee = parseFloat(o.platformFee) || 0;
-                    const net = gross - fee;
-                    return (
-                      <tr key={`${o.orderId || idx}-${idx}`} className="hover:bg-[#f9fafb] transition-colors">
-                        <td className="p-4 font-mono text-[10px] text-[#666]">{o.orderId?.substring(0, 8)}...</td>
-                        <td className="p-4 text-[#555]">{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "—"}</td>
-                        <td className="p-4 text-[#1a1a1a] font-medium">{gross.toLocaleString()} FCFA</td>
-                        <td className="p-4 text-[#555]">{(parseFloat(o.discountAmount) || 0).toLocaleString()} FCFA</td>
-                        <td className="p-4 text-red-500 font-medium">-{fee.toLocaleString()} FCFA</td>
-                        <td className="p-4 text-green-600 font-semibold">{net.toLocaleString()} FCFA</td>
-                        <td className="p-4">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              o.status === "PAID" ? "bg-green-50 text-green-700 border border-green-100" : "bg-stone-100 text-stone-600 border border-stone-200"
-                            }`}
-                          >
-                            {o.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {orders.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="p-8 text-center text-[#555]">
-                        {t("adminProject.orders.empty")}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* REFUNDS */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
-            <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-              <DollarSign size={18} className="text-red-500" /> {t("adminProject.refunds.title")}
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#1a1a1a]">
-                <thead className="bg-[#f9fafb] text-[10px] text-[#555] uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4 rounded-l-xl">{t("adminProject.refunds.colRefundId")}</th>
-                    <th className="p-4">{t("adminProject.refunds.colPaymentId")}</th>
-                    <th className="p-4">{t("adminProject.refunds.colAmount")}</th>
-                    <th className="p-4">{t("adminProject.refunds.colReason")}</th>
-                    <th className="p-4">{t("adminProject.refunds.colProcessedAt")}</th>
-                    <th className="p-4 rounded-r-xl">{t("adminProject.refunds.colStatus")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#e5e7eb]">
-                  {refunds.map((r, idx) => {
-                    const amount = parseFloat(r.amount) || 0;
-                    return (
-                      <tr key={`${r.refundId || idx}-${idx}`} className="hover:bg-[#f9fafb] transition-colors">
-                        <td className="p-4 font-mono text-[10px] text-[#666]">{r.refundId?.substring(0, 8)}...</td>
-                        <td className="p-4 font-mono text-[10px] text-[#666]">{r.paymentId?.substring(0, 8)}...</td>
-                        <td className="p-4 text-[#1a1a1a] font-medium">{amount.toLocaleString()} FCFA</td>
-                        <td className="p-4 text-[#555]">{r.reason || t("adminProject.refunds.noReason")}</td>
-                        <td className="p-4 text-[#555]">{r.processedAt ? new Date(r.processedAt).toLocaleDateString() : "—"}</td>
-                        <td className="p-4">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold ${
-                              r.status === "SUCCESSFUL" ? "bg-green-50 text-green-700 border border-green-100" : "bg-red-50 text-red-700 border border-red-100"
-                            }`}
-                          >
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {refunds.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-[#555]">
-                        {t("adminProject.refunds.empty")}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
+  </div>
   );
 }

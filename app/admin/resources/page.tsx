@@ -5,9 +5,30 @@ import Sidebar from "@/components/Sidebar";
 import {
   Package, Home, Plus, Trash2, Pencil, MapPin, Calendar, Check, Save,
   Search, ShieldAlert, AlertCircle, Info, ChevronRight, Layers,
-  Compass, Hammer, Armchair
+  Compass, Hammer, Armchair, Volume2, Video, Laptop, Coffee, Shield, Award, Sparkles, HelpCircle, Link2
 } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
+ 
+const getAssetIcon = (category?: string) => {
+  const cat = (category || "").toLowerCase();
+  if (cat.includes("audio")) return <Volume2 size={15} className="text-blue-500" />;
+  if (cat.includes("video")) return <Video size={15} className="text-purple-500" />;
+  if (cat.includes("furniture")) return <Armchair size={15} className="text-amber-500" />;
+  if (cat.includes("it") || cat.includes("computer") || cat.includes("tech")) return <Laptop size={15} className="text-indigo-500" />;
+  if (cat.includes("catering") || cat.includes("food") || cat.includes("drink")) return <Coffee size={15} className="text-orange-500" />;
+  if (cat.includes("security")) return <Shield size={15} className="text-emerald-500" />;
+  if (cat.includes("decoration")) return <Sparkles size={15} className="text-rose-500" />;
+  return <Package size={15} className="text-zinc-400" />;
+};
+ 
+const getRoomIcon = (roomType?: string) => {
+  const type = (roomType || "").toLowerCase();
+  if (type.includes("vip") || type.includes("lounge")) return <Award size={15} className="text-amber-500 animate-pulse" />;
+  if (type.includes("outdoor") || type.includes("garden")) return <Compass size={15} className="text-emerald-500" />;
+  if (type.includes("conference") || type.includes("hall") || type.includes("meeting")) return <Layers size={15} className="text-blue-500" />;
+  if (type.includes("classroom") || type.includes("lab")) return <Laptop size={15} className="text-indigo-500" />;
+  return <Home size={15} className="text-zinc-400" />;
+};
 import { eventService } from "@/app/utils/services/eventService";
 import { useLanguage } from "@/app/context/LanguageContext";
 
@@ -34,8 +55,6 @@ interface ResourceItem {
   quantityRemaining?: number;
   unit?: string;
   condition?: string;
-  assignedRoomId?: string;
-  assignedToStaffId?: string;
   purchaseDate?: string;
   purchaseCost?: number;
   supplier?: string;
@@ -54,7 +73,6 @@ interface RoomItem {
   capacity: number;
   description: string;
   floor: string;
-  amenities: string;
   status: string;
   eventId: string;
   locationId?: string;
@@ -64,8 +82,19 @@ interface RoomItem {
   roomNumber?: string;
   roomType?: string;
   accessibilityFeatures?: string;
-  assignedSessionId?: string;
-  roomManagerId?: string;
+}
+
+interface AllocationItem {
+  id?: string;
+  resourceId: string;
+  resourceName?: string;
+  roomId: string;
+  roomName?: string;
+  quantity?: number;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  notes?: string;
 }
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -78,7 +107,7 @@ export default function ResourcesPage() {
   const auth = getStoredAuth();
   
   // Tabs & Filters
-  const [activeTab, setActiveTab] = useState<"assets" | "rooms">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "rooms" | "allocations">("assets");
   const [events, setEvents] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("ALL");
@@ -92,33 +121,16 @@ export default function ResourcesPage() {
   
   const [resources, setResources] = useState<ResourceItem[]>([]);
   const [rooms, setRooms] = useState<RoomItem[]>([]);
-
-  // Event specifics for form dropdowns
-  const [eventStaff, setEventStaff] = useState<any[]>([]);
-  const [eventSessions, setEventSessions] = useState<any[]>([]);
-  const [eventRooms, setEventRooms] = useState<any[]>([]);
+  const [allocations, setAllocations] = useState<AllocationItem[]>([]);
 
   // Forms editing states
   const [editingResource, setEditingResource] = useState<ResourceItem | null>(null);
   const [editingRoom, setEditingRoom] = useState<RoomItem | null>(null);
-
-  // Inline additions state
-  const [showInlineAddRoom, setShowInlineAddRoom] = useState(false);
-  const [inlineRoomName, setInlineRoomName] = useState("");
-  
-  const [showInlineAddStaff, setShowInlineAddStaff] = useState(false);
-  const [showInlineAddStaffForRoom, setShowInlineAddStaffForRoom] = useState(false);
-  const [inlineStaffName, setInlineStaffName] = useState("");
-  const [inlineStaffEmail, setInlineStaffEmail] = useState("");
+  const [editingAllocation, setEditingAllocation] = useState<AllocationItem | null>(null);
 
   const [showAddCustomType, setShowAddCustomType] = useState(false);
   const [customRoomTypes, setCustomRoomTypes] = useState<string[]>([]);
   const [newCustomType, setNewCustomType] = useState("");
-
-  const [showInlineAddSession, setShowInlineAddSession] = useState(false);
-  const [inlineSessionTitle, setInlineSessionTitle] = useState("");
-  const [inlineSessionStart, setInlineSessionStart] = useState("");
-  const [inlineSessionEnd, setInlineSessionEnd] = useState("");
 
   // Forms fields state
   const [resourceForm, setResourceForm] = useState({
@@ -135,8 +147,6 @@ export default function ResourcesPage() {
     quantityReserved: 0,
     unit: "Piece",
     condition: "Good",
-    assignedRoomId: "",
-    assignedToStaffId: "",
     purchaseDate: "",
     purchaseCost: 0,
     supplier: "",
@@ -152,7 +162,6 @@ export default function ResourcesPage() {
     name: "",
     capacity: 20,
     floor: "",
-    amenities: "",
     status: "AVAILABLE" as RoomStatus,
     eventId: "",
     locationId: "",
@@ -160,9 +169,17 @@ export default function ResourcesPage() {
 
     roomNumber: "",
     roomType: "Hall",
-    accessibilityFeatures: "",
-    assignedSessionId: "",
-    roomManagerId: ""
+    accessibilityFeatures: ""
+  });
+
+  const [allocationForm, setAllocationForm] = useState({
+    resourceId: "",
+    roomId: "",
+    quantity: 1,
+    startTime: "",
+    endTime: "",
+    status: "ACTIVE",
+    notes: ""
   });
 
   const showToast = (msg: string) => {
@@ -170,46 +187,30 @@ export default function ResourcesPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const loadEventSpecifics = async (evId: string) => {
-    if (!evId) return;
-    try {
-      const [staffList, sessionList, roomList] = await Promise.all([
-        eventService.getStaffByEvent(evId).catch(() => []),
-        eventService.getSessions().catch(() => []),
-        eventService.getRoomsByEvent(evId).catch(() => [])
-      ]);
-      const filteredSessions = (sessionList || []).filter((s: any) => s.eventId === evId || s.event?.eventId === evId);
-      setEventStaff(staffList || []);
-      setEventSessions(filteredSessions);
-      setEventRooms(roomList || []);
-    } catch (e) {
-      console.error("Failed to load event specifics", e);
-    }
-  };
-
   // Pre-load data
   const loadData = async () => {
     setLoading(true);
     try {
-      const [myEvents, allLocations, allResources, allRooms] = await Promise.all([
+      const [myEvents, allLocations, allResources, allRooms, allAllocations] = await Promise.all([
         eventService.getMyEvents().catch(() => []),
         eventService.getEventLocations().catch(() => []),
         eventService.getEventResources().catch(() => []),
-        eventService.getRooms().catch(() => [])
+        eventService.getRooms().catch(() => []),
+        eventService.getRoomAssetAllocations().catch(() => [])
       ]);
 
       setEvents(myEvents || []);
       setLocations(allLocations || []);
       setResources(allResources || []);
       setRooms(allRooms || []);
+      setAllocations(allAllocations || []);
 
       // If user has events, pre-select the first one for the form defaults
       if (myEvents && myEvents.length > 0) {
         const firstEvId = myEvents[0].eventId || myEvents[0].id;
         setResourceForm(f => ({ ...f, eventId: firstEvId }));
         setRoomForm(f => ({ ...f, eventId: firstEvId }));
-        loadEventSpecifics(firstEvId);
-        
+
         // Find matching locations for first event
         const matchingLocs = (allLocations || []).filter(
           (l: any) => l.eventId === firstEvId || l.event?.eventId === firstEvId
@@ -238,7 +239,6 @@ export default function ResourcesPage() {
 
   // Update locations list in form when event selection changes
   const handleFormEventChange = (eventId: string) => {
-    loadEventSpecifics(eventId);
     if (activeTab === "assets") {
       setResourceForm(f => ({ ...f, eventId, locationId: "" }));
       const matchingLocs = locations.filter(l => l.eventId === eventId || l.event?.eventId === eventId);
@@ -283,8 +283,6 @@ export default function ResourcesPage() {
       quantityReserved: Number(resourceForm.quantityReserved),
       unit: resourceForm.unit || undefined,
       condition: resourceForm.condition || undefined,
-      assignedRoomId: resourceForm.assignedRoomId || undefined,
-      assignedToStaffId: resourceForm.assignedToStaffId || undefined,
       purchaseDate: resourceForm.purchaseDate || undefined,
       purchaseCost: resourceForm.purchaseCost ? Number(resourceForm.purchaseCost) : undefined,
       supplier: resourceForm.supplier || undefined,
@@ -314,8 +312,6 @@ export default function ResourcesPage() {
         category: "Audio",
         unit: "Piece",
         condition: "Good",
-        assignedRoomId: "",
-        assignedToStaffId: "",
         purchaseDate: "",
         purchaseCost: 0,
         supplier: "",
@@ -364,14 +360,11 @@ export default function ResourcesPage() {
       capacity: Number(roomForm.capacity),
       description: roomForm.description,
       floor: roomForm.floor || undefined,
-      amenities: roomForm.amenities || undefined,
       status: roomForm.status,
 
       roomNumber: roomForm.roomNumber || undefined,
       roomType: roomForm.roomType || undefined,
-      accessibilityFeatures: roomForm.accessibilityFeatures || undefined,
-      assignedSessionId: roomForm.assignedSessionId || undefined,
-      roomManagerId: roomForm.roomManagerId || undefined
+      accessibilityFeatures: roomForm.accessibilityFeatures || undefined
     };
 
     try {
@@ -388,13 +381,10 @@ export default function ResourcesPage() {
         name: "",
         capacity: 20,
         floor: "",
-        amenities: "",
         description: "",
         roomNumber: "",
         roomType: "Hall",
-        accessibilityFeatures: "",
-        assignedSessionId: "",
-        roomManagerId: ""
+        accessibilityFeatures: ""
       }));
       // Reload lists
       const freshRooms = await eventService.getRooms().catch(() => []);
@@ -417,79 +407,6 @@ export default function ResourcesPage() {
     }
   };
 
-  const handleInlineAddRoom = async () => {
-    const evId = resourceForm.eventId || selectedEventId;
-    if (!inlineRoomName.trim() || evId === "ALL" || !evId) {
-      showToast(t("adminResources.toast.roomNameRequired"));
-      return;
-    }
-    try {
-      const created = await eventService.createRoom({
-        eventId: evId,
-        tenantId: auth?.tenantId,
-        name: inlineRoomName,
-        capacity: 30,
-        status: "AVAILABLE",
-        roomType: "Conference Room"
-      });
-      showToast(t("adminResources.toast.roomCreated"));
-      const roomList = await eventService.getRoomsByEvent(evId).catch(() => []);
-      setEventRooms(roomList || []);
-      setResourceForm(f => ({ ...f, assignedRoomId: created.roomId || created.id }));
-      setInlineRoomName("");
-      setShowInlineAddRoom(false);
-    } catch (err: any) {
-      showToast(err.message || t("adminResources.toast.roomCreateFailed"));
-    }
-  };
-
-  const handleInlineAddStaff = async (isForRoom = false) => {
-    const evId = isForRoom ? (roomForm.eventId || selectedEventId) : (resourceForm.eventId || selectedEventId);
-    if (!inlineStaffName.trim() || !inlineStaffEmail.trim() || evId === "ALL" || !evId) {
-      showToast(t("adminResources.toast.staffFieldsRequired"));
-      return;
-    }
-    try {
-      const fullName = inlineStaffName.trim();
-      let firstName = fullName;
-      let lastName = "";
-      const spaceIdx = fullName.indexOf(' ');
-      if (spaceIdx > 0) {
-        firstName = fullName.substring(0, spaceIdx);
-        lastName = fullName.substring(spaceIdx + 1);
-      }
-      const person = await eventService.createPerson({
-        firstName,
-        lastName,
-        email: inlineStaffEmail,
-        phone: "N/A"
-      });
-
-      const participant = await eventService.createParticipant({
-        eventId: evId,
-        personId: person.id,
-        roleId: "a0000000-0000-0000-0000-000000000002",
-        status: "confirmed"
-      });
-
-      showToast(t("adminResources.toast.staffRegistered"));
-      const staffList = await eventService.getStaffByEvent(evId).catch(() => []);
-      setEventStaff(staffList || []);
-
-      if (isForRoom) {
-        setRoomForm(f => ({ ...f, roomManagerId: participant.id }));
-        setShowInlineAddStaffForRoom(false);
-      } else {
-        setResourceForm(f => ({ ...f, assignedToStaffId: participant.id }));
-        setShowInlineAddStaff(false);
-      }
-      setInlineStaffName("");
-      setInlineStaffEmail("");
-    } catch (err: any) {
-      showToast(err.message || t("adminResources.toast.staffAddFailed"));
-    }
-  };
-
   const handleAddCustomRoomType = () => {
     if (!newCustomType.trim()) return;
     setCustomRoomTypes(prev => [...prev, newCustomType.trim()]);
@@ -498,33 +415,58 @@ export default function ResourcesPage() {
     setShowAddCustomType(false);
   };
 
-  const handleInlineAddSession = async () => {
-    const evId = roomForm.eventId || selectedEventId;
-    if (!inlineSessionTitle.trim() || !inlineSessionStart || !inlineSessionEnd || evId === "ALL" || !evId) {
-      showToast(t("adminResources.toast.sessionFieldsRequired"));
+  // CRUD Actions - Allocations
+  const saveAllocation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocationForm.resourceId || !allocationForm.roomId) {
+      showToast(t("adminResources.toast.allocationFieldsRequired") || "Select an asset and a room");
       return;
     }
+    const remaining = getRemainingQuantity(allocationForm.resourceId, editingAllocation?.id);
+    if (allocationForm.quantity > remaining) {
+      showToast(t("adminResources.toast.allocationQuantityExceeded", { count: remaining }) || `Only ${remaining} unit(s) available to allocate`);
+      return;
+    }
+    setSaving(true);
+
+    const payload = {
+      tenantId: auth?.tenantId,
+      resourceId: allocationForm.resourceId,
+      roomId: allocationForm.roomId,
+      quantity: Number(allocationForm.quantity) || 1,
+      startTime: allocationForm.startTime ? new Date(allocationForm.startTime).toISOString() : undefined,
+      endTime: allocationForm.endTime ? new Date(allocationForm.endTime).toISOString() : undefined,
+      status: allocationForm.status,
+      notes: allocationForm.notes || undefined
+    };
+
     try {
-      const created = await eventService.createSession({
-        eventId: evId,
-        title: inlineSessionTitle,
-        description: "Inline created session",
-        type: "TALK",
-        startTime: new Date(inlineSessionStart).toISOString(),
-        endTime: new Date(inlineSessionEnd).toISOString(),
-        maxCapacity: 100
-      });
-      showToast(t("adminResources.toast.sessionCreated"));
-      const list = await eventService.getSessions().catch(() => []);
-      const filtered = (list || []).filter((s: any) => (s.eventId || s.event?.eventId) === evId);
-      setEventSessions(filtered);
-      setRoomForm(f => ({ ...f, assignedSessionId: created.sessionId || created.id }));
-      setInlineSessionTitle("");
-      setInlineSessionStart("");
-      setInlineSessionEnd("");
-      setShowInlineAddSession(false);
+      if (editingAllocation) {
+        await eventService.updateRoomAssetAllocation(editingAllocation.id || "", payload);
+        showToast(t("adminResources.toast.allocationUpdated") || "Allocation updated");
+        setEditingAllocation(null);
+      } else {
+        await eventService.createRoomAssetAllocation(payload);
+        showToast(t("adminResources.toast.allocationCreated") || "Allocation created");
+      }
+      setAllocationForm({ resourceId: "", roomId: "", quantity: 1, startTime: "", endTime: "", status: "ACTIVE", notes: "" });
+      const freshAllocations = await eventService.getRoomAssetAllocations().catch(() => []);
+      setAllocations(freshAllocations || []);
     } catch (err: any) {
-      showToast(err.message || t("adminResources.toast.sessionCreateFailed"));
+      showToast(err.message || t("adminResources.toast.allocationSaveFailed") || "Failed to save allocation");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteAllocation = async (id: string) => {
+    if (!confirm(t("adminResources.toast.confirmDeleteAllocation") || "Delete this allocation?")) return;
+    try {
+      await eventService.deleteRoomAssetAllocation(id);
+      showToast(t("adminResources.toast.allocationDeleted") || "Allocation deleted");
+      setAllocations(allocations.filter(a => a.id !== id));
+    } catch (err: any) {
+      showToast(err.message || t("adminResources.toast.allocationDeleteFailed") || "Failed to delete allocation");
     }
   };
 
@@ -542,6 +484,23 @@ export default function ResourcesPage() {
     const queryMatch = !searchQuery || rm.name.toLowerCase().includes(searchQuery.toLowerCase()) || (rm.description && rm.description.toLowerCase().includes(searchQuery.toLowerCase()));
     return evMatch && locMatch && queryMatch;
   });
+
+  const filteredAllocations = allocations.filter(al => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (al.resourceName || "").toLowerCase().includes(q) || (al.roomName || "").toLowerCase().includes(q) || (al.notes || "").toLowerCase().includes(q);
+  });
+
+  // How many units of an asset are still free to allocate (total stock minus active allocations, excluding the one being edited)
+  const getRemainingQuantity = (resourceId: string, excludeAllocationId?: string) => {
+    const resource = resources.find(r => (r.resourceId || r.id) === resourceId);
+    if (!resource) return 0;
+    const total = resource.quantityAvailable ?? resource.quantity ?? 0;
+    const allocated = allocations
+      .filter(a => a.resourceId === resourceId && a.status !== "ENDED" && a.id !== excludeAllocationId)
+      .reduce((sum, a) => sum + (a.quantity || 1), 0);
+    return total - allocated;
+  };
 
   // Locations currently selected for event filter
   const filterLocations = selectedEventId === "ALL"
@@ -585,6 +544,12 @@ export default function ResourcesPage() {
               >
                 {t("adminResources.header.tabRooms")}
               </button>
+              <button
+                onClick={() => { setActiveTab("allocations"); setSearchQuery(""); }}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${activeTab === "allocations" ? "bg-white text-[#FF4747] shadow-sm" : "text-[#666] hover:text-[#1a1a1a]"}`}
+              >
+                {t("adminResources.header.tabAllocations") || "Allocations"}
+              </button>
             </div>
           </div>
         </header>
@@ -624,13 +589,65 @@ export default function ResourcesPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa]" size={13} />
             <input
               type="text"
-              placeholder={activeTab === "assets" ? t("adminResources.filters.searchAssetsPlaceholder") : t("adminResources.filters.searchSpacesPlaceholder")}
+              placeholder={activeTab === "assets" ? t("adminResources.filters.searchAssetsPlaceholder") : activeTab === "rooms" ? t("adminResources.filters.searchSpacesPlaceholder") : (t("adminResources.filters.searchAllocationsPlaceholder") || "Search allocations...")}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl pl-9 pr-4 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
             />
           </div>
         </div>
+
+        {/* STATS OVERVIEW PANEL */}
+        {!loading && (
+          <div className="bg-[#f9fafb] px-8 pt-6 pb-2 shrink-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                {
+                  label: t("adminResources.stats.totalAssets") || "Total Equipment",
+                  value: resources.reduce((acc, r) => acc + (r.quantityAvailable || r.quantity || 0), 0),
+                  desc: t("adminResources.stats.availableDesc", { count: resources.filter(r => r.status === "AVAILABLE").length }) || `${resources.filter(r => r.status === "AVAILABLE").length} available`,
+                  bg: "from-blue-50 to-indigo-50/30",
+                  text: "text-blue-600"
+                },
+                {
+                  label: t("adminResources.stats.reserved") || "Reserved Assets",
+                  value: resources.reduce((acc, r) => acc + (r.quantityReserved || 0), 0),
+                  desc: t("adminResources.stats.reservedDesc") || "Assigned to active sessions",
+                  bg: "from-amber-50 to-orange-50/30",
+                  text: "text-amber-600"
+                },
+                {
+                  label: t("adminResources.stats.spaces") || "Active Rooms & Spaces",
+                  value: rooms.length,
+                  desc: t("adminResources.stats.spacesDesc", { count: rooms.filter(r => r.status === "AVAILABLE").length }) || `${rooms.filter(r => r.status === "AVAILABLE").length} free of occupancy`,
+                  bg: "from-emerald-50 to-teal-50/30",
+                  text: "text-emerald-600"
+                },
+                {
+                  label: t("adminResources.stats.maintenance") || "Under Maintenance",
+                  value: rooms.filter(r => r.status === "MAINTENANCE").length + resources.filter(r => r.status === "MAINTENANCE").length,
+                  desc: t("adminResources.stats.maintenanceDesc") || "Unavailable equipment/rooms",
+                  bg: "from-rose-50 to-red-50/30",
+                  text: "text-rose-600"
+                }
+              ].map((st, i) => (
+                <div key={i} className="bg-white border border-[#e5e7eb] rounded-2xl p-4 shadow-sm flex items-center justify-between hover:-translate-y-0.5 transition-transform">
+                  <div>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider block">{st.label}</span>
+                    <span className="text-lg font-black text-zinc-900 mt-1 block">{st.value}</span>
+                    <span className="text-[9px] text-zinc-400 mt-0.5 block">{st.desc}</span>
+                  </div>
+                  <div className={`w-8 h-8 rounded-xl bg-gradient-to-br ${st.bg} flex items-center justify-center ${st.text}`}>
+                    {i === 0 && <Package size={15} />}
+                    {i === 1 && <Layers size={15} />}
+                    {i === 2 && <Home size={15} />}
+                    {i === 3 && <ShieldAlert size={15} />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* MAIN BODY AREA */}
         <div className="flex-1 flex overflow-hidden">
@@ -646,21 +663,25 @@ export default function ResourcesPage() {
               <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm overflow-y-auto flex flex-col h-full space-y-5">
                 <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3 shrink-0">
                   <div className="flex items-center gap-2">
-                    {activeTab === "assets" ? <Armchair size={16} className="text-[#FF4747]" /> : <Home size={16} className="text-[#FF4747]" />}
+                    {activeTab === "assets" ? <Armchair size={16} className="text-[#FF4747]" /> : activeTab === "rooms" ? <Home size={16} className="text-[#FF4747]" /> : <Link2 size={16} className="text-[#FF4747]" />}
                     <h2 className="font-display font-bold text-xs text-[#1a1a1a]">
                       {activeTab === "assets"
                         ? (editingResource ? t("adminResources.form.editAsset") : t("adminResources.form.addAsset"))
-                        : (editingRoom ? t("adminResources.form.editSpace") : t("adminResources.form.addSpace"))
+                        : activeTab === "rooms"
+                        ? (editingRoom ? t("adminResources.form.editSpace") : t("adminResources.form.addSpace"))
+                        : (editingAllocation ? (t("adminResources.form.editAllocation") || "Edit Allocation") : (t("adminResources.form.addAllocation") || "New Allocation"))
                       }
                     </h2>
                   </div>
-                  {(editingResource || editingRoom) && (
+                  {(editingResource || editingRoom || editingAllocation) && (
                     <button
                       onClick={() => {
                         setEditingResource(null);
                         setEditingRoom(null);
+                        setEditingAllocation(null);
                         setResourceForm(f => ({ ...f, name: "", quantity: 1, description: "" }));
-                        setRoomForm(f => ({ ...f, name: "", capacity: 20, floor: "", amenities: "", description: "" }));
+                        setRoomForm(f => ({ ...f, name: "", capacity: 20, floor: "", description: "" }));
+                        setAllocationForm({ resourceId: "", roomId: "", quantity: 1, startTime: "", endTime: "", status: "ACTIVE", notes: "" });
                       }}
                       className="text-[10px] text-[#aaa] hover:text-[#1a1a1a] cursor-pointer underline font-bold uppercase"
                     >
@@ -671,7 +692,7 @@ export default function ResourcesPage() {
 
                 {activeTab === "assets" ? (
                   /* ASSETS FORM */
-                  <form onSubmit={saveResource} className="space-y-4 flex-1">
+                  <form onSubmit={saveResource} className="space-y-4 flex-1" key="assets-form">
                     <div>
                       <label className={labelStyle}>{t("adminResources.form.targetEvent")}</label>
                       <select
@@ -797,53 +818,6 @@ export default function ResourcesPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.assignedRoom")}</label>
-                        <div className="flex gap-1">
-                          <select
-                            value={resourceForm.assignedRoomId}
-                            onChange={e => setResourceForm({ ...resourceForm, assignedRoomId: e.target.value })}
-                            className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                          >
-                            <option value="">{t("adminResources.form.unassigned")}</option>
-                            {eventRooms.map(rm => (
-                              <option key={rm.roomId || rm.id} value={rm.roomId || rm.id}>{rm.name}</option>
-                            ))}
-                          </select>
-                          <button type="button" onClick={() => setShowInlineAddRoom(!showInlineAddRoom)} className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-[#e5e7eb] rounded-xl text-xs font-bold shrink-0 cursor-pointer">+</button>
-                        </div>
-                        {showInlineAddRoom && (
-                          <div className="mt-2 p-3 bg-stone-50 border border-[#e5e7eb] rounded-xl space-y-2">
-                            <input placeholder={t("adminResources.form.roomNamePlaceholder")} value={inlineRoomName} onChange={e => setInlineRoomName(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                            <button type="button" onClick={handleInlineAddRoom} className="w-full py-1 bg-black text-white text-xs font-bold rounded-lg hover:bg-stone-800">{t("adminResources.form.addRoom")}</button>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.assignedToStaff")}</label>
-                        <div className="flex gap-1">
-                          <select
-                            value={resourceForm.assignedToStaffId}
-                            onChange={e => setResourceForm({ ...resourceForm, assignedToStaffId: e.target.value })}
-                            className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                          >
-                            <option value="">{t("adminResources.form.unassigned")}</option>
-                            {eventStaff.map(st => (
-                              <option key={st.staffId} value={st.staffId}>{st.name}</option>
-                            ))}
-                          </select>
-                          <button type="button" onClick={() => setShowInlineAddStaff(!showInlineAddStaff)} className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-[#e5e7eb] rounded-xl text-xs font-bold shrink-0 cursor-pointer">+</button>
-                        </div>
-                        {showInlineAddStaff && (
-                          <div className="mt-2 p-3 bg-stone-50 border border-[#e5e7eb] rounded-xl space-y-2">
-                            <input placeholder={t("adminResources.form.staffNamePlaceholder")} value={inlineStaffName} onChange={e => setInlineStaffName(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                            <input placeholder={t("adminResources.form.staffEmailPlaceholder")} value={inlineStaffEmail} onChange={e => setInlineStaffEmail(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                            <button type="button" onClick={() => handleInlineAddStaff(false)} className="w-full py-1 bg-black text-white text-xs font-bold rounded-lg hover:bg-stone-800">{t("adminResources.form.addStaff")}</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -924,13 +898,31 @@ export default function ResourcesPage() {
                       </div>
                       <div>
                         <label className={labelStyle}>{t("adminResources.form.imageUrl")}</label>
-                        <input
-                          type="text"
-                          placeholder={t("adminResources.form.imageUrlPlaceholder")}
-                          value={resourceForm.image}
-                          onChange={e => setResourceForm({ ...resourceForm, image: e.target.value })}
-                          className={inp}
-                        />
+                        <label className="flex items-center gap-3 border-2 border-dashed border-[#e5e7eb] rounded-xl px-3 py-2 cursor-pointer hover:border-[#FF4747] transition-colors group">
+                          {resourceForm.image ? (
+                            <img src={resourceForm.image} alt="Preview" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-[#fafafa] border border-[#e5e7eb] flex items-center justify-center shrink-0">
+                              <Package size={14} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                            </div>
+                          )}
+                          <span className="text-xs text-[#888] group-hover:text-[#FF4747] transition-colors truncate">
+                            {resourceForm.image ? (t("adminResources.form.clickToChange") || "Click to change") : (t("adminResources.form.uploadPhoto") || "Upload photo")}
+                          </span>
+                          <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              setSaving(true);
+                              const res = await eventService.uploadImage(file);
+                              setResourceForm(f => ({ ...f, image: res.url }));
+                            } catch (err: any) {
+                              showToast(err.message || (t("adminResources.toast.imageUploadFailed") || "Failed to upload image"));
+                            } finally {
+                              setSaving(false);
+                            }
+                          }} />
+                        </label>
                       </div>
                     </div>
 
@@ -975,7 +967,7 @@ export default function ResourcesPage() {
                       {saving ? t("adminResources.form.saving") : (editingResource ? t("adminResources.form.saveAsset") : t("adminResources.form.allocateAsset"))}
                     </button>
                   </form>
-                ) : (
+                ) : activeTab === "rooms" ? (
                   /* ROOMS FORM */
                   <form onSubmit={saveRoom} className="space-y-4 flex-1">
                     <div>
@@ -1107,75 +1099,6 @@ export default function ResourcesPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.assignedSession")}</label>
-                        <div className="flex gap-1">
-                          <select
-                            value={roomForm.assignedSessionId}
-                            onChange={e => setRoomForm({ ...roomForm, assignedSessionId: e.target.value })}
-                            className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                          >
-                            <option value="">{t("adminResources.form.none")}</option>
-                            {eventSessions.map(sess => (
-                              <option key={sess.sessionId || sess.id} value={sess.sessionId || sess.id}>{sess.title}</option>
-                            ))}
-                          </select>
-                          <button type="button" onClick={() => setShowInlineAddSession(!showInlineAddSession)} className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-[#e5e7eb] rounded-xl text-xs font-bold shrink-0 cursor-pointer">+</button>
-                        </div>
-                        {showInlineAddSession && (
-                          <div className="mt-2 p-3 bg-stone-50 border border-[#e5e7eb] rounded-xl space-y-2">
-                            <input placeholder={t("adminResources.form.sessionTitlePlaceholder")} value={inlineSessionTitle} onChange={e => setInlineSessionTitle(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-[8px] text-gray-500 font-bold block uppercase mb-1">{t("adminResources.form.start")}</label>
-                                <input type="datetime-local" value={inlineSessionStart} onChange={e => setInlineSessionStart(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                              </div>
-                              <div>
-                                <label className="text-[8px] text-gray-500 font-bold block uppercase mb-1">{t("adminResources.form.end")}</label>
-                                <input type="datetime-local" value={inlineSessionEnd} onChange={e => setInlineSessionEnd(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                              </div>
-                            </div>
-                            <button type="button" onClick={handleInlineAddSession} className="w-full py-1 bg-black text-white text-xs font-bold rounded-lg hover:bg-stone-800">{t("adminResources.form.addSession")}</button>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.roomManager")}</label>
-                        <div className="flex gap-1">
-                          <select
-                            value={roomForm.roomManagerId}
-                            onChange={e => setRoomForm({ ...roomForm, roomManagerId: e.target.value })}
-                            className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                          >
-                            <option value="">{t("adminResources.form.none")}</option>
-                            {eventStaff.map(st => (
-                              <option key={st.staffId} value={st.staffId}>{st.name}</option>
-                            ))}
-                          </select>
-                          <button type="button" onClick={() => setShowInlineAddStaffForRoom(!showInlineAddStaffForRoom)} className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-[#e5e7eb] rounded-xl text-xs font-bold shrink-0 cursor-pointer">+</button>
-                        </div>
-                        {showInlineAddStaffForRoom && (
-                          <div className="mt-2 p-3 bg-stone-50 border border-[#e5e7eb] rounded-xl space-y-2">
-                            <input placeholder={t("adminResources.form.managerNamePlaceholder")} value={inlineStaffName} onChange={e => setInlineStaffName(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                            <input placeholder={t("adminResources.form.managerEmailPlaceholder")} value={inlineStaffEmail} onChange={e => setInlineStaffEmail(e.target.value)} className="w-full bg-white border rounded-lg px-2 py-1 text-xs outline-none" />
-                            <button type="button" onClick={() => handleInlineAddStaff(true)} className="w-full py-1 bg-black text-white text-xs font-bold rounded-lg hover:bg-stone-800">{t("adminResources.form.addManager")}</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={labelStyle}>{t("adminResources.form.amenities")}</label>
-                      <input
-                        type="text"
-                        placeholder={t("adminResources.form.amenitiesPlaceholder")}
-                        value={roomForm.amenities}
-                        onChange={e => setRoomForm({ ...roomForm, amenities: e.target.value })}
-                        className={inp}
-                      />
-                    </div>
-
                     <div>
                       <label className={labelStyle}>{t("adminResources.form.descriptionAccess")}</label>
                       <textarea
@@ -1192,6 +1115,105 @@ export default function ResourcesPage() {
                       {saving ? t("adminResources.form.saving") : (editingRoom ? t("adminResources.form.saveSpace") : t("adminResources.form.createSpace"))}
                     </button>
                   </form>
+                ) : (
+                  /* ALLOCATIONS FORM */
+                  <form onSubmit={saveAllocation} className="space-y-4 flex-1">
+                    <div>
+                      <label className={labelStyle}>{t("adminResources.form.asset") || "Asset"}</label>
+                      <select
+                        value={allocationForm.resourceId}
+                        onChange={e => setAllocationForm({ ...allocationForm, resourceId: e.target.value })}
+                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
+                        required
+                      >
+                        <option value="">{t("adminResources.form.selectAsset") || "Select an asset"}</option>
+                        {resources.map(res => (
+                          <option key={res.resourceId || res.id} value={res.resourceId || res.id}>{res.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {allocationForm.resourceId && (
+                      <div>
+                        <label className={labelStyle}>{t("adminResources.form.quantity") || "Quantity to Allocate"}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={Math.max(1, getRemainingQuantity(allocationForm.resourceId, editingAllocation?.id))}
+                          value={allocationForm.quantity}
+                          onChange={e => setAllocationForm({ ...allocationForm, quantity: parseInt(e.target.value) || 1 })}
+                          className={inp}
+                        />
+                        <p className={`text-[10px] mt-1 font-semibold ${allocationForm.quantity > getRemainingQuantity(allocationForm.resourceId, editingAllocation?.id) ? "text-red-500" : "text-[#888]"}`}>
+                          {t("adminResources.form.remainingStock", { count: getRemainingQuantity(allocationForm.resourceId, editingAllocation?.id) }) || `${getRemainingQuantity(allocationForm.resourceId, editingAllocation?.id)} unit(s) remaining`}
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className={labelStyle}>{t("adminResources.form.room") || "Room"}</label>
+                      <select
+                        value={allocationForm.roomId}
+                        onChange={e => setAllocationForm({ ...allocationForm, roomId: e.target.value })}
+                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
+                        required
+                      >
+                        <option value="">{t("adminResources.form.selectRoom") || "Select a room"}</option>
+                        {rooms.map(rm => (
+                          <option key={rm.roomId || rm.id} value={rm.roomId || rm.id}>{rm.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelStyle}>{t("adminResources.form.start") || "Start"}</label>
+                        <input
+                          type="datetime-local"
+                          value={allocationForm.startTime}
+                          onChange={e => setAllocationForm({ ...allocationForm, startTime: e.target.value })}
+                          className={inp}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelStyle}>{t("adminResources.form.end") || "End"}</label>
+                        <input
+                          type="datetime-local"
+                          value={allocationForm.endTime}
+                          onChange={e => setAllocationForm({ ...allocationForm, endTime: e.target.value })}
+                          className={inp}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelStyle}>{t("adminResources.form.allocationStatus") || "Status"}</label>
+                      <select
+                        value={allocationForm.status}
+                        onChange={e => setAllocationForm({ ...allocationForm, status: e.target.value })}
+                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
+                      >
+                        <option value="ACTIVE">{t("adminResources.options.allocationStatus.active") || "Active"}</option>
+                        <option value="ENDED">{t("adminResources.options.allocationStatus.ended") || "Ended"}</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={labelStyle}>{t("adminResources.form.additionalNotes")}</label>
+                      <textarea
+                        rows={3}
+                        placeholder={t("adminResources.form.additionalNotesPlaceholder")}
+                        value={allocationForm.notes}
+                        onChange={e => setAllocationForm({ ...allocationForm, notes: e.target.value })}
+                        className={inp + " resize-none"}
+                      />
+                    </div>
+
+                    <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center mt-2"}>
+                      <Save size={13} />
+                      {saving ? t("adminResources.form.saving") : (editingAllocation ? (t("adminResources.form.saveAllocation") || "Save Allocation") : (t("adminResources.form.createAllocation") || "Create Allocation"))}
+                    </button>
+                  </form>
                 )}
               </div>
 
@@ -1199,7 +1221,11 @@ export default function ResourcesPage() {
               <div className="overflow-y-auto h-full space-y-4 pr-2">
                 <div className="flex items-center justify-between shrink-0 mb-1">
                   <h3 className="font-bold text-xs text-[#1a1a1a] uppercase tracking-wider">
-                    {activeTab === "assets" ? t("adminResources.list.allocatedAssets", { count: filteredResources.length }) : t("adminResources.list.activeSpaces", { count: filteredRooms.length })}
+                    {activeTab === "assets"
+                      ? t("adminResources.list.allocatedAssets", { count: filteredResources.length })
+                      : activeTab === "rooms"
+                      ? t("adminResources.list.activeSpaces", { count: filteredRooms.length })
+                      : (t("adminResources.list.allocationsCount", { count: filteredAllocations.length }) || `${filteredAllocations.length} Allocations`)}
                   </h3>
                   <span className="text-[10px] text-[#aaa]">{t("adminResources.list.filteredViews")}</span>
                 </div>
@@ -1226,12 +1252,17 @@ export default function ResourcesPage() {
                         return (
                           <div
                             key={res.resourceId || res.id}
-                            className={`bg-white border rounded-2xl p-5 space-y-3 flex flex-col justify-between hover:border-[#FF4747]/40 hover:shadow-sm transition-all`}
+                            className={`bg-white border border-[#e5e7eb] rounded-2xl p-5 space-y-3 flex flex-col justify-between hover:border-[#FF4747]/40 hover:shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all`}
                           >
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-sm text-[#1a1a1a] truncate" title={res.name}>{res.name}</span>
-                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusColors}`}>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0">
+                                    {getAssetIcon(res.category)}
+                                  </div>
+                                  <span className="font-bold text-xs text-[#1a1a1a] truncate" title={res.name}>{res.name}</span>
+                                </div>
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusColors}`}>
                                   {res.status}
                                 </span>
                               </div>
@@ -1290,7 +1321,6 @@ export default function ResourcesPage() {
                                   <button
                                     onClick={() => {
                                       setEditingResource(res);
-                                      loadEventSpecifics(res.eventId || "");
                                       setResourceForm({
                                         name: res.name || "",
                                         type: (res.type || "EQUIPMENT") as ResourceType,
@@ -1304,8 +1334,6 @@ export default function ResourcesPage() {
                                         quantityReserved: res.quantityReserved || 0,
                                         unit: res.unit || "Piece",
                                         condition: res.condition || "Good",
-                                        assignedRoomId: res.assignedRoomId || "",
-                                        assignedToStaffId: res.assignedToStaffId || "",
                                         purchaseDate: res.purchaseDate || "",
                                         purchaseCost: res.purchaseCost || 0,
                                         supplier: res.supplier || "",
@@ -1337,7 +1365,7 @@ export default function ResourcesPage() {
                       })}
                     </div>
                   )
-                ) : (
+                ) : activeTab === "rooms" ? (
                   /* ROOMS LIST */
                   filteredRooms.length === 0 ? (
                     <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
@@ -1359,12 +1387,17 @@ export default function ResourcesPage() {
                         return (
                           <div
                             key={rm.roomId || rm.id}
-                            className="bg-white border border-[#e5e7eb] rounded-2xl p-5 space-y-3 flex flex-col justify-between hover:border-[#FF4747]/40 hover:shadow-sm transition-all"
+                            className="bg-white border border-[#e5e7eb] rounded-2xl p-5 space-y-3 flex flex-col justify-between hover:border-[#FF4747]/40 hover:shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all"
                           >
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-sm text-[#1a1a1a] truncate" title={rm.name}>{rm.name}</span>
-                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusColors}`}>
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0">
+                                    {getRoomIcon(rm.roomType)}
+                                  </div>
+                                  <span className="font-bold text-xs text-[#1a1a1a] truncate" title={rm.name}>{rm.name}</span>
+                                </div>
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusColors}`}>
                                   {rm.status}
                                 </span>
                               </div>
@@ -1397,16 +1430,6 @@ export default function ResourcesPage() {
                                 )}
                               </div>
 
-                              {rm.amenities && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {rm.amenities.split(",").map((item, idx) => (
-                                    <span key={idx} className="text-[9px] px-1 bg-sky-50 text-sky-700 rounded border border-sky-100">
-                                      {item.trim()}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-
                               <p className="text-[11px] text-[#666] line-clamp-2 leading-relaxed mt-1">
                                 {rm.description || <span className="text-[#ccc] italic">{t("adminResources.list.noDescription")}</span>}
                               </p>
@@ -1427,21 +1450,17 @@ export default function ResourcesPage() {
                                   <button
                                     onClick={() => {
                                       setEditingRoom(rm);
-                                      loadEventSpecifics(rm.eventId || "");
                                       setRoomForm({
                                         name: rm.name || "",
                                         capacity: rm.capacity || 20,
                                         floor: rm.floor || "",
-                                        amenities: rm.amenities || "",
                                         status: (rm.status || "AVAILABLE") as RoomStatus,
                                         eventId: rm.eventId || "",
                                         locationId: rm.locationId || "",
                                         description: rm.description || "",
                                         roomNumber: rm.roomNumber || "",
                                         roomType: rm.roomType || "Hall",
-                                        accessibilityFeatures: rm.accessibilityFeatures || "",
-                                        assignedSessionId: rm.assignedSessionId || "",
-                                        roomManagerId: rm.roomManagerId || ""
+                                        accessibilityFeatures: rm.accessibilityFeatures || ""
                                       });
                                     }}
                                     className="p-1 border border-[#e5e7eb] text-[#555] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
@@ -1458,6 +1477,94 @@ export default function ResourcesPage() {
                                   </button>
                                 </div>
                               </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  /* ALLOCATIONS LIST */
+                  filteredAllocations.length === 0 ? (
+                    <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
+                      <Link2 size={36} className="mx-auto text-[#ccc] mb-3" />
+                      <p className="font-bold text-xs text-[#1a1a1a]">{t("adminResources.list.noAllocations") || "No allocations yet"}</p>
+                      <p className="text-[10px] text-[#aaa] mt-1">{t("adminResources.list.noAllocationsDesc") || "Allocate an asset to a room to see it here"}</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredAllocations.map(al => {
+                        const statusColors = al.status === "ENDED" ? "bg-stone-100 text-stone-500 border-stone-200" : "bg-green-50 text-green-700 border-green-200";
+                        return (
+                          <div
+                            key={al.id}
+                            className="bg-white border border-[#e5e7eb] rounded-2xl p-5 space-y-3 flex flex-col justify-between hover:border-[#FF4747]/40 hover:shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all"
+                          >
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-8 h-8 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0">
+                                    <Package size={15} className="text-zinc-400" />
+                                  </div>
+                                  <span className="font-bold text-xs text-[#1a1a1a] truncate" title={al.resourceName}>
+                                    {al.resourceName || t("adminResources.list.unknownAsset") || "Unknown asset"}
+                                  </span>
+                                </div>
+                                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${statusColors}`}>
+                                  {al.status || "ACTIVE"}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 text-[10px] text-[#666]">
+                                <Home size={11} className="text-[#aaa]" />
+                                <span className="font-medium truncate">{al.roomName || t("adminResources.list.unknownRoom") || "Unknown room"}</span>
+                                <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 font-bold rounded shrink-0">
+                                  {t("adminResources.list.quantityLabel", { qty: al.quantity || 1 }) || `Qty: ${al.quantity || 1}`}
+                                </span>
+                              </div>
+
+                              {(al.startTime || al.endTime) && (
+                                <div className="flex items-center gap-1.5 text-[10px] text-[#888]">
+                                  <Calendar size={11} className="text-[#aaa]" />
+                                  <span>
+                                    {al.startTime ? new Date(al.startTime).toLocaleString() : (t("adminResources.list.openStart") || "Open start")}
+                                    {" → "}
+                                    {al.endTime ? new Date(al.endTime).toLocaleString() : (t("adminResources.list.openEnd") || "Open end")}
+                                  </span>
+                                </div>
+                              )}
+
+                              {al.notes && (
+                                <p className="text-[11px] text-[#666] line-clamp-2 leading-relaxed">{al.notes}</p>
+                              )}
+                            </div>
+
+                            <div className="border-t border-[#f3f4f6] pt-3 mt-1 flex justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setEditingAllocation(al);
+                                  setAllocationForm({
+                                    resourceId: al.resourceId || "",
+                                    roomId: al.roomId || "",
+                                    quantity: al.quantity || 1,
+                                    startTime: al.startTime ? al.startTime.slice(0, 16) : "",
+                                    endTime: al.endTime ? al.endTime.slice(0, 16) : "",
+                                    status: al.status || "ACTIVE",
+                                    notes: al.notes || ""
+                                  });
+                                }}
+                                className="p-1 border border-[#e5e7eb] text-[#555] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
+                                title={t("adminResources.list.editAllocationTitle") || "Edit allocation"}
+                              >
+                                <Pencil size={11} />
+                              </button>
+                              <button
+                                onClick={() => deleteAllocation(al.id || "")}
+                                className="p-1 border border-red-100 text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                                title={t("adminResources.list.deleteAllocationTitle") || "Delete allocation"}
+                              >
+                                <Trash2 size={11} />
+                              </button>
                             </div>
                           </div>
                         );

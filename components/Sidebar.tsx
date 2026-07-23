@@ -26,15 +26,16 @@ const sidebarStructure: SidebarLink[] = [
       { href: "/admin/project", label: "Ticketing", icon: FolderOpen },
       { href: "/admin/payouts", label: "Payouts", icon: DollarSign },
       { href: "/admin/applications", label: "Applications", icon: Users },
+      { href: "/admin/engagements", label: "Performance", icon: BarChart2 },
     ]
   },
   {
     label: "Logistics",
     icon: Package,
     subLinks: [
-      { href: "/admin/team", label: "Team & Crew", icon: UserCheck },
-      { href: "/admin/agenda", label: "Agenda & Sessions", icon: Calendar },
       { href: "/admin/resources", label: "Resources & Spaces", icon: Package },
+      { href: "/admin/agenda", label: "Agenda & Sessions", icon: Calendar },
+      { href: "/admin/team", label: "Team & Crew", icon: UserCheck },
     ]
   },
   {
@@ -42,7 +43,6 @@ const sidebarStructure: SidebarLink[] = [
     icon: Globe,
     subLinks: [
       { href: "/admin/website", label: "Website Customization", icon: Globe },
-      { href: "/admin/engagements", label: "Live Engagements", icon: BarChart2 },
       { href: "/admin/support", label: "Support & Campaigns", icon: MessageCircle },
     ]
   },

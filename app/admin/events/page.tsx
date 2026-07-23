@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import dynamic from "next/dynamic";
@@ -41,6 +41,26 @@ const toLocalISOString = (dateInput?: string | Date) => {
   return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
 };
 
+// Splits a start→end range into one schedule per calendar day, each keeping
+// the same start/end time-of-day (e.g. picking 21st 09:00 → 23rd 17:00 gives
+// three days, each running 09:00→17:00). A same-day range stays a single day.
+const splitIntoDailySchedules = (start: Date, end: Date, timezone: string) => {
+  const schedules: { startDatetime: string; endDatetime: string; timezone: string }[] = [];
+  const startTimeMs = start.getHours() * 3600000 + start.getMinutes() * 60000;
+  const endTimeMs = end.getHours() * 3600000 + end.getMinutes() * 60000;
+
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const lastDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+  while (cursor <= lastDay) {
+    const dayStart = new Date(cursor.getTime() + startTimeMs);
+    const dayEnd = new Date(cursor.getTime() + endTimeMs);
+    schedules.push({ startDatetime: dayStart.toISOString(), endDatetime: dayEnd.toISOString(), timezone });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return schedules;
+};
+
 export default function EventsPage() {
   const router = useRouter();
   const { t } = useLanguage();
@@ -49,6 +69,7 @@ export default function EventsPage() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [tab, setTab] = useState<EventTab>("details");
   const [saving, setSaving] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
 
@@ -63,9 +84,23 @@ export default function EventsPage() {
   const [banner, setBanner] = useState("");
   const [detailsForm, setDetailsForm] = useState({ title: "", description: "", status: "DRAFT", categoryId: "", maxCapacity: 100, maxExhibitors: 0, currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, themes: "", motto: "" });
 
-  // ── Schedule ──
-  const [schedule, setSchedule] = useState<any>(null);
+  // ── Schedule ── (one row per day of a multi-day event)
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [editingSchedule, setEditingSchedule] = useState<any>(null);
   const [schedForm, setSchedForm] = useState({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  // Derived overall event window (earliest start → latest end across all days) —
+  // everything below that used to read the single `schedule` record keeps working unchanged.
+  const schedule = useMemo(() => {
+    if (schedules.length === 0) return null;
+    const starts = schedules.map((s: any) => new Date(s.startDatetime).getTime()).filter((n) => !isNaN(n));
+    const ends = schedules.map((s: any) => new Date(s.endDatetime).getTime()).filter((n) => !isNaN(n));
+    if (starts.length === 0 || ends.length === 0) return schedules[0];
+    return {
+      startDatetime: new Date(Math.min(...starts)).toISOString(),
+      endDatetime: new Date(Math.max(...ends)).toISOString(),
+      timezone: schedules[0].timezone,
+    };
+  }, [schedules]);
 
   // ── Location ──
   const [locations, setLocations] = useState<any[]>([]);
@@ -73,7 +108,7 @@ export default function EventsPage() {
 
   // ── Tickets ──
   const [tickets, setTickets] = useState<any[]>([]);
-  const [ticketForm, setTicketForm] = useState({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
+  const [ticketForm, setTicketForm] = useState({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "", sessionIds: [] as string[] });
 
   // ── Team ──
   const [team, setTeam] = useState<any[]>([]);
@@ -83,8 +118,8 @@ export default function EventsPage() {
   // ── Sessions ──
   const [sessions, setSessions] = useState<any[]>([]);
   const [tracks, setTracks] = useState<any[]>([]);
-  const [sessionForm, setSessionForm] = useState({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
-  const [trackForm, setTrackForm] = useState({ name: "", description: "", capacity: 50, locationId: "" });
+  const [sessionForm, setSessionForm] = useState({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "" });
+  const [trackForm, setTrackForm] = useState({ name: "", description: "", locationId: "", eventScheduleId: "" });
 
   // ── Live ──
   const [polls, setPolls] = useState<any[]>([]);
@@ -192,6 +227,7 @@ export default function EventsPage() {
     setSelectedId(id);
     setTab("overview");
     setShowNew(false);
+    setDeleteConfirmText("");
     await loadEventData(id);
   };
 
@@ -257,9 +293,11 @@ export default function EventsPage() {
       setEventSections((sectionsList || []).filter(byEvent));
       setInvitations((invs || []).filter((inv: any) => inv.eventId === id));
 
-      const sched = (scheds || []).find((s: any) => s.eventId === id || s.event?.eventId === id);
-      setSchedule(sched || null);
-      if (sched) setSchedForm({ startDatetime: sched.startDatetime?.slice(0, 16) || "", endDatetime: sched.endDatetime?.slice(0, 16) || "", timezone: sched.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone });
+      const eventSchedules = (scheds || []).filter((s: any) => s.eventId === id || s.event?.eventId === id)
+        .sort((a: any, b: any) => new Date(a.startDatetime).getTime() - new Date(b.startDatetime).getTime());
+      setSchedules(eventSchedules);
+      setEditingSchedule(null);
+      setSchedForm({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     } catch (e) { console.error(e); }
   };
 
@@ -330,18 +368,20 @@ export default function EventsPage() {
     if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast(t("adminEvents.toasts.minDuration")); return; }
     setSaving(true);
     const eventData = { tenantId: auth?.tenantId, organizerId: auth?.userId, title: newTitle, description: newDesc, status: "DRAFT", currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, maxCapacity: 100 };
-    const scheduleData = { startDatetime: new Date(newStart).toISOString(), endDatetime: new Date(newEnd).toISOString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    const scheduleDataList = splitIntoDailySchedules(start, end, Intl.DateTimeFormat().resolvedOptions().timeZone);
     try {
       const ev = await eventService.createEvent(eventData);
       const id = ev.eventId || (ev as any).id;
-      await eventService.createEventSchedule({ eventId: id, ...scheduleData });
+      for (const day of scheduleDataList) {
+        await eventService.createEventSchedule({ eventId: id, ...day });
+      }
       setNewTitle(""); setNewDesc("");
       await loadEvents();
       await selectEvent(id);
       showToast(t("adminEvents.toasts.eventCreated"));
     } catch (err: any) {
       if (!navigator.onLine || err?.message?.toLowerCase().includes("network") || err?.message?.toLowerCase().includes("fetch")) {
-        await savePendingEvent(eventData, scheduleData);
+        await savePendingEvent(eventData, scheduleDataList);
         setNewTitle(""); setNewDesc("");
         showToast(t("adminEvents.toasts.savedOffline"));
       } else {
@@ -417,7 +457,16 @@ export default function EventsPage() {
     }
   };
 
-  // ── Save schedule ──
+  // ── Schedule: reload the day list for the current event ──
+  const reloadSchedules = async () => {
+    if (!selectedId) return;
+    const scheds = await eventService.getEventSchedules().catch(() => []);
+    const eventSchedules = (scheds || []).filter((s: any) => s.eventId === selectedId || s.event?.eventId === selectedId)
+      .sort((a: any, b: any) => new Date(a.startDatetime).getTime() - new Date(b.startDatetime).getTime());
+    setSchedules(eventSchedules);
+  };
+
+  // ── Save schedule (add a new day, or update the one being edited) ──
   const saveSchedule = async () => {
     if (!selectedId) return;
     const start = new Date(schedForm.startDatetime);
@@ -427,17 +476,34 @@ export default function EventsPage() {
     if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast(t("adminEvents.toasts.minDuration")); return; }
     setSaving(true);
     try {
-      if (schedule?.scheduleId || schedule?.id) {
-        await eventService.updateEventSchedule(schedule.scheduleId || schedule.id, { eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
+      if (editingSchedule?.scheduleId || editingSchedule?.id) {
+        await eventService.updateEventSchedule(editingSchedule.scheduleId || editingSchedule.id, { eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
+        setEditingSchedule(null);
       } else {
-        const s = await eventService.createEventSchedule({ eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
-        setSchedule(s);
+        await eventService.createEventSchedule({ eventId: selectedId, startDatetime: new Date(schedForm.startDatetime).toISOString(), endDatetime: new Date(schedForm.endDatetime).toISOString(), timezone: schedForm.timezone });
       }
+      setSchedForm({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      await reloadSchedules();
       showToast(t("adminEvents.toasts.scheduleSaved"));
     } catch (err: any) {
       showToast(err.message || t("adminEvents.toasts.scheduleSaveFailed"));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteScheduleDay = async (id: string) => {
+    if (!confirm(t("adminEvents.schedule.confirmDelete") || "Delete this day?")) return;
+    try {
+      await eventService.deleteEventSchedule(id);
+      if (editingSchedule?.scheduleId === id || editingSchedule?.id === id) {
+        setEditingSchedule(null);
+        setSchedForm({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      }
+      await reloadSchedules();
+      showToast(t("adminEvents.toasts.scheduleSaved"));
+    } catch (err: any) {
+      showToast(err.message || t("adminEvents.toasts.scheduleSaveFailed"));
     }
   };
 
@@ -503,14 +569,8 @@ export default function EventsPage() {
     }
 
     // ── Sale dates ──
-    const origSaleStart = editingTicket?.saleStart ? toLocalISOString(editingTicket.saleStart) : "";
-    const origSaleEnd = editingTicket?.saleEnd ? toLocalISOString(editingTicket.saleEnd) : "";
-    const isSaleStartChanged = !editingTicket || ticketForm.saleStart !== origSaleStart;
-    const isSaleEndChanged = !editingTicket || ticketForm.saleEnd !== origSaleEnd;
-
     if (ticketForm.saleStart) {
       const saleStart = new Date(ticketForm.saleStart);
-      if (isSaleStartChanged && saleStart < now) { showToast(t("adminEvents.toasts.saleStartInPast")); return; }
       if (eventEnd && saleStart >= eventEnd) {
         showToast(t("adminEvents.toasts.saleStartBeforeEnd", { date: fmtDt(schedule.endDatetime) }));
         return;
@@ -528,7 +588,6 @@ export default function EventsPage() {
       }
     } else if (ticketForm.saleEnd) {
       const saleEnd = new Date(ticketForm.saleEnd);
-      if (isSaleEndChanged && saleEnd < now) { showToast(t("adminEvents.toasts.saleEndInPast")); return; }
       if (eventEnd && saleEnd > eventEnd) {
         showToast(t("adminEvents.toasts.saleEndAfterEvent", { date: fmtDt(schedule.endDatetime) }));
         return;
@@ -548,6 +607,7 @@ export default function EventsPage() {
       saleEnd: ticketForm.saleEnd ? new Date(ticketForm.saleEnd).toISOString() : undefined,
       maxPerOrder: mpo,
       locationId: ticketForm.locationId || undefined,
+      sessionIds: ticketForm.sessionIds,
     };
     try {
       if (editingTicket) {
@@ -558,7 +618,7 @@ export default function EventsPage() {
         await eventService.createTicketType(payload);
         showToast(t("adminEvents.toasts.ticketAdded"));
       }
-      setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" });
+      setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "", sessionIds: [] });
       await loadEventData(selectedId);
     } catch (err: any) {
       showToast(err.message || (editingTicket ? t("adminEvents.toasts.ticketUpdateFailed") : t("adminEvents.toasts.ticketAddFailed")));
@@ -614,7 +674,6 @@ export default function EventsPage() {
       endTime: sessionForm.endTime ? new Date(sessionForm.endTime).toISOString() : undefined,
       maxCapacity: Number(sessionForm.capacity),
       isRecorded: false,
-      locationId: sessionForm.locationId || undefined,
     };
     try {
       if (editingSession) {
@@ -625,7 +684,7 @@ export default function EventsPage() {
         await eventService.createSession(payload);
         showToast(t("adminEvents.toasts.sessionAdded"));
       }
-      setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" });
+      setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "" });
       await loadEventData(selectedId);
     } catch (err: any) {
       showToast(err.message || (editingSession ? t("adminEvents.toasts.sessionUpdateFailed") : t("adminEvents.toasts.sessionAddFailed")));
@@ -638,10 +697,6 @@ export default function EventsPage() {
   const saveTrack = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trackForm.name.trim()) return;
-    if (maxCapacity > 0 && Number(trackForm.capacity) > maxCapacity) {
-      showToast(t("adminEvents.toasts.trackCapacityExceeded", { max: maxCapacity }));
-      return;
-    }
     setSaving(true);
     try {
       const payload = {
@@ -649,8 +704,8 @@ export default function EventsPage() {
         tenantId: auth?.tenantId,
         name: trackForm.name,
         description: trackForm.description || undefined,
-        capacity: trackForm.capacity || undefined,
         locationId: trackForm.locationId || undefined,
+        eventScheduleId: trackForm.eventScheduleId || undefined,
       };
       if (editingTrack) {
         await eventService.updateTrack(editingTrack.trackId || editingTrack.id, payload);
@@ -660,7 +715,7 @@ export default function EventsPage() {
         await eventService.createTrack(payload);
         showToast(t("adminEvents.toasts.trackCreated"));
       }
-      setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+      setTrackForm({ name: "", description: "", locationId: "", eventScheduleId: "" });
       await loadEventData(selectedId);
     } catch (err: any) {
       showToast(err.message || t("adminEvents.toasts.trackSaveFailed"));
@@ -944,6 +999,23 @@ export default function EventsPage() {
     finally { setSaving(false); }
   };
 
+  // ── Delete event (cascades everything tied to it, except payment/refund records) ──
+  const deleteEventPermanently = async () => {
+    if (!selectedId || !selectedEvent) return;
+    setSaving(true);
+    try {
+      await eventService.deleteEvent(selectedId);
+      setDeleteConfirmText("");
+      setSelectedId("");
+      await loadEvents();
+      showToast("Event deleted.");
+    } catch (err: any) {
+      showToast(err.message || "Failed to delete event.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── Quick status change ──
   const quickUpdateStatus = async (newStatus: string) => {
     if (!selectedId || !selectedEvent) return;
@@ -987,9 +1059,14 @@ export default function EventsPage() {
   };
 
   // ── Check-in registration ──
+  // Quick-action shortcut only — the dedicated /admin/checkin scanner lets the
+  // organizer pick which session a scan is for; this defaults to the event's
+  // first session since there's no session picker on this compact row.
   const handleCheckIn = async (regId: string) => {
+    const sessionId = sessions[0]?.sessionId || sessions[0]?.id;
+    if (!sessionId) { showToast("Create a session for this event before checking attendees in."); return; }
     try {
-      await eventService.checkInRegistration(regId);
+      await eventService.checkInRegistration(regId, sessionId);
       showToast(t("adminEvents.toasts.checkedInSuccess"));
       await loadRegistrations();
     } catch (err: any) { showToast(err.message || t("adminEvents.toasts.checkInFailed")); }
@@ -1415,6 +1492,35 @@ export default function EventsPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Danger Zone */}
+                    <div className="bg-red-50 border border-red-200 rounded-2xl px-6 py-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                        <p className="font-bold text-sm text-red-700">Danger Zone</p>
+                      </div>
+                      <p className="text-xs text-red-600">
+                        Permanently deletes this event and everything tied to it — sessions, tracks, rooms,
+                        locations, tickets, orders, registrations, coupons, waitlist entries, sponsors, exhibitors,
+                        polls, Q&amp;A, announcements, feedback, and staff assignments. This cannot be undone.
+                        (Payment/refund records are kept for your accounting records.)
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          value={deleteConfirmText}
+                          onChange={e => setDeleteConfirmText(e.target.value)}
+                          placeholder={`Type "${selectedEvent?.title || ""}" to confirm`}
+                          className="flex-1 min-w-[240px] bg-white border border-red-200 rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-red-300 outline-none focus:border-red-500 transition-colors"
+                        />
+                        <button
+                          onClick={() => { if (confirm("This permanently deletes the event and all its data. Continue?")) deleteEventPermanently(); }}
+                          disabled={saving || !selectedEvent?.title || deleteConfirmText !== selectedEvent.title}
+                          className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={13} /> Delete Event Permanently
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1602,8 +1708,62 @@ export default function EventsPage() {
 
                 {/* ── SCHEDULE TAB ── */}
                 {tab === "schedule" && (
-                  <div className="max-w-xl">
+                  <div className="max-w-xl space-y-6">
+                    {/* Existing days */}
+                    {schedules.length > 0 && (
+                      <div className="space-y-3">
+                        {schedules.map((sc: any, idx: number) => (
+                          <div key={sc.scheduleId || sc.id} className={`bg-white border rounded-2xl p-5 flex items-start gap-4 transition-colors ${editingSchedule?.scheduleId === sc.scheduleId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                            <div className="w-10 h-10 rounded-xl bg-[#FF4747]/10 flex items-center justify-center shrink-0">
+                              <Calendar size={18} className="text-[#FF4747]" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-bold text-sm text-[#1a1a1a]">Day {idx + 1}</div>
+                              <div className="text-xs text-[#888] mt-0.5">{fmtDt(sc.startDatetime)} → {fmtDt(sc.endDatetime)}</div>
+                              <div className="text-[10px] text-[#aaa] mt-0.5">{sc.timezone}</div>
+                            </div>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSchedule(sc);
+                                  setSchedForm({
+                                    startDatetime: sc.startDatetime?.slice(0, 16) || "",
+                                    endDatetime: sc.endDatetime?.slice(0, 16) || "",
+                                    timezone: sc.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+                                  });
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"
+                              >
+                                <Pencil size={9} /> Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteScheduleDay(sc.scheduleId || sc.id)}
+                                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={9} /> Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add / edit a day */}
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 space-y-5">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSchedule ? "Edit Day" : "Add a Day"}</h3>
+                        {editingSchedule && (
+                          <button
+                            type="button"
+                            onClick={() => { setEditingSchedule(null); setSchedForm({ startDatetime: "", endDatetime: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }); }}
+                            className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline"
+                          >
+                            Cancel edit
+                          </button>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={label}>Start Date & Time</label>
@@ -1637,14 +1797,9 @@ export default function EventsPage() {
                         <label className={label}>Timezone</label>
                         <input value={schedForm.timezone} onChange={e => setSchedForm(f => ({ ...f, timezone: e.target.value }))} className={inp} placeholder="Africa/Douala" />
                       </div>
-                      {schedule && (
-                        <div className="text-xs text-[#888] bg-[#fafafa] rounded-xl p-3 border border-[#f0f0f0]">
-                          Currently saved: <span className="font-semibold text-[#1a1a1a]">{toLocalISOString(schedule.startDatetime)}</span> → <span className="font-semibold text-[#1a1a1a]">{toLocalISOString(schedule.endDatetime)}</span>
-                        </div>
-                      )}
                       <div className="flex justify-end pt-2 border-t border-[#f0f0f0]">
                         <button onClick={saveSchedule} disabled={saving} className={saveBtn}>
-                          <Save size={13} />{saving ? "Saving…" : "Save Schedule"}
+                          <Save size={13} />{saving ? "Saving…" : editingSchedule ? "Save Day" : "Add Day"}
                         </button>
                       </div>
                     </div>
@@ -1799,12 +1954,12 @@ export default function EventsPage() {
                                 </span>
                                 <button type="button" onClick={() => {
                                   setEditingTicket(t);
-                                  setTicketForm({ name: t.name || "", description: t.description || "", price: t.price || 0, quantity: t.quantityAvailable || 100, maxPerOrder: t.maxPerOrder || 10, isFree: t.price === 0, saleStart: t.saleStart ? toLocalISOString(t.saleStart) : "", saleEnd: t.saleEnd ? toLocalISOString(t.saleEnd) : "", locationId: t.locationId || "" });
+                                  setTicketForm({ name: t.name || "", description: t.description || "", price: t.price || 0, quantity: t.quantityAvailable || 100, maxPerOrder: t.maxPerOrder || 10, isFree: t.price === 0, saleStart: t.saleStart ? toLocalISOString(t.saleStart) : "", saleEnd: t.saleEnd ? toLocalISOString(t.saleEnd) : "", locationId: t.locationId || "", sessionIds: t.sessionIds || [] });
                                   ticketFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                                 }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer">
                                   <Pencil size={10} /> Edit
                                 </button>
-                                <button type="button" onClick={async () => { if (!confirm("Delete this ticket type?")) return; try { await eventService.deleteTicketType(t.ticketId || t.id); if (editingTicket?.ticketId === t.ticketId) { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" }); } await loadEventData(selectedId); showToast("Ticket deleted!"); } catch { showToast("Failed to delete ticket."); } }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                                <button type="button" onClick={async () => { if (!confirm("Delete this ticket type?")) return; try { await eventService.deleteTicketType(t.ticketId || t.id); if (editingTicket?.ticketId === t.ticketId) { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "", sessionIds: [] }); } await loadEventData(selectedId); showToast("Ticket deleted!"); } catch { showToast("Failed to delete ticket."); } }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
                                   <Trash2 size={10} />
                                 </button>
                               </div>
@@ -1823,7 +1978,7 @@ export default function EventsPage() {
                       <div className="flex items-center justify-between mb-5">
                         <h3 className="font-bold text-sm text-[#1a1a1a]">{editingTicket ? "Edit Ticket Type" : "Create Ticket Type"}</h3>
                         {editingTicket && (
-                          <button type="button" onClick={() => { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                          <button type="button" onClick={() => { setEditingTicket(null); setTicketForm({ name: "", description: "", price: 0, quantity: 100, maxPerOrder: 10, isFree: true, saleStart: "", saleEnd: "", locationId: "", sessionIds: [] }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                         )}
                       </div>
                       <form ref={ticketFormRef} onSubmit={saveTicket} className="space-y-4">
@@ -1885,7 +2040,6 @@ export default function EventsPage() {
                             <input
                               type="datetime-local"
                               value={ticketForm.saleStart}
-                              min={toLocalISOString(new Date())}
                               max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
                               onChange={e => {
                                 const v = e.target.value;
@@ -1903,7 +2057,6 @@ export default function EventsPage() {
                             <input
                               type="datetime-local"
                               value={ticketForm.saleEnd}
-                              min={ticketForm.saleStart ? toLocalISOString(new Date(new Date(ticketForm.saleStart).getTime() + 2 * 3600 * 1000)) : toLocalISOString(new Date())}
                               max={schedule?.endDatetime ? toLocalISOString(schedule.endDatetime) : undefined}
                               onChange={e => setTicketForm(f => ({ ...f, saleEnd: e.target.value }))}
                               className={inp}
@@ -1920,6 +2073,36 @@ export default function EventsPage() {
                                 <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
                               ))}
                             </select>
+                          </div>
+                        )}
+                        {sessions.length > 0 && (
+                          <div>
+                            <label className={label}>Valid for Sessions</label>
+                            <p className="text-[10px] text-[#888] mb-2">Select which sessions this ticket can be used to check in. Leave empty for all sessions (General Admission).</p>
+                            <div className="grid grid-cols-2 gap-2 border border-[#e5e7eb] rounded-xl p-3 max-h-40 overflow-y-auto bg-[#fafafa]">
+                              {sessions.map(s => {
+                                const sId = s.sessionId || s.id;
+                                const checked = ticketForm.sessionIds.includes(sId);
+                                return (
+                                  <label key={sId} className="flex items-center gap-2 text-xs font-semibold text-[#555] cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        setTicketForm(f => {
+                                          const nextIds = f.sessionIds.includes(sId)
+                                            ? f.sessionIds.filter(id => id !== sId)
+                                            : [...f.sessionIds, sId];
+                                          return { ...f, sessionIds: nextIds };
+                                        });
+                                      }}
+                                      className="rounded text-[#FF4747] focus:ring-[#FF4747]"
+                                    />
+                                    <span className="truncate">{s.title}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                         <button type="submit" disabled={saving} className={saveBtn}>{editingTicket ? <><Save size={13} />{saving ? "Saving..." : "Save Ticket"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Ticket Type"}</>}</button>
@@ -2034,12 +2217,12 @@ export default function EventsPage() {
                               <div className="flex gap-1.5 shrink-0">
                                 <button type="button" onClick={() => {
                                   setEditingSession(s);
-                                  setSessionForm({ title: s.title || "", description: s.description || "", type: s.type || "TALK", startTime: s.startTime ? new Date(s.startTime).toISOString().slice(0, 16) : "", endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "", capacity: s.maxCapacity || 50, trackId: s.trackId || s.track?.trackId || "", locationId: s.locationId || "" });
+                                  setSessionForm({ title: s.title || "", description: s.description || "", type: s.type || "TALK", startTime: s.startTime ? new Date(s.startTime).toISOString().slice(0, 16) : "", endTime: s.endTime ? new Date(s.endTime).toISOString().slice(0, 16) : "", capacity: s.maxCapacity || 50, trackId: s.trackId || s.track?.trackId || "" });
                                   sessionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                                 }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer">
                                   <Pencil size={11} /> Edit
                                 </button>
-                                <button type="button" onClick={async () => { if (!confirm("Delete this session?")) return; try { await eventService.deleteSession(s.sessionId || s.id); if (editingSession?.sessionId === s.sessionId) { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); } await loadEventData(selectedId); showToast("Session deleted!"); } catch { showToast("Failed to delete session."); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                                <button type="button" onClick={async () => { if (!confirm("Delete this session?")) return; try { await eventService.deleteSession(s.sessionId || s.id); if (editingSession?.sessionId === s.sessionId) { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "" }); } await loadEventData(selectedId); showToast("Session deleted!"); } catch { showToast("Failed to delete session."); } }} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
                                   <Trash2 size={11} /> Delete
                                 </button>
                               </div>
@@ -2054,7 +2237,7 @@ export default function EventsPage() {
                         <div className="flex items-center justify-between mb-5">
                           <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSession ? "Edit Session" : "Add Session"}</h3>
                           {editingSession && (
-                            <button type="button" onClick={() => { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
+                            <button type="button" onClick={() => { setEditingSession(null); setSessionForm({ title: "", description: "", type: "TALK", startTime: "", endTime: "", capacity: 50, trackId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                           )}
                         </div>
                         <form ref={sessionFormRef} onSubmit={saveSession} className="space-y-4">
@@ -2083,17 +2266,6 @@ export default function EventsPage() {
                               </select>
                             </div>
                           </div>
-                          {locations.length > 0 && (
-                            <div>
-                              <label className={label}>Location</label>
-                              <select value={sessionForm.locationId} onChange={e => setSessionForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                                <option value="">— All locations —</option>
-                                {locations.map(loc => (
-                                  <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
                           <button type="submit" disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? "Saving..." : "Save Session"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Session"}</>}</button>
                         </form>
                       </div>
@@ -2114,7 +2286,10 @@ export default function EventsPage() {
                                 <div className="min-w-0">
                                   <div className="font-semibold text-xs text-[#1a1a1a] truncate">{t.name}</div>
                                   {t.description && <div className="text-[10px] text-[#888] truncate">{t.description}</div>}
-                                  {t.capacity && <div className="text-[9px] text-[#aaa] mt-0.5">Capacity: {t.capacity}</div>}
+                                  {(() => {
+                                    const sc = schedules.find((s: any) => (s.scheduleId || s.id) === t.eventScheduleId);
+                                    return sc?.startDatetime ? <div className="text-[9px] text-[#aaa] mt-0.5">{new Date(sc.startDatetime).toLocaleDateString()}</div> : null;
+                                  })()}
                                 </div>
                                 <div className="flex gap-1 shrink-0">
                                   <button type="button" onClick={() => {
@@ -2122,8 +2297,8 @@ export default function EventsPage() {
                                     setTrackForm({
                                       name: t.name || "",
                                       description: t.description || "",
-                                      capacity: t.capacity || 50,
                                       locationId: t.locationId || "",
+                                      eventScheduleId: t.eventScheduleId || "",
                                     });
                                   }} className="p-1 text-[#555] hover:bg-stone-200/60 rounded-lg transition-colors cursor-pointer" title="Edit Track">
                                     <Pencil size={11} />
@@ -2134,7 +2309,7 @@ export default function EventsPage() {
                                       await eventService.deleteTrack(t.trackId || t.id);
                                       if (editingTrack?.trackId === t.trackId) {
                                         setEditingTrack(null);
-                                        setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+                                        setTrackForm({ name: "", description: "", locationId: "", eventScheduleId: "" });
                                       }
                                       await loadEventData(selectedId);
                                       showToast("Track deleted!");
@@ -2158,7 +2333,7 @@ export default function EventsPage() {
                             {editingTrack && (
                               <button type="button" onClick={() => {
                                 setEditingTrack(null);
-                                setTrackForm({ name: "", description: "", capacity: 50, locationId: "" });
+                                setTrackForm({ name: "", description: "", locationId: "", eventScheduleId: "" });
                               }} className="text-[10px] text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>
                             )}
                           </div>
@@ -2171,10 +2346,6 @@ export default function EventsPage() {
                             <input placeholder="e.g. Advanced technical talks" value={trackForm.description} onChange={e => setTrackForm(f => ({ ...f, description: e.target.value }))} className={inp} />
                           </div>
                           <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className={label}>Capacity{maxCapacity > 0 && <span className="ml-1 text-[#aaa] normal-case font-normal tracking-normal">— max {maxCapacity}</span>}</label>
-                              <input type="number" min={1} max={maxCapacity || undefined} value={trackForm.capacity} onChange={e => setTrackForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
-                            </div>
                             {locations.length > 0 && (
                               <div>
                                 <label className={label}>Location</label>
@@ -2186,6 +2357,17 @@ export default function EventsPage() {
                                 </select>
                               </div>
                             )}
+                            <div>
+                              <label className={label}>Day</label>
+                              <select value={trackForm.eventScheduleId} onChange={e => setTrackForm(f => ({ ...f, eventScheduleId: e.target.value }))} className={inp}>
+                                <option value="">— Any day —</option>
+                                {schedules.map((sc: any) => (
+                                  <option key={sc.scheduleId || sc.id} value={sc.scheduleId || sc.id}>
+                                    {sc.startDatetime ? new Date(sc.startDatetime).toLocaleDateString() : (sc.scheduleId || sc.id)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                           <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
                             {editingTrack ? <><Save size={13} /> {saving ? "Saving..." : "Save Track"}</> : <><Plus size={13} /> {saving ? "Creating..." : "Add Track"}</>}

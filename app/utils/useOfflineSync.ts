@@ -19,7 +19,9 @@ export function useOfflineSync(onSynced?: (count: number) => void) {
         try {
           const ev = await eventService.createEvent(item.eventData);
           const id = ev.eventId || (ev as any).id;
-          await eventService.createEventSchedule({ ...item.scheduleData, eventId: id });
+          for (const day of item.scheduleData) {
+            await eventService.createEventSchedule({ ...day, eventId: id });
+          }
           await deletePendingEvent(item.id);
           synced++;
         } catch {

@@ -19,6 +19,8 @@ export default function CheckInPage() {
   const auth = getStoredAuth();
   const [events, setEvents] = useState<any[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedSessionId, setSelectedSessionId] = useState("");
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [manualCode, setManualCode] = useState("");
@@ -40,7 +42,10 @@ export default function CheckInPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedEventId) loadRegistrations(selectedEventId);
+    if (selectedEventId) {
+      loadRegistrations(selectedEventId);
+      loadSessions(selectedEventId);
+    }
   }, [selectedEventId]);
 
   const loadRegistrations = async (eventId: string) => {
@@ -51,11 +56,24 @@ export default function CheckInPage() {
     } catch {} finally { setLoadingRegs(false); }
   };
 
+  const loadSessions = async (eventId: string) => {
+    try {
+      const all = await eventService.getSessions().catch(() => []);
+      const eventSessions = (all || []).filter((s: any) => s.eventId === eventId || s.event?.eventId === eventId);
+      setSessions(eventSessions);
+      setSelectedSessionId(eventSessions[0]?.sessionId || eventSessions[0]?.id || "");
+    } catch {}
+  };
+
   const doCheckIn = async (regId: string) => {
+    if (!selectedSessionId) {
+      setResult({ success: false, message: "Select a session before checking in." });
+      return;
+    }
     setProcessing(true);
     setResult(null);
     try {
-      const updated = await eventService.checkInRegistration(regId);
+      const updated = await eventService.checkInRegistration(regId, selectedSessionId);
       setResult({ success: true, message: t("adminCheckin.result.checkInSuccessMessage"), registration: updated });
       setManualCode("");
       await loadRegistrations(selectedEventId);
@@ -141,21 +159,42 @@ export default function CheckInPage() {
             <p className="text-[#888] text-sm mt-1">Scan QR codes or enter confirmation codes to check attendees in.</p>
           </div>
 
-          {/* Event selector */}
-          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 mb-6">
-            <label className={label}><Calendar size={10} className="inline mr-1" />Select Event</label>
-            <div className="relative">
-              <select
-                value={selectedEventId}
-                onChange={e => setSelectedEventId(e.target.value)}
-                className={inp + " appearance-none pr-10"}
-              >
-                {events.length === 0 && <option value="">No events found</option>}
-                {events.map((ev: any) => (
-                  <option key={ev.eventId} value={ev.eventId}>{ev.title}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+          {/* Event + session selector */}
+          <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 mb-6 grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className={label}><Calendar size={10} className="inline mr-1" />Select Event</label>
+              <div className="relative">
+                <select
+                  value={selectedEventId}
+                  onChange={e => setSelectedEventId(e.target.value)}
+                  className={inp + " appearance-none pr-10"}
+                >
+                  {events.length === 0 && <option value="">No events found</option>}
+                  {events.map((ev: any) => (
+                    <option key={ev.eventId} value={ev.eventId}>{ev.title}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+              </div>
+            </div>
+            <div>
+              <label className={label}><ScanLine size={10} className="inline mr-1" />Select Session</label>
+              <div className="relative">
+                <select
+                  value={selectedSessionId}
+                  onChange={e => setSelectedSessionId(e.target.value)}
+                  className={inp + " appearance-none pr-10"}
+                >
+                  {sessions.length === 0 && <option value="">No sessions found</option>}
+                  {sessions.map((s: any) => (
+                    <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+              </div>
+              {!selectedSessionId && (
+                <p className="text-[10px] text-red-500 mt-1.5">A session must be selected before check-in.</p>
+              )}
             </div>
           </div>
 
@@ -203,7 +242,7 @@ export default function CheckInPage() {
                   <button
                     type="button"
                     onClick={handleManualSearch}
-                    disabled={processing || !manualCode.trim() || !selectedEventId}
+                    disabled={processing || !manualCode.trim() || !selectedEventId || !selectedSessionId}
                     className="w-full py-3 bg-[#FF4747] text-white font-bold rounded-xl hover:bg-[#e03e3e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                   >
                     {processing
@@ -288,7 +327,7 @@ export default function CheckInPage() {
                         <button
                           type="button"
                           onClick={() => doCheckIn(r.registrationId || r.id)}
-                          disabled={processing}
+                          disabled={processing || !selectedSessionId}
                           className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors cursor-pointer disabled:opacity-50"
                         >
                           <Check size={10} /> In

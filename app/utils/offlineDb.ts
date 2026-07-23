@@ -5,7 +5,7 @@ const STORE = 'pending_events';
 export interface PendingEvent {
   id: string;
   eventData: Record<string, any>;
-  scheduleData: Record<string, any>;
+  scheduleData: Record<string, any>[];
   createdAt: number;
 }
 
@@ -25,7 +25,7 @@ function openDb(): Promise<IDBDatabase> {
 
 export async function savePendingEvent(
   eventData: Record<string, any>,
-  scheduleData: Record<string, any>
+  scheduleData: Record<string, any>[]
 ): Promise<string> {
   const db = await openDb();
   const id = crypto.randomUUID();
