@@ -164,6 +164,7 @@ export const userDashboard = {
           freeLabel: "Free",
           perMonth: "/mo",
           continueWith: "Continue with {plan} →",
+          mostPopular: "Most Popular",
         },
         workspace: {
           back: "← Back",
@@ -421,6 +422,7 @@ export const userDashboard = {
           freeLabel: "Gratuit",
           perMonth: "/mois",
           continueWith: "Continuer avec {plan} →",
+          mostPopular: "Le plus populaire",
         },
         workspace: {
           back: "← Retour",

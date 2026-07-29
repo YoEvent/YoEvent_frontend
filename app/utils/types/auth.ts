@@ -242,6 +242,7 @@ export interface AuthResponse {
   tenantId?: string;
   email?: string;
   planTier?: string;
+  role?: string;
 }
 
 export interface RegisterRequest {

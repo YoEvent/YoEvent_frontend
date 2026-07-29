@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useLanguage } from "@/app/context/LanguageContext";
+import { DEFAULT_PRICING_PLANS, getActivePlans, mapPlanNameToTier, formatPrice } from "@/app/utils/pricingPlans";
 
 let stripePromise: Promise<any> | null = null;
 const getStripePromise = () => {
@@ -24,25 +25,19 @@ const getStripePromise = () => {
   return stripePromise;
 };
 
-// Real, curated FCFA prices — the seeded subscription_plan rows in the DB hold
-// placeholder values (29, 99) that were never converted to real currency amounts.
-// These match the "Pro"/"Enterprise" tiers shown on /pricing (app/utils/pricingPlans.ts).
-const PLAN_PRICES: Record<string, number> = { FREE: 0, BASIC: 15000, PREMIUM: 85000 };
-
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
 
 interface StripeUpgradeFormProps {
-  selectedPlan: string;
+  selectedPlanData: any;
   upgradeForm: { workspaceName: string; type: string };
-  availablePlans: any[];
   onSuccess: (data: any) => void;
   onError: (msg: string) => void;
   loading: boolean;
   setLoading: (v: boolean) => void;
 }
 
-function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSuccess, onError, loading, setLoading }: StripeUpgradeFormProps) {
+function StripeUpgradeForm({ selectedPlanData, upgradeForm, onSuccess, onError, loading, setLoading }: StripeUpgradeFormProps) {
   const { t } = useLanguage();
   const stripe = useStripe();
   const elements = useElements();
@@ -61,19 +56,17 @@ function StripeUpgradeForm({ selectedPlan, upgradeForm, availablePlans, onSucces
       if (pmError) throw new Error(pmError.message);
       const auth = getStoredAuth();
       if (!auth) throw new Error(t("userDashboard.upgrade.errors.notAuthenticated"));
-      const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
+      const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlanData.name });
       const tenantId = data.tenantId ? String(data.tenantId) : "";
+      const tier = mapPlanNameToTier(selectedPlanData.name);
       // Store the freshly-issued TENANT_OWNER-scoped token BEFORE createSubscription —
       // otherwise that call uses the stale pre-upgrade (ATTENDEE-scoped) token and 403s.
-      setStoredAuth({ token: data.token || auth.token, type: data.type || "Bearer", userId: String(data.userId || auth.userId), tenantId, email: data.email || auth.email, planTier: selectedPlan || data.planTier });
-      if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
-        const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
-        if (matchedPlan?.planId) {
-          const subResult = await paymentService.createSubscription({ tenantId, planId: matchedPlan.planId, amount: PLAN_PRICES[selectedPlan], currency: "XAF", provider: "stripe", paymentMethodId: paymentMethod!.id });
-          if (subResult?.clientSecret && !subResult.clientSecret.startsWith("mock_")) {
-            const { error: confirmError } = await stripe.confirmCardPayment(subResult.clientSecret);
-            if (confirmError) throw new Error(confirmError.message);
-          }
+      setStoredAuth({ token: data.token || auth.token, type: data.type || "Bearer", userId: String(data.userId || auth.userId), tenantId, email: data.email || auth.email, planTier: tier || data.planTier, role: data.role || "TENANT_OWNER" });
+      if (selectedPlanData.price > 0 && tenantId && selectedPlanData.planId) {
+        const subResult = await paymentService.createSubscription({ tenantId, planId: selectedPlanData.planId, amount: selectedPlanData.price, currency: selectedPlanData.currency || "XAF", provider: "stripe", paymentMethodId: paymentMethod!.id });
+        if (subResult?.clientSecret && !subResult.clientSecret.startsWith("mock_")) {
+          const { error: confirmError } = await stripe.confirmCardPayment(subResult.clientSecret);
+          if (confirmError) throw new Error(confirmError.message);
         }
       }
       onSuccess(data);
@@ -104,18 +97,23 @@ type EngageSubTab = "polls" | "qa";
 
 export default function AttendeeDashboard() {
   const router = useRouter();
-  const { t, tl } = useLanguage();
+  const { t } = useLanguage();
   const [userName, setUserName] = useState("Attendee");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeStep, setUpgradeStep] = useState<"plan" | "payment" | "workspace">("plan");
-  const [selectedPlan, setSelectedPlan] = useState<"FREE" | "BASIC" | "PREMIUM">("FREE");
+  // Real, backend-configured plans (whatever a super admin has set up — name, price,
+  // currency, however many exist), same data source as /pricing. `selectedPlanId` tracks
+  // the chosen plan's real planId; falls back to the curated defaults only if the plans
+  // fetch hasn't completed yet or failed.
+  const [availablePlans, setAvailablePlans] = useState<any[]>(DEFAULT_PRICING_PLANS);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const selectedPlanData = availablePlans.find(p => (p.planId || p.name) === selectedPlanId) || availablePlans[0] || DEFAULT_PRICING_PLANS[0];
   const [upgradeForm, setUpgradeForm] = useState({ workspaceName: "", type: "INDIVIDUAL" });
   const [upgradePaymentMethod, setUpgradePaymentMethod] = useState<"stripe" | "mtn_mobile_money" | "orange_money">("stripe");
   const [upgradePhone, setUpgradePhone] = useState("");
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
   const [upgradeMomoWaiting, setUpgradeMomoWaiting] = useState(false);
-  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "", phone: "", email: "", avatar: "" });
@@ -217,14 +215,16 @@ export default function AttendeeDashboard() {
     fetchTickets(auth.userId);
     fetchSavedEvents(auth.userId);
     import("@/app/utils/api").then(({ api }) =>
-      api.get<any[]>("/api/v1/subscriptionplans", { skipAuth: true }).then(d => setAvailablePlans(d || [])).catch(() => {})
+      api.get<any[]>("/api/v1/subscriptionplans", { skipAuth: true }).then(d => setAvailablePlans(getActivePlans(d))).catch(() => {})
     );
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("upgrade") === "1") {
-        const planParam = (params.get("plan") || "FREE").toUpperCase();
-        const validPlan = (["FREE", "BASIC", "PREMIUM"] as const).includes(planParam as any) ? (planParam as "FREE" | "BASIC" | "PREMIUM") : "FREE";
-        setSelectedPlan(validPlan);
+        // /pricing carries the exact plan the user picked, by its real planId (falls back
+        // to whatever loads as the default/cheapest plan if opened without one, e.g. from
+        // the generic "Become an Organizer" button).
+        const planId = params.get("planId") || "";
+        if (planId) setSelectedPlanId(planId);
         setUpgradeStep("plan");
         setUpgradeForm({ workspaceName: "", type: "INDIVIDUAL" });
         setUpgradeError("");
@@ -364,18 +364,37 @@ export default function AttendeeDashboard() {
 
   const handleLogout = () => { clearStoredAuth(); router.push("/login"); };
 
-  const PLAN_FEATURES: Record<string, string[]> = {
-    FREE: tl("userDashboard.upgrade.plans.free"),
-    BASIC: tl("userDashboard.upgrade.plans.basic"),
-    PREMIUM: tl("userDashboard.upgrade.plans.premium"),
-  };
-
   const openUpgradeModal = () => {
     if (!getStoredAuth()) { router.push("/login?from=/user/dashboard"); return; }
-    setUpgradeStep("plan"); setSelectedPlan("FREE");
+    setUpgradeStep("plan"); setSelectedPlanId("");
     setUpgradeForm({ workspaceName: "", type: "INDIVIDUAL" });
     setUpgradePaymentMethod("stripe"); setUpgradePhone(""); setUpgradeError("");
     setShowUpgradeModal(true);
+  };
+
+  // Individuals shouldn't have to type their name again — it already exists on their
+  // profile. Only organizations need genuinely new information (the org name), so only
+  // they stop at the workspace step; individuals go straight from plan -> payment/create.
+  const deriveIndividualWorkspaceName = () => {
+    const auth = getStoredAuth();
+    const first = profileForm.firstName || auth?.firstName || "";
+    const last = profileForm.lastName || auth?.lastName || "";
+    const fullName = `${first} ${last}`.trim();
+    return fullName || (auth?.email ? auth.email.split("@")[0] : "");
+  };
+
+  const handlePlanContinue = () => {
+    if (upgradeForm.type === "ORGANIZATION") {
+      setUpgradeStep("workspace");
+      return;
+    }
+    const derivedName = deriveIndividualWorkspaceName();
+    setUpgradeForm(f => ({ ...f, workspaceName: derivedName }));
+    if (selectedPlanData.price > 0) {
+      setUpgradeStep("payment");
+    } else {
+      handleUpgradeSubmit(derivedName);
+    }
   };
 
   // Stores the freshly-issued TENANT_OWNER-scoped token/tenantId from upgradeToOrganizer.
@@ -384,7 +403,7 @@ export default function AttendeeDashboard() {
   const storeUpgradedAuth = (data: any) => {
     const auth = getStoredAuth();
     const tenantId = data.tenantId ? String(data.tenantId) : "";
-    setStoredAuth({ token: data.token || auth?.token || "", type: data.type || "Bearer", userId: String(data.userId || auth?.userId || ""), tenantId, email: data.email || auth?.email || "", planTier: selectedPlan || data.planTier });
+    setStoredAuth({ token: data.token || auth?.token || "", type: data.type || "Bearer", userId: String(data.userId || auth?.userId || ""), tenantId, email: data.email || auth?.email || "", planTier: mapPlanNameToTier(selectedPlanData.name) || data.planTier, role: data.role || "TENANT_OWNER" });
     return tenantId;
   };
 
@@ -398,44 +417,45 @@ export default function AttendeeDashboard() {
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const handleUpgradeSubmit = async () => {
+  const handleUpgradeSubmit = async (workspaceNameOverride?: string) => {
     setUpgradeError("");
-    if (!upgradeForm.workspaceName.trim()) { setUpgradeError(t("userDashboard.upgrade.errors.workspaceNameRequired")); return; }
+    // Accept an explicit override since setUpgradeForm() hasn't necessarily flushed to
+    // `upgradeForm` yet when this is called synchronously right after setting it (the
+    // free/individual "just move ahead" path from the plan step).
+    const workspaceName = workspaceNameOverride ?? upgradeForm.workspaceName;
+    if (!workspaceName.trim()) { setUpgradeError(t("userDashboard.upgrade.errors.workspaceNameRequired")); return; }
     const auth = getStoredAuth();
     if (!auth) { router.push("/login?from=/user/dashboard"); return; }
     setUpgradeLoading(true);
     try {
-      const data = await authService.upgradeToOrganizer({ workspaceName: upgradeForm.workspaceName, type: upgradeForm.type, planName: selectedPlan });
+      const data = await authService.upgradeToOrganizer({ workspaceName, type: upgradeForm.type, planName: selectedPlanData.name });
       const tenantId = storeUpgradedAuth(data);
-      if (PLAN_PRICES[selectedPlan] > 0 && tenantId) {
-        const matchedPlan = availablePlans.find((p: any) => p.name?.toUpperCase() === selectedPlan || p.name?.toUpperCase().includes(selectedPlan));
-        if (matchedPlan?.planId) {
-          const isMomo = upgradePaymentMethod !== "stripe";
-          const subscription = await paymentService.createSubscription({
-            tenantId, planId: matchedPlan.planId, amount: PLAN_PRICES[selectedPlan],
-            currency: "XAF", provider: upgradePaymentMethod,
-            phoneNumber: isMomo ? upgradePhone : undefined,
-          });
+      if (selectedPlanData.price > 0 && tenantId && selectedPlanData.planId) {
+        const isMomo = upgradePaymentMethod !== "stripe";
+        const subscription = await paymentService.createSubscription({
+          tenantId, planId: selectedPlanData.planId, amount: selectedPlanData.price,
+          currency: selectedPlanData.currency || "XAF", provider: upgradePaymentMethod,
+          phoneNumber: isMomo ? upgradePhone : undefined,
+        });
 
-          if (isMomo) {
-            setUpgradeLoading(false);
-            setUpgradeMomoWaiting(true);
-            let confirmed = false;
-            for (let attempt = 0; attempt < 20; attempt++) {
-              await sleep(3000);
-              const status = await paymentService.checkSubscriptionMobileMoneyStatus(subscription.id).catch(() => null);
-              if (status?.status === "ACTIVE") { confirmed = true; break; }
-              if (status?.status === "FAILED") {
-                setUpgradeMomoWaiting(false);
-                setUpgradeError(t("userDashboard.upgrade.errors.momoFailed"));
-                return;
-              }
-            }
-            setUpgradeMomoWaiting(false);
-            if (!confirmed) {
-              setUpgradeError(t("userDashboard.upgrade.errors.momoStillWaiting"));
+        if (isMomo) {
+          setUpgradeLoading(false);
+          setUpgradeMomoWaiting(true);
+          let confirmed = false;
+          for (let attempt = 0; attempt < 20; attempt++) {
+            await sleep(3000);
+            const status = await paymentService.checkSubscriptionMobileMoneyStatus(subscription.id).catch(() => null);
+            if (status?.status === "ACTIVE") { confirmed = true; break; }
+            if (status?.status === "FAILED") {
+              setUpgradeMomoWaiting(false);
+              setUpgradeError(t("userDashboard.upgrade.errors.momoFailed"));
               return;
             }
+          }
+          setUpgradeMomoWaiting(false);
+          if (!confirmed) {
+            setUpgradeError(t("userDashboard.upgrade.errors.momoStillWaiting"));
+            return;
           }
         }
       }
@@ -452,7 +472,7 @@ export default function AttendeeDashboard() {
     setUpgradeError("");
     if (!upgradeForm.workspaceName.trim()) { setUpgradeError(t("userDashboard.upgrade.errors.workspaceNameRequired")); return; }
     if (!getStoredAuth()) { router.push("/login?from=/user/dashboard"); return; }
-    if (PLAN_PRICES[selectedPlan] > 0) setUpgradeStep("payment");
+    if (selectedPlanData.price > 0) setUpgradeStep("payment");
     else await handleUpgradeSubmit();
   };
 
@@ -1269,24 +1289,44 @@ export default function AttendeeDashboard() {
               <div className="p-8">
                 <h2 className="font-display text-2xl font-black mb-1">{t("userDashboard.upgrade.step.plan.title")}</h2>
                 <p className="text-sm text-[#888] mb-6">{t("userDashboard.upgrade.step.plan.subtitle")}</p>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  {(["FREE", "BASIC", "PREMIUM"] as const).map(plan => (
-                    <button key={plan} type="button" onClick={() => setSelectedPlan(plan)}
-                      className={`rounded-2xl p-4 border-2 text-left transition-all cursor-pointer ${selectedPlan === plan ? "border-[#FF4747] bg-[#FF4747]/5" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}>
-                      <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${selectedPlan === plan ? "text-[#FF4747]" : "text-[#aaa]"}`}>{plan}</div>
-                      <div className="text-2xl font-black text-[#1a1a1a] mb-3">
-                        {PLAN_PRICES[plan] === 0 ? t("userDashboard.upgrade.step.plan.freeLabel") : `${Number(PLAN_PRICES[plan]).toLocaleString()} FCFA`}
-                        {PLAN_PRICES[plan] > 0 && <span className="text-xs font-normal text-[#aaa]">{t("userDashboard.upgrade.step.plan.perMonth")}</span>}
-                      </div>
-                      <ul className="space-y-1">{PLAN_FEATURES[plan].map(f => (
-                        <li key={f} className="text-[10px] text-[#666] flex items-start gap-1"><CheckCircle2 size={9} className="text-green-500 shrink-0 mt-0.5" /> {f}</li>
-                      ))}</ul>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {availablePlans.map((plan, i) => {
+                    const planKey = plan.planId || plan.name || i;
+                    const isSelected = selectedPlanData === plan;
+                    return (
+                      <button key={planKey} type="button" onClick={() => setSelectedPlanId(plan.planId || plan.name)}
+                        className={`rounded-2xl p-4 border-2 text-left transition-all cursor-pointer relative ${isSelected ? "border-[#FF4747] bg-[#FF4747]/5" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}>
+                        {plan.popular && (
+                          <span className="absolute -top-2 right-3 bg-[#FF4747] text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">{t("userDashboard.upgrade.step.plan.mostPopular")}</span>
+                        )}
+                        <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${isSelected ? "text-[#FF4747]" : "text-[#aaa]"}`}>{plan.name}</div>
+                        <div className="text-2xl font-black text-[#1a1a1a] mb-3">
+                          {plan.price === 0 ? t("userDashboard.upgrade.step.plan.freeLabel") : formatPrice(plan.price, plan.currency)}
+                          {plan.price > 0 && <span className="text-xs font-normal text-[#aaa]">{t("userDashboard.upgrade.step.plan.perMonth")}</span>}
+                        </div>
+                        <ul className="space-y-1">{(plan.featuresEnabled || "").split(",").filter(Boolean).map((f: string) => (
+                          <li key={f} className="text-[10px] text-[#666] flex items-start gap-1"><CheckCircle2 size={9} className="text-green-500 shrink-0 mt-0.5" /> {f.trim()}</li>
+                        ))}</ul>
+                      </button>
+                    );
+                  })}
                 </div>
-                <button type="button" onClick={() => setUpgradeStep("workspace")}
-                  className="w-full py-3.5 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all cursor-pointer">
-                  {t("userDashboard.upgrade.step.plan.continueWith", { plan: selectedPlan })}
+
+                <div className="mb-6">
+                  <label className={label}>{t("userDashboard.upgrade.step.workspace.accountTypeLabel")}</label>
+                  <div className="flex bg-[#f5f5f5] rounded-xl p-1">
+                    {(["INDIVIDUAL", "ORGANIZATION"] as const).map(accType => (
+                      <button key={accType} type="button" onClick={() => setUpgradeForm(f => ({ ...f, type: accType }))}
+                        className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${upgradeForm.type === accType ? "bg-white text-[#1a1a1a] shadow-sm" : "text-[#888]"}`}>
+                        {t(`userDashboard.upgrade.step.workspace.accountType.${accType.toLowerCase()}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button type="button" onClick={handlePlanContinue} disabled={upgradeLoading}
+                  className="w-full py-3.5 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
+                  {upgradeLoading ? t("userDashboard.upgrade.step.workspace.creating") : t("userDashboard.upgrade.step.plan.continueWith", { plan: selectedPlanData.name })}
                 </button>
               </div>
             )}
@@ -1295,28 +1335,17 @@ export default function AttendeeDashboard() {
               <div className="p-8">
                 <button type="button" onClick={() => setUpgradeStep("plan")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">{t("userDashboard.upgrade.step.workspace.back")}</button>
                 <h2 className="font-display text-2xl font-black mb-1">{t("userDashboard.upgrade.step.workspace.title")}</h2>
-                <p className="text-sm text-[#888] mb-6">{t("userDashboard.upgrade.step.workspace.creatingLabel", { plan: selectedPlan })}</p>
+                <p className="text-sm text-[#888] mb-6">{t("userDashboard.upgrade.step.workspace.creatingLabel", { plan: selectedPlanData.name })}</p>
                 {upgradeError && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-200 mb-4">⚠️ {upgradeError}</div>}
                 <form onSubmit={handleWorkspaceContinue} className="space-y-4">
                   <div>
-                    <label className={label}>{t("userDashboard.upgrade.step.workspace.accountTypeLabel")}</label>
-                    <div className="flex bg-[#f5f5f5] rounded-xl p-1">
-                      {(["INDIVIDUAL", "ORGANIZATION"] as const).map(accType => (
-                        <button key={accType} type="button" onClick={() => setUpgradeForm(f => ({ ...f, type: accType }))}
-                          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${upgradeForm.type === accType ? "bg-white text-[#1a1a1a] shadow-sm" : "text-[#888]"}`}>
-                          {t(`userDashboard.upgrade.step.workspace.accountType.${accType.toLowerCase()}`)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className={label}>{upgradeForm.type === "INDIVIDUAL" ? t("userDashboard.upgrade.step.workspace.displayNameLabel") : t("userDashboard.upgrade.step.workspace.organizationNameLabel")}</label>
+                    <label className={label}>{t("userDashboard.upgrade.step.workspace.organizationNameLabel")}</label>
                     <input value={upgradeForm.workspaceName} onChange={e => setUpgradeForm(f => ({ ...f, workspaceName: e.target.value }))}
-                      placeholder={upgradeForm.type === "INDIVIDUAL" ? t("userDashboard.upgrade.step.workspace.displayNamePlaceholder") : t("userDashboard.upgrade.step.workspace.organizationNamePlaceholder")} className={inp} required />
+                      placeholder={t("userDashboard.upgrade.step.workspace.organizationNamePlaceholder")} className={inp} required />
                   </div>
                   <button type="submit" disabled={upgradeLoading}
                     className="w-full py-3 bg-[#FF4747] text-white rounded-xl text-sm font-bold hover:bg-[#e03e3e] transition-all disabled:opacity-60 cursor-pointer">
-                    {upgradeLoading ? t("userDashboard.upgrade.step.workspace.creating") : PLAN_PRICES[selectedPlan] > 0 ? t("userDashboard.upgrade.step.workspace.continueToPayment") : t("userDashboard.upgrade.step.workspace.createFreeWorkspace")}
+                    {upgradeLoading ? t("userDashboard.upgrade.step.workspace.creating") : selectedPlanData.price > 0 ? t("userDashboard.upgrade.step.workspace.continueToPayment") : t("userDashboard.upgrade.step.workspace.createFreeWorkspace")}
                   </button>
                 </form>
               </div>
@@ -1324,9 +1353,9 @@ export default function AttendeeDashboard() {
 
             {upgradeStep === "payment" && (
               <div className="p-8">
-                <button type="button" onClick={() => setUpgradeStep("workspace")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">{t("userDashboard.upgrade.step.payment.back")}</button>
+                <button type="button" onClick={() => setUpgradeStep(upgradeForm.type === "ORGANIZATION" ? "workspace" : "plan")} className="text-xs text-[#FF4747] font-semibold hover:underline mb-4 block cursor-pointer">{t("userDashboard.upgrade.step.payment.back")}</button>
                 <h2 className="font-display text-2xl font-black mb-1">{t("userDashboard.upgrade.step.payment.title")}</h2>
-                <p className="text-sm text-[#888] mb-5">{t("userDashboard.upgrade.step.payment.priceLine", { plan: selectedPlan, price: Number(PLAN_PRICES[selectedPlan]).toLocaleString() })}</p>
+                <p className="text-sm text-[#888] mb-5">{t("userDashboard.upgrade.step.payment.priceLine", { plan: selectedPlanData.name, price: formatPrice(selectedPlanData.price, selectedPlanData.currency) })}</p>
                 {upgradeError && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl border border-red-200 mb-4">⚠️ {upgradeError}</div>}
                 <div className="space-y-3 mb-5">
                   {[
@@ -1349,9 +1378,8 @@ export default function AttendeeDashboard() {
                 {upgradePaymentMethod === "stripe" ? (
                   <Elements stripe={getStripePromise()}>
                     <StripeUpgradeForm
-                      selectedPlan={selectedPlan}
+                      selectedPlanData={selectedPlanData}
                       upgradeForm={upgradeForm}
-                      availablePlans={availablePlans}
                       onSuccess={finishUpgrade}
                       onError={setUpgradeError}
                       loading={upgradeLoading}

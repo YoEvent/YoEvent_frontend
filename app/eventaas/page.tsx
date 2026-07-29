@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Zap, Shield, Globe, Code2, Layers, BarChart3, Webhook, Key, CheckCircle2, ChevronRight, Mail } from "lucide-react";
 import { api, getStoredAuth } from "@/app/utils/api";
-import { DEFAULT_PRICING_PLANS, getDisplayPlans, formatCfaPrice, type PricingPlan } from "@/app/utils/pricingPlans";
+import { DEFAULT_PRICING_PLANS, getActivePlans, formatPrice, type PricingPlan } from "@/app/utils/pricingPlans";
 import { useLanguage } from "@/app/context/LanguageContext";
 
 // Non-translated technical metadata for each microservice card — paired by index
@@ -33,7 +33,7 @@ export default function EventaaSPage() {
 
   useEffect(() => {
     api.get<PricingPlan[]>("/api/v1/subscriptionplans", { skipAuth: true })
-      .then((data) => setPlans(getDisplayPlans(data)))
+      .then((data) => setPlans(getActivePlans(data)))
       .catch(() => setPlans(DEFAULT_PRICING_PLANS));
   }, []);
 
@@ -232,7 +232,7 @@ export default function EventaaSPage() {
               <div key={p.name} className={`rounded-2xl p-7 border flex flex-col ${highlight ? "bg-[#FF4747] border-[#FF4747]" : "bg-white border-[#e5e7eb]"}`}>
                 <div className={`text-xs font-bold uppercase tracking-widest mb-4 ${highlight ? "text-white/70" : "text-[#aaa]"}`}>{t("eventaas.pricing.planSuffix", { name: p.name })}</div>
                 <div className="mb-6">
-                  <span className={`font-display text-3xl font-black break-words ${highlight ? "text-white" : "text-[#1a1a1a]"}`}>{formatCfaPrice(p.price)}</span>
+                  <span className={`font-display text-3xl font-black break-words ${highlight ? "text-white" : "text-[#1a1a1a]"}`}>{formatPrice(p.price, p.currency)}</span>
                   {p.price > 0 && <span className={`text-xs ml-1.5 ${highlight ? "text-white/70" : "text-[#888]"}`}>{t("eventaas.pricing.perMonth")}</span>}
                 </div>
                 <ul className="space-y-2.5 mb-8 flex-1">

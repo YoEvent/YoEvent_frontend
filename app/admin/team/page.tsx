@@ -620,6 +620,7 @@ export default function TeamPage() {
                       photoUrl: "",
                       sessionId: "",
                       locationId: "",
+                      eventLocationId: "",
                       task: "",
                       team: "",
                       shiftStart: "",

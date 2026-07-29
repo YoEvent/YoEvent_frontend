@@ -7,7 +7,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { api, setStoredAuth } from "@/app/utils/api";
 import { paymentService } from "@/app/utils/services/paymentService";
-import { getDisplayPlans, formatCfaPrice } from "@/app/utils/pricingPlans";
+import { getActivePlans, formatPrice } from "@/app/utils/pricingPlans";
 import { useLanguage } from "@/app/context/LanguageContext";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
@@ -82,7 +82,7 @@ function StripeCardSubscribeForm({
         tenantId,
         planId: mappedPlan.planId,
         amount: mappedPlan.price,
-        currency: "XAF",
+        currency: mappedPlan.currency || "XAF",
         provider: "stripe",
         paymentMethodId,
       });
@@ -120,7 +120,7 @@ function StripeCardSubscribeForm({
         disabled={submitting || (!isMockStripe && !stripe)}
         className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
       >
-        {submitting ? t("registerPage.card.processingPayment") : t("registerPage.card.payAndSubscribe", { price: formatCfaPrice(mappedPlan?.price ?? 0) })}
+        {submitting ? t("registerPage.card.processingPayment") : t("registerPage.card.payAndSubscribe", { price: formatPrice(mappedPlan?.price ?? 0, mappedPlan?.currency) })}
       </button>
     </form>
   );
@@ -139,7 +139,7 @@ function RegisterFormContent() {
   const [loading, setLoading] = useState(false);
   const [isOrg, setIsOrg] = useState(false);
   const [roleMode, setRoleMode] = useState<"ATTENDEE" | "ORGANIZER">("ATTENDEE");
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", orgName: "", password: "", confirm: "", agree: false });
+  const [form, setForm] = useState({ firstName: "", lastName: "", username: "", email: "", orgName: "", password: "", confirm: "", agree: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Payment states
@@ -156,39 +156,21 @@ function RegisterFormContent() {
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   useEffect(() => {
-    // Curated FCFA prices (same source /pricing uses) — the raw subscriptionplans
-    // rows in the DB hold placeholder values (29, 99) that were never converted
-    // to real currency amounts, so we don't display or charge those directly.
     api.get<any[]>("/api/v1/subscriptionplans", { skipAuth: true })
       .then((data) => {
-        setPlans(getDisplayPlans(data));
+        setPlans(getActivePlans(data));
       })
       .catch((err) => {
         console.error("Failed to load subscription plans:", err);
       });
   }, []);
 
-  const isPaidPlan = planName.toLowerCase().includes("pro") ||
-                     planName.toLowerCase().includes("enterprise") ||
-                     planName.toLowerCase().includes("basic") ||
-                     planName.toLowerCase().includes("premium") ||
-                     planName.toLowerCase().includes("mega");
-
-  const getPrice = () => {
-    const lower = planName.toLowerCase();
-    if (lower.includes("enterprise") || lower.includes("premium")) return 85000;
-    if (lower.includes("eventer") || lower.includes("mega")) return 35000;
-    if (lower.includes("pro") || lower.includes("basic")) return 15000;
-    return 0;
-  };
-
-  const mappedPlan = plans.find((p) => {
-    const lowerName = planName.toLowerCase();
-    if (lowerName.includes("enterprise") || lowerName.includes("premium")) return p.name === "Enterprise";
-    if (lowerName.includes("eventer") || lowerName.includes("mega")) return p.name === "Eventer";
-    if (lowerName.includes("pro") || lowerName.includes("basic")) return p.name === "Pro";
-    return p.name === "Starter";
-  });
+  // `planName` (a `?plan=` query param) is matched directly against the real,
+  // backend-configured plan list — whatever a super admin has named/priced plans as,
+  // not a hardcoded curated set.
+  const mappedPlan = plans.find((p) => p.name?.toLowerCase() === planName.toLowerCase());
+  const isPaidPlan = (mappedPlan?.price ?? 0) > 0;
+  const getPrice = () => mappedPlan?.price ?? 0;
 
   const strength = (pw: string) => {
     let s = 0;
@@ -204,10 +186,20 @@ function RegisterFormContent() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.firstName.trim()) e.firstName = t("registerPage.form.errorRequired");
-    if (!form.lastName.trim()) e.lastName = t("registerPage.form.errorRequired");
+    if (roleMode === "ATTENDEE") {
+      if (!form.firstName.trim() && !form.lastName.trim()) {
+        e.firstName = t("registerPage.form.errorRequired");
+      }
+    } else if (roleMode === "ORGANIZER") {
+      if (isOrg) {
+        if (!form.orgName.trim()) e.orgName = t("registerPage.form.errorRequired");
+      } else {
+        if (!form.firstName.trim() && !form.lastName.trim()) {
+          e.firstName = t("registerPage.form.errorRequired");
+        }
+      }
+    }
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = t("registerPage.form.errorValidEmail");
-    if (roleMode === "ORGANIZER" && isOrg && !form.orgName.trim()) e.orgName = t("registerPage.form.errorRequired");
     if (form.password.length < 8) e.password = t("registerPage.form.errorMinPassword");
     if (form.password !== form.confirm) e.confirm = t("registerPage.form.errorPasswordsMismatch");
     if (!form.agree) e.agree = t("registerPage.form.errorAcceptTerms");
@@ -231,16 +223,24 @@ function RegisterFormContent() {
     setLoading(true);
     try {
       const isAttendee = roleMode === "ATTENDEE";
-      
-      // Call the local backend directly to register the user
+      const fn = form.firstName.trim();
+      const ln = form.lastName.trim();
+      const org = form.orgName.trim();
+
+      const firstName = isAttendee ? (fn || ln) : (isOrg ? (org || fn || "Organiser") : (fn || org || "Organiser"));
+      const lastName = isAttendee ? ln : (isOrg ? "Organisation" : ln);
+      const workspaceName = isAttendee ? undefined : (isOrg ? (org || `${fn} ${ln}`.trim()) : (`${fn} ${ln}`.trim() || org));
+      const type = isAttendee ? undefined : (isOrg ? "ORGANIZATION" : "INDIVIDUAL");
+
+      // Kernel Core sign-up/login is disabled for now — register directly against the local backend.
       await api.post("/api/v1/auth/register", {
-        firstName: form.firstName,
-        lastName: form.lastName,
+        firstName,
+        lastName,
         email: form.email,
         password: form.password,
         isAttendee,
-        workspaceName: isAttendee ? undefined : (isOrg ? form.orgName : `${form.firstName} ${form.lastName}`),
-        type: isAttendee ? undefined : (isOrg ? "ORGANIZATION" : "INDIVIDUAL"),
+        workspaceName,
+        type,
       });
 
       setSubmitted(true);
@@ -252,22 +252,30 @@ function RegisterFormContent() {
     }
   };
 
-  // Creates the account + tenant workspace first, then drops into the real
-  // Stripe/Mobile Money checkout for the selected paid plan.
   const handleRegisterThenShowPayment = async () => {
     setLoading(true);
     try {
-      // Direct local registration
-      const raw = await api.post<any>("/api/v1/auth/register", {
-        firstName: form.firstName,
-        lastName: form.lastName,
+      const isAttendee = false;
+      const fn = form.firstName.trim();
+      const ln = form.lastName.trim();
+      const org = form.orgName.trim();
+
+      const firstName = isOrg ? (org || fn || "Organiser") : (fn || org || "Organiser");
+      const lastName = isOrg ? "Organisation" : ln;
+      const workspaceName = isOrg ? (org || `${fn} ${ln}`.trim()) : (`${fn} ${ln}`.trim() || org);
+      const type = isOrg ? "ORGANIZATION" : "INDIVIDUAL";
+
+      // Kernel Core sign-up/login is disabled for now — register directly against the local backend.
+      const raw: any = await api.post<any>("/api/v1/auth/register", {
+        firstName,
+        lastName,
         email: form.email,
         password: form.password,
         isAttendee: false,
-        workspaceName: isOrg ? form.orgName : `${form.firstName} ${form.lastName}`,
-        type: isOrg ? "ORGANIZATION" : "INDIVIDUAL",
+        workspaceName,
+        type,
       });
-      
+
       const authData = {
         token: raw?.token ?? "",
         type: "Bearer",
@@ -275,6 +283,7 @@ function RegisterFormContent() {
         tenantId: raw?.tenantId ?? "",
         email: form.email,
         planTier: "FREE",
+        role: raw?.role || "TENANT_OWNER",
       };
       setStoredAuth(authData);
       setRegisteredAuth({ tenantId: authData.tenantId, email: authData.email });
@@ -438,7 +447,7 @@ function RegisterFormContent() {
                       <h4 className="text-sm font-bold text-[#1a1a1a]">{mappedPlan?.name || planName} {t("registerPage.payment.planSuffix")}</h4>
                     </div>
                     <div className="text-right">
-                      <span className="text-lg font-extrabold text-[#1a1a1a]">{formatCfaPrice(mappedPlan?.price ?? getPrice())}</span>
+                      <span className="text-lg font-extrabold text-[#1a1a1a]">{formatPrice(mappedPlan?.price ?? getPrice(), mappedPlan?.currency)}</span>
                       <span className="text-[10px] text-[#888] block">{t("registerPage.payment.perMonth")}</span>
                     </div>
                   </div>
@@ -489,7 +498,7 @@ function RegisterFormContent() {
                         disabled={paymentLoading}
                         className="w-full py-3.5 bg-[#FF4747] text-white rounded-full text-sm font-semibold hover:bg-[#e03e3e] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                       >
-                        {paymentLoading ? t("registerPage.payment.sendingUssd") : t("registerPage.payment.payAndSubscribe", { price: formatCfaPrice(mappedPlan?.price ?? getPrice()) })}
+                        {paymentLoading ? t("registerPage.payment.sendingUssd") : t("registerPage.payment.payAndSubscribe", { price: formatPrice(mappedPlan?.price ?? getPrice(), mappedPlan?.currency) })}
                       </button>
                     </form>
                   )}
@@ -508,7 +517,7 @@ function RegisterFormContent() {
                     <h4 className="text-sm font-bold text-[#1a1a1a]">{planName}</h4>
                   </div>
                   <div className="text-right">
-                    <span className="text-base font-extrabold text-[#1a1a1a]">{formatCfaPrice(mappedPlan?.price ?? getPrice())}</span>
+                    <span className="text-base font-extrabold text-[#1a1a1a]">{formatPrice(mappedPlan?.price ?? getPrice(), mappedPlan?.currency)}</span>
                     <span className="text-[10px] text-[#888]">{t("registerPage.form.perMonth")}</span>
                   </div>
                 </div>
@@ -538,7 +547,7 @@ function RegisterFormContent() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRoleMode("ORGANIZER")}
+                  onClick={() => { setRoleMode("ORGANIZER"); setIsOrg(true); }}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                     roleMode === "ORGANIZER" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
                   }`}
@@ -571,26 +580,19 @@ function RegisterFormContent() {
               )}
 
               <form onSubmit={handleSubmit} noValidate className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {(["firstName", "lastName"] as const).map((f) => (
-                    <div key={f}>
-                      <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{f === "firstName" ? t("registerPage.form.firstName") : t("registerPage.form.lastName")}</label>
-                      <input value={form[f]} onChange={(e) => set(f, e.target.value)}
-                        placeholder={f === "firstName" ? "Jean" : "Dupont"}
-                        className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors[f] ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
-                      {errors[f] && <p className="text-xs text-red-500 mt-1">{errors[f]}</p>}
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.emailAddress")}</label>
-                  <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("registerPage.form.emailPlaceholder")}
-                    className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
-                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
-                </div>
-
-                {roleMode === "ORGANIZER" && isOrg && (
+                {roleMode === "ATTENDEE" || !isOrg ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {(["firstName", "lastName"] as const).map((f) => (
+                      <div key={f}>
+                        <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{f === "firstName" ? t("registerPage.form.firstName") : t("registerPage.form.lastName")}</label>
+                        <input value={form[f]} onChange={(e) => set(f, e.target.value)}
+                          placeholder={f === "firstName" ? "Jean" : "Dupont"}
+                          className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors[f] ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
+                        {errors[f] && <p className="text-xs text-red-500 mt-1">{errors[f]}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                   <div>
                     <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.organisationName")}</label>
                     <input type="text" value={form.orgName} onChange={(e) => set("orgName", e.target.value)} placeholder={t("registerPage.form.orgNamePlaceholder")}
@@ -598,6 +600,13 @@ function RegisterFormContent() {
                     {errors.orgName && <p className="text-xs text-red-500 mt-1">{errors.orgName}</p>}
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.emailAddress")}</label>
+                  <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder={t("registerPage.form.emailPlaceholder")}
+                    className={`w-full px-4 py-2.5 border-[1.5px] rounded-xl text-sm bg-white outline-none transition-all focus:bg-white focus:shadow-[0_0_0_3px_rgba(255, 71, 71, .15)] ${errors.email ? "border-red-400" : "border-[#e5e7eb] focus:border-[#FF4747]"}`} />
+                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+                </div>
 
                 <div>
                   <label className="block text-[10px] font-medium text-[#555] uppercase tracking-wider mb-1.5">{t("registerPage.form.password")}</label>

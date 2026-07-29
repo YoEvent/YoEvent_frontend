@@ -10,8 +10,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
   DEFAULT_PRICING_PLANS,
-  formatCfaPrice,
-  getDisplayPlans,
+  formatPrice,
+  getActivePlans,
   mapPlanNameToTier,
   type PricingPlan,
 } from "@/app/utils/pricingPlans";
@@ -112,7 +112,7 @@ function StripeSubscriptionForm({
         tenantId: auth.tenantId,
         planId: selectedPlan.planId,
         amount: selectedPlan.price,
-        currency: "XAF",
+        currency: selectedPlan.currency || "XAF",
         provider: "stripe",
         paymentMethodId,
       });
@@ -153,7 +153,7 @@ function StripeSubscriptionForm({
         disabled={submitting || (!isMockStripe && !stripe)}
         className="w-full py-3.5 bg-[#FF4747] hover:bg-[#e03e3e] disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
       >
-        {submitting ? t("pricing.stripeForm.processingPayment") : t("pricing.stripeForm.payAndSubscribe", { price: formatCfaPrice(selectedPlan.price) })}
+        {submitting ? t("pricing.stripeForm.processingPayment") : t("pricing.stripeForm.payAndSubscribe", { price: formatPrice(selectedPlan.price, selectedPlan.currency) })}
       </button>
     </form>
   );
@@ -183,7 +183,7 @@ export default function PricingPage() {
   useEffect(() => {
     api.get<PricingPlan[]>("/api/v1/subscriptionplans", { skipAuth: true })
       .then((data) => {
-        setPlans(getDisplayPlans(data));
+        setPlans(getActivePlans(data));
       })
       .catch((err) => {
         console.error("Failed to load subscription plans:", err);
@@ -201,10 +201,11 @@ export default function PricingPage() {
       return;
     }
 
-    // Attendee without a workspace — send to dashboard upgrade flow
+    // Attendee without a workspace — send to dashboard upgrade flow, carrying the exact
+    // plan they picked (by id) rather than a coarsened tier guess.
     if (!currentAuth.tenantId) {
-      const tier = mapPlanNameToTier(plan.name);
-      router.push(`/user/dashboard?upgrade=1&plan=${tier}`);
+      const query = plan.planId ? `&planId=${encodeURIComponent(plan.planId)}` : "";
+      router.push(`/user/dashboard?upgrade=1${query}`);
       return;
     }
 
@@ -256,7 +257,7 @@ export default function PricingPage() {
         tenantId: currentAuth.tenantId,
         planId: selectedPlan.planId,
         amount: selectedPlan.price,
-        currency: "XAF",
+        currency: selectedPlan.currency || "XAF",
         provider: "momo",
         phoneNumber,
       });
@@ -329,7 +330,7 @@ export default function PricingPage() {
                 <div>
                   <h3 className="font-display text-xl font-bold mb-4">{plan.name}</h3>
                   <div className="flex items-baseline mb-6 flex-wrap gap-x-1.5">
-                    <span className="text-3xl font-extrabold font-display break-words">{formatCfaPrice(plan.price)}</span>
+                    <span className="text-3xl font-extrabold font-display break-words">{formatPrice(plan.price, plan.currency)}</span>
                     <span className="text-xs text-[#888]">
                       /{plan.billingCycle?.toLowerCase()}
                     </span>
@@ -394,7 +395,7 @@ export default function PricingPage() {
 
             <div className="p-4 bg-white border border-[#e5e7eb] rounded-xl flex justify-between items-center text-xs">
               <span className="font-semibold text-[#555]">{t("pricing.modal.planPriceLabel")}</span>
-              <span className="font-black text-base text-[#FF4747]">{formatCfaPrice(selectedPlan.price)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
+              <span className="font-black text-base text-[#FF4747]">{formatPrice(selectedPlan.price, selectedPlan.currency)} / {selectedPlan.billingCycle?.toLowerCase()}</span>
             </div>
 
             <div className="space-y-4 text-xs">

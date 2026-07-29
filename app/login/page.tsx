@@ -27,43 +27,47 @@ function LoginForm() {
     if (Object.keys(errs).length) return;
     setLoading(true);
     try {
-      // Direct local authentication login
-      const response = await api.post<any>("/api/v1/auth/login", {
+      // Kernel Core authentication is disabled for now — log in directly against the local backend.
+      const response: any = await api.post<any>("/api/v1/auth/login", {
         email: form.email,
         password: form.password,
       });
+      const token: string = response?.token;
 
-      const token = response?.token;
-      if (!token) throw new Error(t("loginPage.errorNoToken"));
+      if (!response || !token) throw new Error(t("loginPage.errorNoToken"));
 
-      // Decode token claims locally
-      const base64Url = token.split(".")[1];
-      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-      const jsonPayload = decodeURIComponent(
-        window.atob(base64)
-          .split("")
-          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-          .join("")
-      );
-      const claims = JSON.parse(jsonPayload);
+      let resolvedRole: string = response.role || "";
+      let claims: any = {};
+      if (!resolvedRole) {
+        try {
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            window.atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          );
+          claims = JSON.parse(jsonPayload);
+          const scope = claims.scope || claims.roles || [];
+          const hasScope = (s: string) => {
+            if (Array.isArray(scope)) return scope.includes(s);
+            if (typeof scope === "string") return scope.split(" ").map((x: string) => x.trim()).includes(s);
+            return false;
+          };
 
-      // Determine role from JWT claims scope/roles
-      const scope = claims.scope || claims.roles || [];
-      const hasScope = (s: string) => {
-        if (Array.isArray(scope)) return scope.includes(s);
-        if (typeof scope === "string") return scope.split(" ").map((x: string) => x.trim()).includes(s);
-        return false;
-      };
-
-      let resolvedRole: string;
-      if (hasScope("SUPER_ADMIN")) {
-        resolvedRole = "SUPER_ADMIN";
-      } else if (hasScope("ATTENDEE")) {
-        resolvedRole = "ATTENDEE";
-      } else if (hasScope("TENANT_OWNER") || hasScope("ORGANIZER") || hasScope("ADMIN")) {
-        resolvedRole = "TENANT_OWNER";
-      } else {
-        resolvedRole = (response.tenantId && response.tenantId !== "null") ? "TENANT_OWNER" : "ATTENDEE";
+          if (hasScope("SUPER_ADMIN")) {
+            resolvedRole = "SUPER_ADMIN";
+          } else if (hasScope("ATTENDEE")) {
+            resolvedRole = "ATTENDEE";
+          } else if (hasScope("TENANT_OWNER") || hasScope("ORGANIZER") || hasScope("ADMIN")) {
+            resolvedRole = "TENANT_OWNER";
+          } else {
+            resolvedRole = (response.tenantId && response.tenantId !== "null") ? "TENANT_OWNER" : "ATTENDEE";
+          }
+        } catch {
+          resolvedRole = (response.tenantId && response.tenantId !== "null") ? "TENANT_OWNER" : "ATTENDEE";
+        }
       }
 
       const data: AuthData = {
@@ -123,8 +127,6 @@ function LoginForm() {
               )}
             </div>
 
-
-
             {sessionExpired && (
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 text-sm text-amber-800">
                 🔄 {t("loginPage.sessionExpired")}
@@ -148,7 +150,7 @@ function LoginForm() {
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-[10px] font-medium text-[#555] uppercase tracking-wider">{t("loginPage.passwordLabel")}</label>
-                  <a href="#" className="text-xs text-[#EB4203] hover:underline">{t("loginPage.forgotPassword")}</a>
+                  <Link href="/forgot-password" className="text-xs text-[#EB4203] hover:underline">{t("loginPage.forgotPassword")}</Link>
                 </div>
                 <div className="relative">
                   <input type={show ? "text" : "password"} value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={t("loginPage.passwordPlaceholder")}

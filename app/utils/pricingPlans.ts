@@ -8,9 +8,11 @@ export interface PricingPlan {
   featuresEnabled: string;
   popular?: boolean;
   planId?: string;
+  currency?: string;
+  status?: string;
 }
 
-/** Display tiers with round CFA amounts (XAF). */
+/** Offline fallback shown only if the backend call fails — not used once real plans load. */
 export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
   {
     name: "Starter",
@@ -20,6 +22,7 @@ export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
     maxUsers: 1,
     maxAttendeesPerEvent: 100,
     featuresEnabled: "Basic Analytics, Q&A",
+    currency: "XAF",
   },
   {
     name: "Pro",
@@ -29,6 +32,7 @@ export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
     maxUsers: 3,
     maxAttendeesPerEvent: 500,
     featuresEnabled: "Ticket Sales, Email Campaigns, Basic Branding",
+    currency: "XAF",
   },
   {
     name: "Eventer",
@@ -38,7 +42,7 @@ export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
     maxUsers: 10,
     maxAttendeesPerEvent: 2_000,
     featuresEnabled: "Sponsors, Custom Domains, Advanced Analytics",
-    popular: true,
+    currency: "XAF",
   },
   {
     name: "Enterprise",
@@ -48,48 +52,53 @@ export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
     maxUsers: 25,
     maxAttendeesPerEvent: 10_000,
     featuresEnabled: "Dedicated Support, SLA, Advanced Queuing, Queue Analytics",
+    currency: "XAF",
   },
 ];
 
-// Backend seeds exactly 4 plans: FREE, BASIC, PREMIUM, MEGA. "Eventer" (our curated
-// "Most Popular" tier) has no direct backend counterpart by name, so it's paired with
-// MEGA — the one seeded plan that would otherwise never be reachable from any UI.
-const PLAN_ALIASES: Record<string, string[]> = {
-  Starter: ["starter", "free"],
-  Pro: ["pro", "basic"],
-  Eventer: ["eventer", "mega", "pro eventer"],
-  Enterprise: ["enterprise", "premium"],
-};
-
-function matchesPlanName(apiName: string, displayName: string): boolean {
-  const normalized = (apiName || "").toLowerCase().trim();
-  return PLAN_ALIASES[displayName].some(
-    (alias) => normalized === alias || normalized.includes(alias)
-  );
-}
-
-/** Merge API plan IDs with curated CFA display tiers. */
-export function getDisplayPlans(apiPlans: PricingPlan[] | null | undefined): PricingPlan[] {
+/**
+ * Real, backend-driven plan list: whatever a super admin has configured (name, price,
+ * currency, limits, features, however many plans exist), filtered to plans meant to be
+ * customer-visible and sorted cheapest-first. Falls back to the curated defaults above
+ * only if the API call failed or returned nothing.
+ */
+export function getActivePlans(apiPlans: PricingPlan[] | null | undefined): PricingPlan[] {
   if (!apiPlans?.length) return DEFAULT_PRICING_PLANS;
-
-  return DEFAULT_PRICING_PLANS.map((plan) => {
-    const apiMatch = apiPlans.find((p) => matchesPlanName(p.name, plan.name));
-    return {
-      ...plan,
-      planId: apiMatch?.planId,
-    };
-  });
+  const active = apiPlans.filter((p) => !p.status || p.status.toUpperCase() === "ACTIVE");
+  return (active.length ? active : apiPlans).slice().sort((a, b) => a.price - b.price);
 }
 
-export function formatCfaPrice(price: number): string {
+/** Currency-aware price formatter. Defaults to XAF for callers that don't have a plan's currency handy. */
+export function formatPrice(price: number, currency?: string): string {
   const amount = Math.round(price);
-  return amount === 0 ? "Free" : `${amount.toLocaleString("fr-FR")} FCFA`;
+  if (amount === 0) return "Free";
+  const code = (currency || "XAF").toUpperCase();
+  try {
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: code,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    // Intl doesn't recognize the code (e.g. a non-ISO placeholder) — fall back to a plain suffix.
+    return `${amount.toLocaleString("fr-FR")} ${code}`;
+  }
 }
 
+/** @deprecated Use formatPrice(price, currency) — kept only for any caller not yet updated. */
+export function formatCfaPrice(price: number): string {
+  return formatPrice(price, "XAF");
+}
+
+// Internal app-wide feature gating (e.g. "if planTier === PREMIUM show X") still needs a
+// coarse tier concept even though pricing display is now fully dynamic — the backend has no
+// explicit tier field, only a plan name, so this heuristic remains the tier source for that
+// unrelated purpose. Do not use this to select/link a specific plan for checkout; use the
+// plan's own planId/name for that.
 export function mapPlanNameToTier(name: string): string {
   const n = (name || "").toLowerCase();
   if (n.includes("enterprise") || n.includes("premium")) return "PREMIUM";
-  if (n.includes("eventer")) return "PREMIUM";
+  if (n.includes("eventer") || n.includes("mega")) return "PREMIUM";
   if (n.includes("pro") || n.includes("basic")) return "BASIC";
   return "FREE";
 }
