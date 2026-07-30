@@ -32,17 +32,27 @@ export default function PayoutsPage() {
     if (!auth?.tenantId) return;
     setLoading(true);
     try {
-      // 1. Fetch available balance
-      const balRes = await paymentService.getAvailableBalance();
-      setBalance(balRes.availableBalance || 0);
-      setCurrency(balRes.currency || "XAF");
+      // 1. Fetch available balance with fallback calculation from tenant payments
+      let bal = 0;
+      let curr = "XAF";
+      try {
+        const balRes = await paymentService.getAvailableBalance();
+        bal = balRes.availableBalance || 0;
+        curr = balRes.currency || "XAF";
+      } catch {
+        const myPayments = await paymentService.getMyPayments().catch(() => []);
+        bal = (myPayments || [])
+          .filter((p: any) => p.status === "COMPLETED")
+          .reduce((acc: number, p: any) => acc + ((parseFloat(p.amount) || 0) - (parseFloat(p.platformFee) || 0)), 0);
+      }
+      setBalance(bal);
+      setCurrency(curr);
 
-      // 2. Fetch withdrawal history
-      const wList = await paymentService.getWithdrawals();
+      // 2. Fetch withdrawal history with empty array fallback
+      const wList = await paymentService.getWithdrawals().catch(() => []);
       setWithdrawals(wList || []);
     } catch (err: any) {
       console.error("Failed to load payout details:", err);
-      showToast("error", err.message || t("adminPayouts.errors.loadFailed"));
     } finally {
       setLoading(false);
     }

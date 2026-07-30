@@ -162,7 +162,7 @@ export const eventService = {
   },
 
   // Event Locations
-  getEventLocations: (opts?: any) => api.get<T.EventLocationResponse[]>("api/v1/eventlocations", opts),
+  getEventLocations: (opts?: any) => api.get<T.EventLocationResponse[]>(opts?.skipAuth ? "api/v1/eventlocations" : "api/v1/eventlocations/mine", opts),
   createEventLocation: (data: T.EventLocationRequest) => api.post<T.EventLocationResponse>("api/v1/eventlocations", data),
   getEventLocationById: (id: string) => api.get<T.EventLocationResponse>(`api/v1/eventlocations/${id}`),
   updateEventLocation: (id: string, data: T.EventLocationRequest) => api.put<T.EventLocationResponse>(`api/v1/eventlocations/${id}`, data),
@@ -259,7 +259,7 @@ export const eventService = {
   deleteEventSection: (id: string) => api.delete<void>(`api/v1/event-sections/${id}`),
 
   // Event Resources / Assets
-  getEventResources: () => api.get<any[]>("api/v1/resources"),
+  getEventResources: (opts?: any) => api.get<any[]>("api/v1/resources/mine", opts),
   getResourcesByEvent: (eventId: string) => api.get<any[]>(`api/v1/resources/event/${eventId}`),
   getResourcesByLocation: (locationId: string) => api.get<any[]>(`api/v1/resources/location/${locationId}`),
   createResource: (data: any) => api.post<any>("api/v1/resources", data),
@@ -267,7 +267,7 @@ export const eventService = {
   deleteResource: (id: string) => api.delete<void>(`api/v1/resources/${id}`),
 
   // Rooms
-  getRooms: () => api.get<any[]>("api/v1/rooms"),
+  getRooms: (opts?: any) => api.get<any[]>("api/v1/rooms/mine", opts),
   getRoomsByEvent: (eventId: string) => api.get<any[]>(`api/v1/rooms/event/${eventId}`),
   getRoomsByLocation: (locationId: string) => api.get<any[]>(`api/v1/rooms/location/${locationId}`),
   createRoom: (data: any) => api.post<any>("api/v1/rooms", data),
@@ -311,7 +311,7 @@ export const eventService = {
   deleteAssignment: (id: string) => api.delete<void>(`api/v1/assignments/${id}`),
 
   // Room Asset Allocations
-  getRoomAssetAllocations: () => api.get<any[]>("api/v1/room-asset-allocations"),
+  getRoomAssetAllocations: (opts?: any) => api.get<any[]>("api/v1/room-asset-allocations/mine", opts),
   getRoomAssetAllocationsByRoom: (roomId: string) => api.get<any[]>(`api/v1/room-asset-allocations/room/${roomId}`),
   getRoomAssetAllocationsByResource: (resourceId: string) => api.get<any[]>(`api/v1/room-asset-allocations/resource/${resourceId}`),
   createRoomAssetAllocation: (data: any) => api.post<any>("api/v1/room-asset-allocations", data),

@@ -56,6 +56,33 @@ export const DEFAULT_PRICING_PLANS: PricingPlan[] = [
   },
 ];
 
+/** An EventaaS API plan — independent catalog from the YoEvent hosting plans above; sold purely as a monthly API-call quota. */
+export interface ApiPricingPlan {
+  name: string;
+  price: number;
+  billingCycle: string;
+  maxApiCallsPerMonth: number;
+  popular?: boolean;
+  planId?: string;
+  currency?: string;
+  status?: string;
+}
+
+/** Offline fallback shown only if the backend call fails — not used once real API plans load. */
+export const DEFAULT_API_PRICING_PLANS: ApiPricingPlan[] = [
+  { name: "FREE", price: 0, billingCycle: "MONTHLY", maxApiCallsPerMonth: 1000, currency: "XAF" },
+  { name: "STARTER", price: 15_000, billingCycle: "MONTHLY", maxApiCallsPerMonth: 100_000, currency: "XAF" },
+  { name: "GROWTH", price: 45_000, billingCycle: "MONTHLY", maxApiCallsPerMonth: 500_000, currency: "XAF", popular: true },
+  { name: "SCALE", price: 120_000, billingCycle: "MONTHLY", maxApiCallsPerMonth: 5_000_000, currency: "XAF" },
+];
+
+/** Same active/sort filtering as {@link getActivePlans}, for the API-plan catalog. */
+export function getActiveApiPlans(apiPlans: ApiPricingPlan[] | null | undefined): ApiPricingPlan[] {
+  if (!apiPlans?.length) return DEFAULT_API_PRICING_PLANS;
+  const active = apiPlans.filter((p) => !p.status || p.status.toUpperCase() === "ACTIVE");
+  return (active.length ? active : apiPlans).slice().sort((a, b) => a.price - b.price);
+}
+
 /**
  * Real, backend-driven plan list: whatever a super admin has configured (name, price,
  * currency, limits, features, however many plans exist), filtered to plans meant to be

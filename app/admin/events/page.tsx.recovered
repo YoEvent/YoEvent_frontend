@@ -9,7 +9,7 @@ import {
   Globe, Wifi, User, Pencil, Tag, Star, ScanLine, Package, QrCode,
   Building2, Megaphone, Copy, AlertTriangle, MessageSquare, Layers,
   FileText, Sparkles
-, List } from "lucide-react";
+} from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { savePendingEvent } from "@/app/utils/offlineDb";
@@ -21,11 +21,11 @@ const EventMap = dynamic(() => import("@/components/EventMap"), { ssr: false, lo
 type EventTab = "overview" | "details" | "schedule" | "location" | "tickets" | "coupons" | "team" | "sessions" | "speakers" | "sponsors" | "registrations" | "vendors" | "announcements" | "feedback" | "live" | "email" | "sections";
 
 const TABS: { id: EventTab; labelKey: string; icon: any }[] = [
-  { id: "overview",       labelKey: "adminEvents.tabs.overview",  icon: Globe },
-  { id: "details",        labelKey: "adminEvents.tabs.details",   icon: ImageIcon },
-  { id: "schedule",       labelKey: "adminEvents.tabs.schedule",  icon: Calendar },
-  { id: "location",       labelKey: "adminEvents.tabs.location",  icon: MapPin },
-  { id: "sections",       labelKey: "adminEvents.tabs.sections",  icon: Layers }
+  { id: "overview", labelKey: "adminEvents.tabs.overview", icon: Globe },
+  { id: "details", labelKey: "adminEvents.tabs.details", icon: ImageIcon },
+  { id: "schedule", labelKey: "adminEvents.tabs.schedule", icon: Calendar },
+  { id: "location", labelKey: "adminEvents.tabs.location", icon: MapPin },
+  { id: "sections", labelKey: "adminEvents.tabs.sections", icon: Layers }
 ];
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -188,20 +188,20 @@ export default function EventsPage() {
 
   // ── Edit mode (null = create, set = editing that record) ──
   const [editingLocation, setEditingLocation] = useState<any>(null);
-  const [editingTicket,   setEditingTicket]   = useState<any>(null);
-  const [editingMember,   setEditingMember]   = useState<any>(null);
-  const [editingSession,  setEditingSession]  = useState<any>(null);
-  const [editingPoll,     setEditingPoll]     = useState<any>(null);
-  const [editingTrack,    setEditingTrack]    = useState<any>(null);
+  const [editingTicket, setEditingTicket] = useState<any>(null);
+  const [editingMember, setEditingMember] = useState<any>(null);
+  const [editingSession, setEditingSession] = useState<any>(null);
+  const [editingPoll, setEditingPoll] = useState<any>(null);
+  const [editingTrack, setEditingTrack] = useState<any>(null);
 
   // Form refs — used to trigger submit from the header "Save" button
-  const locFormRef     = useRef<HTMLFormElement>(null);
-  const ticketFormRef  = useRef<HTMLFormElement>(null);
-  const teamFormRef    = useRef<HTMLFormElement>(null);
+  const locFormRef = useRef<HTMLFormElement>(null);
+  const ticketFormRef = useRef<HTMLFormElement>(null);
+  const teamFormRef = useRef<HTMLFormElement>(null);
   const sessionFormRef = useRef<HTMLFormElement>(null);
-  const pollFormRef    = useRef<HTMLFormElement>(null);
-  const qaFormRef      = useRef<HTMLFormElement>(null);
-  const emailFormRef   = useRef<HTMLFormElement>(null);
+  const pollFormRef = useRef<HTMLFormElement>(null);
+  const qaFormRef = useRef<HTMLFormElement>(null);
+  const emailFormRef = useRef<HTMLFormElement>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 4000); };
 
@@ -217,7 +217,7 @@ export default function EventsPage() {
         setShowNew(false);
         await loadEventData(firstId, filtered);
       }
-    } catch {}
+    } catch { }
   };
 
   useOfflineSync((count) => {
@@ -364,9 +364,9 @@ export default function EventsPage() {
     e.preventDefault();
     if (!newTitle.trim()) return;
     const start = new Date(newStart);
-    const end   = new Date(newEnd);
+    const end = new Date(newEnd);
     if (start < new Date()) { showToast(t("adminEvents.toasts.startInPast")); return; }
-    if (end <= start)        { showToast(t("adminEvents.toasts.endBeforeStart")); return; }
+    if (end <= start) { showToast(t("adminEvents.toasts.endBeforeStart")); return; }
     if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast(t("adminEvents.toasts.minDuration")); return; }
     setSaving(true);
     const eventData = { tenantId: auth?.tenantId, organizerId: auth?.userId, title: newTitle, description: newDesc, status: "DRAFT", currency: "XAF", format: "IN_PERSON", visibility: "PUBLIC", isPaid: false, maxCapacity: 100 };
@@ -472,9 +472,9 @@ export default function EventsPage() {
   const saveSchedule = async () => {
     if (!selectedId) return;
     const start = new Date(schedForm.startDatetime);
-    const end   = new Date(schedForm.endDatetime);
+    const end = new Date(schedForm.endDatetime);
     if (start < new Date()) { showToast(t("adminEvents.toasts.startInPast")); return; }
-    if (end <= start)        { showToast(t("adminEvents.toasts.endBeforeStart")); return; }
+    if (end <= start) { showToast(t("adminEvents.toasts.endBeforeStart")); return; }
     if ((end.getTime() - start.getTime()) < 2 * 3600 * 1000) { showToast(t("adminEvents.toasts.minDuration")); return; }
     setSaving(true);
     try {
@@ -547,7 +547,7 @@ export default function EventsPage() {
     const mpo = Number(ticketForm.maxPerOrder);
     const now = new Date();
     const eventStart = schedule?.startDatetime ? new Date(schedule.startDatetime) : null;
-    const eventEnd   = schedule?.endDatetime   ? new Date(schedule.endDatetime)   : null;
+    const eventEnd = schedule?.endDatetime ? new Date(schedule.endDatetime) : null;
 
     // ── Quantity vs capacity ──
     if (maxCapacity > 0) {
@@ -1057,7 +1057,7 @@ export default function EventsPage() {
     try {
       const regs = await eventService.getRegistrationsByEvent(selectedId).catch(() => []);
       setRegistrations(regs || []);
-    } catch {} finally { setRegistrationsLoading(false); }
+    } catch { } finally { setRegistrationsLoading(false); }
   };
 
   // ── Check-in registration ──
@@ -1077,23 +1077,23 @@ export default function EventsPage() {
   // Completion status for each tab — drives dots in tab bar
   const tabStatus = (id: EventTab): "done" | "partial" | "empty" => {
     switch (id) {
-      case "details":       return detailsForm.title ? (detailsForm.description && detailsForm.categoryId ? "done" : "partial") : "empty";
-      case "schedule":      return schedule ? "done" : "empty";
-      case "location":      return locations.length > 0 ? "done" : "empty";
-      case "tickets":       return tickets.length > 0 ? "done" : "empty";
-      case "coupons":       return coupons.length > 0 ? "done" : "empty";
-      case "team":          return team.length > 0 ? "done" : "empty";
-      case "sessions":      return sessions.length > 0 ? "done" : "empty";
-      case "speakers":      return speakers.length > 0 ? "done" : "empty";
-      case "sponsors":      return sponsors.length > 0 ? "done" : "empty";
+      case "details": return detailsForm.title ? (detailsForm.description && detailsForm.categoryId ? "done" : "partial") : "empty";
+      case "schedule": return schedule ? "done" : "empty";
+      case "location": return locations.length > 0 ? "done" : "empty";
+      case "tickets": return tickets.length > 0 ? "done" : "empty";
+      case "coupons": return coupons.length > 0 ? "done" : "empty";
+      case "team": return team.length > 0 ? "done" : "empty";
+      case "sessions": return sessions.length > 0 ? "done" : "empty";
+      case "speakers": return speakers.length > 0 ? "done" : "empty";
+      case "sponsors": return sponsors.length > 0 ? "done" : "empty";
       case "registrations": return registrations.length > 0 ? "done" : "empty";
-      case "vendors":       return exhibitors.length > 0 ? "done" : "empty";
+      case "vendors": return exhibitors.length > 0 ? "done" : "empty";
       case "announcements": return announcements.length > 0 ? "done" : "empty";
-      case "feedback":      return feedbacks.length > 0 ? "done" : "empty";
-      case "live":          return polls.length > 0 || qaQuestions.length > 0 ? "done" : "empty";
-      case "email":         return campaigns.length > 0 ? "done" : "empty";
-      case "sections":      return eventSections.length > 0 ? "done" : "empty";
-      default:              return "empty";
+      case "feedback": return feedbacks.length > 0 ? "done" : "empty";
+      case "live": return polls.length > 0 || qaQuestions.length > 0 ? "done" : "empty";
+      case "email": return campaigns.length > 0 ? "done" : "empty";
+      case "sections": return eventSections.length > 0 ? "done" : "empty";
+      default: return "empty";
     }
   };
 
@@ -1119,26 +1119,10 @@ export default function EventsPage() {
         </div>
       )}
 
-      
-      {/* FLOATING ACTION BUTTONS */}
-      <div className="fixed top-4 right-8 z-[100] flex items-center gap-3">
-        {(selectedId || showNew) && (
-          <button onClick={() => { setShowNew(false); setSelectedId(""); }} className="px-4 py-2 bg-[#1a1a1a] shadow-lg text-white rounded-full text-xs font-bold hover:bg-[#333] transition-colors cursor-pointer flex items-center gap-2">
-            <List size={14} /> View Event List
-          </button>
-        )}
-        {!showNew && (
-          <button onClick={() => { setShowNew(true); setSelectedId(""); }} className="px-4 py-2 bg-[#FF4747] shadow-lg text-white rounded-full text-xs font-bold hover:bg-[#e03e3e] transition-colors cursor-pointer flex items-center gap-2">
-            <Plus size={14} /> New Event
-          </button>
-        )}
-      </div>
-
       <div className="ml-[220px] flex-1 flex h-full overflow-hidden">
 
         {/* ── LEFT: Event list ── */}
-        {!(selectedId || showNew) && (
-          <aside className="w-72 bg-white border-r border-[#e5e7eb] flex flex-col h-screen sticky top-0 shrink-0">
+        <aside className="w-72 bg-white border-r border-[#e5e7eb] flex flex-col h-screen sticky top-0">
           <div className="p-5 border-b border-[#e5e7eb]">
             <h2 className="font-display font-black text-[#1a1a1a] text-base mb-4">{t("adminEvents.sidebar.title")}</h2>
             <button onClick={() => { setShowNew(true); setSelectedId(""); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer">
@@ -1160,9 +1144,8 @@ export default function EventsPage() {
             ))}
           </div>
         </aside>
-          )}
 
-          {/* -- RIGHT: Editor -- */}
+        {/* ── RIGHT: Editor ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* ── NEW EVENT FORM ── */}
@@ -1226,35 +1209,35 @@ export default function EventsPage() {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${selectedEvent?.status === "PUBLISHED" ? "bg-green-100 text-green-700" : "bg-[#f5f5f5] text-[#888]"}`}>{selectedEvent?.status}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {tab === "details"       && <button onClick={saveDetails}  disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveDetails")}</button>}
-                  {tab === "schedule"      && <button onClick={saveSchedule} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSchedule")}</button>}
-                  {tab === "location"      && <button onClick={() => locFormRef.current?.requestSubmit()}     disabled={saving} className={saveBtn}>{editingLocation ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveLocation")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addLocation")}</>}</button>}
-                  {tab === "tickets"       && <button onClick={() => ticketFormRef.current?.requestSubmit()}  disabled={saving} className={saveBtn}>{editingTicket ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveTicket")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addTicket")}</>}</button>}
-                  {tab === "coupons"       && <button onClick={() => couponFormRef.current?.requestSubmit()}  disabled={saving} className={saveBtn}>{editingCoupon ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveCoupon")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addCoupon")}</>}</button>}
-                  {tab === "team"          && <button onClick={() => teamFormRef.current?.requestSubmit()}    disabled={teamLoading} className={saveBtn}>{editingMember ? <><Save size={13} />{teamLoading ? t("adminEvents.common.saving") : t("adminEvents.header.saveMember")}</> : <><Plus size={13} />{teamLoading ? t("adminEvents.common.adding") : t("adminEvents.header.addMember")}</>}</button>}
-                  {tab === "sessions"      && <button onClick={() => sessionFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSession")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSession")}</>}</button>}
-                  {tab === "speakers"      && <button onClick={() => speakerFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSpeaker")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSpeaker")}</>}</button>}
-                  {tab === "sponsors"      && <button onClick={() => sponsorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSponsor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSponsor")}</>}</button>}
+                  {tab === "details" && <button onClick={saveDetails} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveDetails")}</button>}
+                  {tab === "schedule" && <button onClick={saveSchedule} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSchedule")}</button>}
+                  {tab === "location" && <button onClick={() => locFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingLocation ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveLocation")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addLocation")}</>}</button>}
+                  {tab === "tickets" && <button onClick={() => ticketFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingTicket ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveTicket")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addTicket")}</>}</button>}
+                  {tab === "coupons" && <button onClick={() => couponFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingCoupon ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveCoupon")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addCoupon")}</>}</button>}
+                  {tab === "team" && <button onClick={() => teamFormRef.current?.requestSubmit()} disabled={teamLoading} className={saveBtn}>{editingMember ? <><Save size={13} />{teamLoading ? t("adminEvents.common.saving") : t("adminEvents.header.saveMember")}</> : <><Plus size={13} />{teamLoading ? t("adminEvents.common.adding") : t("adminEvents.header.addMember")}</>}</button>}
+                  {tab === "sessions" && <button onClick={() => sessionFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSession")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSession")}</>}</button>}
+                  {tab === "speakers" && <button onClick={() => speakerFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSpeaker")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSpeaker")}</>}</button>}
+                  {tab === "sponsors" && <button onClick={() => sponsorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSponsor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSponsor")}</>}</button>}
                   {tab === "registrations" && <button onClick={loadRegistrations} disabled={registrationsLoading} className={saveBtn}><ScanLine size={13} />{registrationsLoading ? t("adminEvents.common.loading") : t("adminEvents.header.refresh")}</button>}
-                  {tab === "vendors"        && <button onClick={() => exhibitorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveExhibitor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addExhibitor")}</>}</button>}
-                  {tab === "announcements"  && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.save")}</> : <><Megaphone size={13} />{saving ? t("adminEvents.common.posting") : t("adminEvents.header.postAnnouncement")}</>}</button>}
-                  {tab === "live"          && <button onClick={() => pollFormRef.current?.requestSubmit()}    disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.savePoll")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.creating") : t("adminEvents.header.addPoll")}</>}</button>}
-                  {tab === "email"         && <button onClick={() => emailFormRef.current?.requestSubmit()}   disabled={saving} className={saveBtn}><Mail size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.scheduleEmail")}</button>}
-                  {tab === "sections"      && <button onClick={saveSection}                   disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : editingSection ? t("adminEvents.header.saveSection") : t("adminEvents.header.addSection")}</button>}
+                  {tab === "vendors" && <button onClick={() => exhibitorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveExhibitor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addExhibitor")}</>}</button>}
+                  {tab === "announcements" && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.save")}</> : <><Megaphone size={13} />{saving ? t("adminEvents.common.posting") : t("adminEvents.header.postAnnouncement")}</>}</button>}
+                  {tab === "live" && <button onClick={() => pollFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.savePoll")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.creating") : t("adminEvents.header.addPoll")}</>}</button>}
+                  {tab === "email" && <button onClick={() => emailFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}><Mail size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.scheduleEmail")}</button>}
+                  {tab === "sections" && <button onClick={saveSection} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : editingSection ? t("adminEvents.header.saveSection") : t("adminEvents.header.addSection")}</button>}
                 </div>
               </header>
 
               {/* Tabs */}
-              <div className="bg-white border-b border-[#e5e7eb] px-4 flex justify-center gap-1 overflow-x-auto shrink-0 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+              <div className="bg-white border-b border-[#e5e7eb] px-4 flex gap-1 overflow-x-auto shrink-0 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
                 {TABS.map(({ id, labelKey, icon: Icon }) => {
                   const status = id === "overview" ? null : tabStatus(id);
                   return (
                     <button key={id} onClick={() => setTab(id)}
                       className={`flex items-center gap-2 px-4 py-3.5 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors cursor-pointer ${tab === id ? "border-[#FF4747] text-[#FF4747]" : "border-transparent text-[#888] hover:text-[#1a1a1a]"}`}>
                       <Icon size={14} />{t(labelKey)}
-                      {status === "done"    && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
+                      {status === "done" && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
                       {status === "partial" && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
-                      {status === "empty"   && <span className="w-1.5 h-1.5 rounded-full bg-[#e5e7eb] shrink-0" />}
+                      {status === "empty" && <span className="w-1.5 h-1.5 rounded-full bg-[#e5e7eb] shrink-0" />}
                     </button>
                   );
                 })}
@@ -1264,7 +1247,7 @@ export default function EventsPage() {
 
                 {/* ── OVERVIEW TAB ── */}
                 {tab === "overview" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-6">
+                  <div className="max-w-4xl space-y-6">
 
                     {/* Hero card — banner + core details */}
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl overflow-hidden">
@@ -1545,7 +1528,7 @@ export default function EventsPage() {
 
                 {/* ── DETAILS TAB ── */}
                 {tab === "details" && (
-                  <div className="max-w-3xl w-full mx-auto space-y-6">
+                  <div className="max-w-3xl space-y-6">
                     {/* Banner */}
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl overflow-hidden">
                       <div className="relative h-52 bg-gradient-to-br from-[#FF4747]/10 to-[#F7E998]/20">
@@ -1606,28 +1589,10 @@ export default function EventsPage() {
                         </div>
                         <div>
                           <label className={label}>Category</label>
-                          <select value={detailsForm.categoryId} onChange={async e => {
-                              const val = e.target.value;
-                              if (val === "ADD_NEW") {
-                                const newName = window.prompt("Enter new category name:");
-                                if (newName && newName.trim()) {
-                                  try {
-                                    const created = await eventService.createEventCategory({ tenantId: auth?.tenantId, name: newName.trim() });
-                                    const cats = await eventService.getEventCategories();
-                                    setCategories(cats || []);
-                                    setDetailsForm(f => ({ ...f, categoryId: created?.categoryId || created?.id }));
-                                  } catch (err) {
-                                    alert("Failed to create category");
-                                  }
-                                }
-                              } else {
-                                setDetailsForm(f => ({ ...f, categoryId: val }));
-                              }
-                            }} className={inp}>
-                              <option value="">No category</option>
-                              {categories.map((c: any) => <option key={c.categoryId || c.id} value={c.categoryId || c.id}>{c.name}</option>)}
-                              <option value="ADD_NEW" className="font-bold text-[#FF4747]">+ Add New Category</option>
-                            </select>
+                          <select value={detailsForm.categoryId} onChange={e => setDetailsForm(f => ({ ...f, categoryId: e.target.value }))} className={inp}>
+                            <option value="">— No category —</option>
+                            {categories.map(c => <option key={c.categoryId} value={c.categoryId}>{c.name}</option>)}
+                          </select>
                         </div>
                         <div>
                           <label className={label}>Max Capacity</label>
@@ -1675,7 +1640,7 @@ export default function EventsPage() {
                               <p className="mt-0.5 font-normal">This event won't appear in public listings. Anyone you share the direct link with can view and register.</p>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-2">
                             <label className="text-xs font-bold text-[#1a1a1a]">Invite Attendees via Email</label>
                             <div className="flex gap-2">
@@ -1745,7 +1710,7 @@ export default function EventsPage() {
 
                 {/* ── SCHEDULE TAB ── */}
                 {tab === "schedule" && (
-                  <div className="max-w-xl w-full mx-auto space-y-6">
+                  <div className="max-w-xl space-y-6">
                     {/* Existing days */}
                     {schedules.length > 0 && (
                       <div className="space-y-3">
@@ -1845,7 +1810,7 @@ export default function EventsPage() {
 
                 {/* ── LOCATION TAB ── */}
                 {tab === "location" && (
-                  <div className="max-w-3xl w-full mx-auto space-y-6">
+                  <div className="max-w-3xl space-y-6">
                     {/* Existing locations */}
                     {locations.length > 0 && (
                       <div className="space-y-3">
@@ -1947,7 +1912,7 @@ export default function EventsPage() {
 
                 {/* ── TICKETS TAB ── */}
                 {tab === "tickets" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-6">
+                  <div className="max-w-4xl space-y-6">
                     {maxCapacity > 0 && (
                       <div className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex items-center gap-5">
                         <div className="flex-1">
@@ -2150,7 +2115,7 @@ export default function EventsPage() {
 
                 {/* ── TEAM TAB ── */}
                 {tab === "team" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-6">
+                  <div className="max-w-4xl space-y-6">
                     {team.length > 0 && (
                       <div className="grid md:grid-cols-3 gap-5">
                         {team.map((m, i) => (
@@ -2234,7 +2199,7 @@ export default function EventsPage() {
 
                 {/* ── SESSIONS TAB ── */}
                 {tab === "sessions" && (
-                  <div className="max-w-5xl w-full mx-auto grid md:grid-cols-[1.7fr_1.3fr] gap-6">
+                  <div className="max-w-5xl grid md:grid-cols-[1.7fr_1.3fr] gap-6">
                     <div className="space-y-6">
                       {/* Existing sessions */}
                       {sessions.length > 0 ? (
@@ -2417,7 +2382,7 @@ export default function EventsPage() {
 
                 {/* ── LIVE TAB ── */}
                 {tab === "live" && (
-                  <div className="max-w-4xl w-full mx-auto grid md:grid-cols-2 gap-6">
+                  <div className="max-w-4xl grid md:grid-cols-2 gap-6">
                     {/* Polls */}
                     <div className="space-y-5">
                       <h3 className="font-display font-black text-[#1a1a1a] text-base">Live Polls</h3>
@@ -2494,21 +2459,21 @@ export default function EventsPage() {
                             Add at least one session first — Q&A questions are linked to sessions.
                           </div>
                         ) : (
-                        <form onSubmit={addQA} className="space-y-3">
-                          <div>
-                            <label className={label}>Session *</label>
-                            <select value={qaForm.sessionId} onChange={e => setQaForm(f => ({ ...f, sessionId: e.target.value }))} className={inp} required>
-                              <option value="">— Select session —</option>
-                              {sessions.map(s => <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>)}
-                            </select>
-                          </div>
-                          <div><label className={label}>Question *</label><textarea required placeholder="Enter a question for attendees..." value={qaForm.questionText} onChange={e => setQaForm(f => ({ ...f, questionText: e.target.value }))} rows={3} className={inp + " resize-none"} /></div>
-                          <label className="flex items-center gap-2 cursor-pointer text-sm text-[#555]">
-                            <input type="checkbox" checked={qaForm.isAnonymous} onChange={e => setQaForm(f => ({ ...f, isAnonymous: e.target.checked }))} className="rounded" />
-                            Post anonymously
-                          </label>
-                          <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}><Plus size={13} />{saving ? "Adding..." : "Add Question"}</button>
-                        </form>
+                          <form onSubmit={addQA} className="space-y-3">
+                            <div>
+                              <label className={label}>Session *</label>
+                              <select value={qaForm.sessionId} onChange={e => setQaForm(f => ({ ...f, sessionId: e.target.value }))} className={inp} required>
+                                <option value="">— Select session —</option>
+                                {sessions.map(s => <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>)}
+                              </select>
+                            </div>
+                            <div><label className={label}>Question *</label><textarea required placeholder="Enter a question for attendees..." value={qaForm.questionText} onChange={e => setQaForm(f => ({ ...f, questionText: e.target.value }))} rows={3} className={inp + " resize-none"} /></div>
+                            <label className="flex items-center gap-2 cursor-pointer text-sm text-[#555]">
+                              <input type="checkbox" checked={qaForm.isAnonymous} onChange={e => setQaForm(f => ({ ...f, isAnonymous: e.target.checked }))} className="rounded" />
+                              Post anonymously
+                            </label>
+                            <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}><Plus size={13} />{saving ? "Adding..." : "Add Question"}</button>
+                          </form>
                         )}
                       </div>
                     </div>
@@ -2517,7 +2482,7 @@ export default function EventsPage() {
 
                 {/* ── COUPONS TAB ── */}
                 {tab === "coupons" && (
-                  <div className="max-w-3xl w-full mx-auto space-y-6">
+                  <div className="max-w-3xl space-y-6">
                     {coupons.length > 0 && (
                       <div className="space-y-3">
                         {coupons.map((c: any) => (
@@ -2565,7 +2530,7 @@ export default function EventsPage() {
 
                 {/* ── SPEAKERS TAB ── */}
                 {tab === "speakers" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-6">
+                  <div className="max-w-4xl space-y-6">
                     {(() => {
                       const sortedSpeakers = [...speakers].sort((a, b) => {
                         const locA = getSpeakerLocationName(a);
@@ -2643,7 +2608,7 @@ export default function EventsPage() {
                           </div>
                         </div>
                         <div><label className={label}>Bio</label><textarea placeholder="Brief speaker biography..." value={speakerForm.bio} onChange={e => setSpeakerForm(f => ({ ...f, bio: e.target.value }))} rows={3} className={inp + " resize-none"} /></div>
-                        
+
                         <div>
                           <label className={label}>Speaker Photo</label>
                           <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group">
@@ -2684,7 +2649,7 @@ export default function EventsPage() {
 
                 {/* ── SPONSORS TAB ── */}
                 {tab === "sponsors" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-6">
+                  <div className="max-w-4xl space-y-6">
                     {/* Sponsorship packages */}
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6">
                       <h3 className="font-bold text-sm text-[#1a1a1a] mb-4">Sponsorship Packages</h3>
@@ -2693,14 +2658,14 @@ export default function EventsPage() {
                           {sponsorPackages.map((pkg: any) => {
                             const takenSlots = sponsors.filter((s: any) => (s.packageId || "") === (pkg.packageId || pkg.id) && s.status !== "REJECTED").length;
                             return (
-                            <div key={pkg.packageId || pkg.id} className="bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-4">
-                              <div className="font-bold text-sm text-[#1a1a1a]">{pkg.name}</div>
-                              <div className="text-sm font-black text-[#FF4747] mt-1">{Number(pkg.price).toLocaleString()} FCFA</div>
-                              {pkg.description && <div className="text-xs text-[#888] mt-1">{pkg.description}</div>}
-                              {pkg.maxSponsors > 0 && (
-                                <div className="text-[10px] text-[#888] mt-2 font-semibold">{takenSlots} / {pkg.maxSponsors} slots filled</div>
-                              )}
-                            </div>
+                              <div key={pkg.packageId || pkg.id} className="bg-[#fafafa] border border-[#f0f0f0] rounded-xl p-4">
+                                <div className="font-bold text-sm text-[#1a1a1a]">{pkg.name}</div>
+                                <div className="text-sm font-black text-[#FF4747] mt-1">{Number(pkg.price).toLocaleString()} FCFA</div>
+                                {pkg.description && <div className="text-xs text-[#888] mt-1">{pkg.description}</div>}
+                                {pkg.maxSponsors > 0 && (
+                                  <div className="text-[10px] text-[#888] mt-2 font-semibold">{takenSlots} / {pkg.maxSponsors} slots filled</div>
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -2731,29 +2696,29 @@ export default function EventsPage() {
                             REJECTED: "bg-red-50 text-red-700 border-red-200",
                           };
                           return (
-                          <div key={s.sponsorId || s.id} className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-colors ${editingSponsor?.sponsorId === s.sponsorId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
-                            {s.logoUrl ? <img src={s.logoUrl} alt={sponsorName} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" /> : <div className="w-10 h-10 rounded-lg bg-[#F7E998]/60 flex items-center justify-center font-black text-sm text-[#7a6a00] shrink-0">{sponsorName.charAt(0)}</div>}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <div className="font-bold text-sm text-[#1a1a1a]">{sponsorName}</div>
-                                {s.status && (
-                                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[s.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{s.status}</span>
-                                )}
+                            <div key={s.sponsorId || s.id} className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-colors ${editingSponsor?.sponsorId === s.sponsorId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                              {s.logoUrl ? <img src={s.logoUrl} alt={sponsorName} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" /> : <div className="w-10 h-10 rounded-lg bg-[#F7E998]/60 flex items-center justify-center font-black text-sm text-[#7a6a00] shrink-0">{sponsorName.charAt(0)}</div>}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <div className="font-bold text-sm text-[#1a1a1a]">{sponsorName}</div>
+                                  {s.status && (
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[s.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{s.status}</span>
+                                  )}
+                                </div>
+                                {s.website && <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">{s.website}</a>}
+                                {s.email && <div className="text-[10px] text-[#888]">{s.email}</div>}
                               </div>
-                              {s.website && <a href={s.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">{s.website}</a>}
-                              {s.email && <div className="text-[10px] text-[#888]">{s.email}</div>}
+                              <div className="flex gap-1 flex-col shrink-0">
+                                {s.status === "PENDING" && (
+                                  <>
+                                    <button type="button" onClick={() => updateSponsorStatus(s, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
+                                    <button type="button" onClick={() => updateSponsorStatus(s, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
+                                  </>
+                                )}
+                                <button type="button" onClick={() => { setEditingSponsor(s); setSponsorForm({ name: s.name || "", email: s.email || "", website: s.website || "", logoUrl: s.logoUrl || "", packageId: s.packageId || "" }); sponsorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
+                                <button type="button" onClick={async () => { if (!confirm("Remove sponsor?")) return; try { await eventService.deleteSponsor(s.sponsorId || s.id); await loadEventData(selectedId); showToast("Sponsor removed!"); } catch { showToast("Failed to remove sponsor."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
+                              </div>
                             </div>
-                            <div className="flex gap-1 flex-col shrink-0">
-                              {s.status === "PENDING" && (
-                                <>
-                                  <button type="button" onClick={() => updateSponsorStatus(s, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
-                                  <button type="button" onClick={() => updateSponsorStatus(s, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
-                                </>
-                              )}
-                              <button type="button" onClick={() => { setEditingSponsor(s); setSponsorForm({ name: s.name || "", email: s.email || "", website: s.website || "", logoUrl: s.logoUrl || "", packageId: s.packageId || "" }); sponsorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
-                              <button type="button" onClick={async () => { if (!confirm("Remove sponsor?")) return; try { await eventService.deleteSponsor(s.sponsorId || s.id); await loadEventData(selectedId); showToast("Sponsor removed!"); } catch { showToast("Failed to remove sponsor."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
-                            </div>
-                          </div>
                           );
                         })}
                       </div>
@@ -2830,7 +2795,7 @@ export default function EventsPage() {
                                 {v.maxVolunteers && <div className="text-xs text-[#aaa]">Max: {v.maxVolunteers} volunteers</div>}
                               </div>
                               <div className="flex gap-1 shrink-0">
-                                <button type="button" onClick={() => { setEditingVolunteerOpening(v); setVolunteerOpeningForm({ title: v.title || "", description: v.description || "", requirements: v.requirements || "", applicationStart: v.applicationStart ? new Date(v.applicationStart).toISOString().slice(0,16) : "", applicationEnd: v.applicationEnd ? new Date(v.applicationEnd).toISOString().slice(0,16) : "", maxVolunteers: v.maxVolunteers || 0 }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
+                                <button type="button" onClick={() => { setEditingVolunteerOpening(v); setVolunteerOpeningForm({ title: v.title || "", description: v.description || "", requirements: v.requirements || "", applicationStart: v.applicationStart ? new Date(v.applicationStart).toISOString().slice(0, 16) : "", applicationEnd: v.applicationEnd ? new Date(v.applicationEnd).toISOString().slice(0, 16) : "", maxVolunteers: v.maxVolunteers || 0 }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
                                 <button type="button" onClick={async () => { if (!confirm("Delete this volunteer opening?")) return; try { await eventService.deleteVolunteerOpening(v.openingId || v.id); await loadEventData(selectedId); showToast("Deleted!"); } catch { showToast("Failed to delete."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
                               </div>
                             </div>
@@ -2905,7 +2870,7 @@ export default function EventsPage() {
 
                 {/* ── REGISTRATIONS TAB ── */}
                 {tab === "registrations" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-4">
+                  <div className="max-w-4xl space-y-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <h3 className="font-bold text-sm text-[#1a1a1a]">Registrations</h3>
@@ -2957,7 +2922,7 @@ export default function EventsPage() {
 
                 {/* ── VENDORS TAB ── */}
                 {tab === "vendors" && (
-                  <div className="max-w-4xl w-full mx-auto space-y-6">
+                  <div className="max-w-4xl space-y-6">
                     <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6">
                       <h3 className="font-bold text-sm text-[#1a1a1a] mb-1">Vendor Slots</h3>
                       <p className="text-xs text-[#888] mb-4">Limit how many vendors/exhibitors can be accepted for this event. Leave at 0 for unlimited.</p>
@@ -2985,38 +2950,38 @@ export default function EventsPage() {
                             REJECTED: "bg-red-50 text-red-700 border-red-200",
                           };
                           return (
-                          <div key={ex.exhibitorId || ex.id} className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-colors ${editingExhibitor?.exhibitorId === ex.exhibitorId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
-                            {ex.logoUrl ? (
-                              <img src={ex.logoUrl} alt={exhibitorName} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-lg bg-[#f5f5f5] flex items-center justify-center shrink-0 font-black text-sm text-[#555]">{exhibitorName.charAt(0)}</div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <div className="font-bold text-sm text-[#1a1a1a]">{exhibitorName}</div>
-                                {ex.status && (
-                                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[ex.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{ex.status}</span>
-                                )}
-                              </div>
-                              {ex.boothNumber && <div className="text-[10px] text-[#FF4747] font-semibold">Booth #{ex.boothNumber}</div>}
-                              {ex.website && <a href={ex.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">{ex.website}</a>}
-                              {ex.email && <div className="text-[10px] text-[#888]">{ex.email}</div>}
-                            </div>
-                            <div className="flex gap-1 flex-col shrink-0">
-                              {ex.status === "PENDING" && (
-                                <>
-                                  <button type="button" onClick={() => updateExhibitorStatus(ex, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
-                                  <button type="button" onClick={() => updateExhibitorStatus(ex, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
-                                </>
+                            <div key={ex.exhibitorId || ex.id} className={`bg-white border rounded-2xl p-5 flex items-center gap-4 transition-colors ${editingExhibitor?.exhibitorId === ex.exhibitorId ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb]"}`}>
+                              {ex.logoUrl ? (
+                                <img src={ex.logoUrl} alt={exhibitorName} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#f0f0f0]" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-[#f5f5f5] flex items-center justify-center shrink-0 font-black text-sm text-[#555]">{exhibitorName.charAt(0)}</div>
                               )}
-                              <button type="button" onClick={() => {
-                                setEditingExhibitor(ex);
-                                setExhibitorForm({ name: ex.name || "", email: ex.email || "", website: ex.website || "", logoUrl: ex.logoUrl || "", boothNumber: ex.boothNumber || "", locationId: ex.locationId || "" });
-                                exhibitorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                              }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
-                              <button type="button" onClick={async () => { if (!confirm("Remove exhibitor?")) return; try { await eventService.deleteExhibitor(ex.exhibitorId || ex.id); await loadEventData(selectedId); showToast("Exhibitor removed!"); } catch { showToast("Failed to remove."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <div className="font-bold text-sm text-[#1a1a1a]">{exhibitorName}</div>
+                                  {ex.status && (
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${statusBadge[ex.status] || "bg-[#f0f0f0] text-[#888] border-[#e5e7eb]"}`}>{ex.status}</span>
+                                  )}
+                                </div>
+                                {ex.boothNumber && <div className="text-[10px] text-[#FF4747] font-semibold">Booth #{ex.boothNumber}</div>}
+                                {ex.website && <a href={ex.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">{ex.website}</a>}
+                                {ex.email && <div className="text-[10px] text-[#888]">{ex.email}</div>}
+                              </div>
+                              <div className="flex gap-1 flex-col shrink-0">
+                                {ex.status === "PENDING" && (
+                                  <>
+                                    <button type="button" onClick={() => updateExhibitorStatus(ex, "APPROVED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50 transition-colors cursor-pointer"><Check size={9} /> Approve</button>
+                                    <button type="button" onClick={() => updateExhibitorStatus(ex, "REJECTED")} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><X size={9} /> Reject</button>
+                                  </>
+                                )}
+                                <button type="button" onClick={() => {
+                                  setEditingExhibitor(ex);
+                                  setExhibitorForm({ name: ex.name || "", email: ex.email || "", website: ex.website || "", logoUrl: ex.logoUrl || "", boothNumber: ex.boothNumber || "", locationId: ex.locationId || "" });
+                                  exhibitorFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
+                                <button type="button" onClick={async () => { if (!confirm("Remove exhibitor?")) return; try { await eventService.deleteExhibitor(ex.exhibitorId || ex.id); await loadEventData(selectedId); showToast("Exhibitor removed!"); } catch { showToast("Failed to remove."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
+                              </div>
                             </div>
-                          </div>
                           );
                         })}
                       </div>
@@ -3085,7 +3050,7 @@ export default function EventsPage() {
 
                 {/* ── ANNOUNCEMENTS TAB ── */}
                 {tab === "announcements" && (
-                  <div className="max-w-3xl w-full mx-auto space-y-6">
+                  <div className="max-w-3xl space-y-6">
                     {announcements.length > 0 && (
                       <div className="space-y-3">
                         {announcements.map((a: any) => (
@@ -3139,7 +3104,7 @@ export default function EventsPage() {
 
                 {/* ── FEEDBACK TAB ── */}
                 {tab === "feedback" && (
-                  <div className="max-w-3xl w-full mx-auto space-y-4">
+                  <div className="max-w-3xl space-y-4">
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <h3 className="font-bold text-sm text-[#1a1a1a]">Attendee Feedback</h3>
@@ -3174,7 +3139,7 @@ export default function EventsPage() {
                                 <div className="flex items-center gap-2">
                                   {f.rating && (
                                     <div className="flex gap-0.5">
-                                      {[1,2,3,4,5].map(n => (
+                                      {[1, 2, 3, 4, 5].map(n => (
                                         <span key={n} className={`text-sm ${n <= f.rating ? "text-amber-400" : "text-[#e5e7eb]"}`}>★</span>
                                       ))}
                                     </div>
@@ -3199,7 +3164,7 @@ export default function EventsPage() {
 
                 {/* ── EMAIL TAB ── */}
                 {tab === "email" && (
-                  <div className="max-w-3xl w-full mx-auto space-y-6">
+                  <div className="max-w-3xl space-y-6">
                     {campaigns.length > 0 && (
                       <div className="space-y-3">
                         <h3 className="font-bold text-sm text-[#1a1a1a]">Sent / Scheduled Campaigns</h3>
@@ -3241,184 +3206,184 @@ export default function EventsPage() {
                 {/* ── CUSTOM SECTIONS TAB ── */}
                 {tab === "sections" && (() => {
                   const SECTION_TYPES: { type: string; icon: any; label: string; hint: string }[] = [
-                    { type: "HERO",          icon: ImageIcon,  label: "Hero",         hint: "Full-width banner at the top of the page" },
-                    { type: "TEXT",          icon: FileText,   label: "Text",         hint: "Title + description with optional image" },
-                    { type: "SCHEDULE",      icon: Calendar,   label: "Schedule",     hint: "Auto-pulls sessions and agenda" },
-                    { type: "IMAGE_GALLERY", icon: ImageIcon,  label: "Gallery",      hint: "Emphasises an image with caption" },
-                    { type: "REGISTRATION",  icon: Ticket,     label: "Register CTA", hint: "Call-to-action block driving registrations" },
-                    { type: "CUSTOM",        icon: Sparkles,   label: "Custom",       hint: "Freeform block — anything goes" },
+                    { type: "HERO", icon: ImageIcon, label: "Hero", hint: "Full-width banner at the top of the page" },
+                    { type: "TEXT", icon: FileText, label: "Text", hint: "Title + description with optional image" },
+                    { type: "SCHEDULE", icon: Calendar, label: "Schedule", hint: "Auto-pulls sessions and agenda" },
+                    { type: "IMAGE_GALLERY", icon: ImageIcon, label: "Gallery", hint: "Emphasises an image with caption" },
+                    { type: "REGISTRATION", icon: Ticket, label: "Register CTA", hint: "Call-to-action block driving registrations" },
+                    { type: "CUSTOM", icon: Sparkles, label: "Custom", hint: "Freeform block — anything goes" },
                   ];
                   const needsImage = ["HERO", "TEXT", "IMAGE_GALLERY", "CUSTOM"].includes(sectionForm.sectionType);
                   const isAutoType = ["SCHEDULE"].includes(sectionForm.sectionType);
                   return (
-                  <div className="max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-8">
-                    {/* Left: Create/Edit Form */}
-                    <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 shadow-sm space-y-5">
-                       <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-sm text-[#1a1a1a]">
-                          {editingSection ? "Edit Section" : "Add Page Section"}
-                        </h3>
-                        {editingSection && (
-                          <button type="button" onClick={() => { setEditingSection(null); setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: getNextSectionOrder(eventSections), sectionType: "CUSTOM", status: "ACTIVE" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel</button>
-                        )}
-                      </div>
-
-                      {/* Section type picker */}
-                      <div>
-                        <label className={label}>Section Type</label>
-                        <div className="grid grid-cols-6 gap-2">
-                          {SECTION_TYPES.map(st => {
-                            const IconComponent = st.icon;
-                            return (
-                              <button
-                                key={st.type}
-                                type="button"
-                                title={st.hint}
-                                onClick={() => setSectionForm(f => ({ ...f, sectionType: st.type }))}
-                                className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border text-center transition-all cursor-pointer ${sectionForm.sectionType === st.type ? "border-[#FF4747] bg-[#fff5f5] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}
-                              >
-                                <IconComponent size={16} className={sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"} />
-                                <span className={`text-[9px] font-semibold leading-tight ${sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"}`}>{st.label}</span>
-                              </button>
-                            );
-                          })}
+                    <div className="max-w-5xl grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-8">
+                      {/* Left: Create/Edit Form */}
+                      <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7 shadow-sm space-y-5">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-sm text-[#1a1a1a]">
+                            {editingSection ? "Edit Section" : "Add Page Section"}
+                          </h3>
+                          {editingSection && (
+                            <button type="button" onClick={() => { setEditingSection(null); setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel</button>
+                          )}
                         </div>
-                        {(() => { const t = SECTION_TYPES.find(s => s.type === sectionForm.sectionType); return t ? <p className="text-[10px] text-[#888] mt-1.5">{t.hint}</p> : null; })()}
-                      </div>
 
-                      <form onSubmit={saveSection} className="space-y-4">
+                        {/* Section type picker */}
                         <div>
-                          <label className={label}>Section Title *</label>
-                          <input required placeholder="e.g. About This Event, Agenda, Highlights" value={sectionForm.title} onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))} className={inp} />
-                        </div>
-
-                        <div>
-                          <label className={label}>Description{isAutoType ? " (intro text shown above the auto-pulled content)" : " *"}</label>
-                          <textarea
-                            required={!isAutoType}
-                            placeholder={
-                              isAutoType
-                                ? "Optional intro text displayed above the list…"
-                                : "Write the details for this section…"
-                            }
-                            value={sectionForm.content}
-                            onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
-                            rows={5}
-                            className={inp + " resize-none"}
-                          />
-                        </div>
-
-                        {needsImage && (
-                          <div>
-                            <label className={label}>Image (Optional)</label>
-                            <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2">
-                              {sectionForm.imageUrl ? (
-                                <img src={sectionForm.imageUrl} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-[#f0f0f0] shrink-0" />
-                              ) : (
-                                <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
-                                  <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
-                                </div>
-                              )}
-                              <div>
-                                <div className="text-sm font-semibold text-[#1a1a1a]">{sectionForm.imageUrl ? "Click to replace" : "Upload image"}</div>
-                                <div className="text-xs text-[#aaa]">PNG or JPG</div>
-                              </div>
-                              <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
-                                try {
-                                  setSaving(true);
-                                  const res = await eventService.uploadImage(f);
-                                  setSectionForm(f => ({ ...f, imageUrl: res.url }));
-                                  showToast("Image uploaded!");
-                                } catch (err: any) {
-                                  showToast("Upload failed: " + (err.message || err));
-                                } finally { setSaving(false); }
-                              }} />
-                            </label>
-                            <input placeholder="Or paste an image URL…" value={sectionForm.imageUrl} onChange={e => setSectionForm(f => ({ ...f, imageUrl: e.target.value }))} className={inp} />
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className={label}>Display Order</label>
-                            <input type="number" placeholder="0" value={sectionForm.displayOrder} onChange={e => setSectionForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))} className={inp} />
-                            <p className="text-[10px] text-[#aaa] mt-1">Lower = appears first.</p>
-                          </div>
-                          <div>
-                            <label className={label}>Status</label>
-                            <div className="flex items-center gap-3 mt-2">
-                              <button type="button" onClick={() => setSectionForm(f => ({ ...f, status: f.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }))}
-                                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${sectionForm.status === "ACTIVE" ? "bg-green-500" : "bg-[#e5e7eb]"}`}>
-                                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${sectionForm.status === "ACTIVE" ? "translate-x-5" : "translate-x-0"}`} />
-                              </button>
-                              <span className="text-xs font-semibold text-[#555]">{sectionForm.status === "ACTIVE" ? "Visible" : "Hidden"}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <button type="submit" disabled={saving} className={saveBtn}>
-                          <Save size={13} />{saving ? "Saving..." : editingSection ? "Save Changes" : "Add Section"}
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* Right: Existing Sections List */}
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-bold text-sm text-[#1a1a1a]">Page Sections</h3>
-                        <p className="text-xs text-[#888] mt-0.5">Drag or reorder by changing the order number. Attendees see these on the event page.</p>
-                      </div>
-
-                      {eventSections.length === 0 ? (
-                        <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-10 text-center">
-                          <Layers size={28} className="mx-auto text-[#ccc] mb-2" />
-                          <p className="font-bold text-xs text-[#1a1a1a]">No sections yet</p>
-                          <p className="text-[10px] text-[#aaa] mt-0.5">Build your event page by adding sections on the left.</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {[...eventSections]
-                            .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-                            .map((sec) => {
-                              const typeInfo = SECTION_TYPES.find(t => t.type === (sec.sectionType || "CUSTOM")) || SECTION_TYPES[SECTION_TYPES.length - 1];
-                              const isEditing = editingSection?.sectionId === sec.sectionId || editingSection?.id === sec.id;
+                          <label className={label}>Section Type</label>
+                          <div className="grid grid-cols-6 gap-2">
+                            {SECTION_TYPES.map(st => {
+                              const IconComponent = st.icon;
                               return (
-                                <div key={sec.sectionId || sec.id} className={`bg-white border rounded-2xl p-4 flex items-start gap-3 transition-colors ${isEditing ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : sec.status === "INACTIVE" ? "border-[#e5e7eb] opacity-50" : "border-[#e5e7eb]"}`}>
-                                  <div className="w-9 h-9 rounded-xl bg-[#fafafa] border border-[#f0f0f0] flex items-center justify-center shrink-0">
-                                    {(() => {
-                                      const IconComponent = typeInfo.icon;
-                                      return <IconComponent size={16} className="text-[#888]" />;
-                                    })()}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-bold text-xs text-[#1a1a1a] truncate">{sec.title}</span>
-                                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#f0f0f0] text-[#888]">#{sec.displayOrder ?? 0}</span>
-                                      {sec.status === "INACTIVE" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Hidden</span>}
-                                    </div>
-                                    <p className="text-[10px] text-[#FF4747] font-semibold mt-0.5">{typeInfo.label}</p>
-                                    {sec.content && <p className="text-[10px] text-[#aaa] mt-0.5 line-clamp-1">{sec.content}</p>}
-                                  </div>
-                                  <div className="flex flex-col gap-1 shrink-0">
-                                    <button type="button" onClick={() => {
-                                      setEditingSection(sec);
-                                      setSectionForm({ title: sec.title || "", content: sec.content || "", imageUrl: sec.imageUrl || "", displayOrder: sec.displayOrder || 0, sectionType: sec.sectionType || "CUSTOM", status: sec.status || "ACTIVE" });
-                                    }} className="flex items-center justify-center p-1.5 text-xs text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer" title="Edit">
-                                      <Pencil size={11} />
-                                    </button>
-                                    <button type="button" onClick={() => deleteSection(sec.sectionId || sec.id)} className="flex items-center justify-center p-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
-                                      <Trash2 size={11} />
-                                    </button>
-                                  </div>
-                                </div>
+                                <button
+                                  key={st.type}
+                                  type="button"
+                                  title={st.hint}
+                                  onClick={() => setSectionForm(f => ({ ...f, sectionType: st.type }))}
+                                  className={`flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl border text-center transition-all cursor-pointer ${sectionForm.sectionType === st.type ? "border-[#FF4747] bg-[#fff5f5] ring-1 ring-[#FF4747]/20" : "border-[#e5e7eb] hover:border-[#FF4747]/40"}`}
+                                >
+                                  <IconComponent size={16} className={sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"} />
+                                  <span className={`text-[9px] font-semibold leading-tight ${sectionForm.sectionType === st.type ? "text-[#FF4747]" : "text-[#888]"}`}>{st.label}</span>
+                                </button>
                               );
                             })}
+                          </div>
+                          {(() => { const t = SECTION_TYPES.find(s => s.type === sectionForm.sectionType); return t ? <p className="text-[10px] text-[#888] mt-1.5">{t.hint}</p> : null; })()}
                         </div>
-                      )}
+
+                        <form onSubmit={saveSection} className="space-y-4">
+                          <div>
+                            <label className={label}>Section Title *</label>
+                            <input required placeholder="e.g. About This Event, Agenda, Highlights" value={sectionForm.title} onChange={e => setSectionForm(f => ({ ...f, title: e.target.value }))} className={inp} />
+                          </div>
+
+                          <div>
+                            <label className={label}>Description{isAutoType ? " (intro text shown above the auto-pulled content)" : " *"}</label>
+                            <textarea
+                              required={!isAutoType}
+                              placeholder={
+                                isAutoType
+                                  ? "Optional intro text displayed above the list…"
+                                  : "Write the details for this section…"
+                              }
+                              value={sectionForm.content}
+                              onChange={e => setSectionForm(f => ({ ...f, content: e.target.value }))}
+                              rows={5}
+                              className={inp + " resize-none"}
+                            />
+                          </div>
+
+                          {needsImage && (
+                            <div>
+                              <label className={label}>Image (Optional)</label>
+                              <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2">
+                                {sectionForm.imageUrl ? (
+                                  <img src={sectionForm.imageUrl} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-[#f0f0f0] shrink-0" />
+                                ) : (
+                                  <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
+                                    <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="text-sm font-semibold text-[#1a1a1a]">{sectionForm.imageUrl ? "Click to replace" : "Upload image"}</div>
+                                  <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                                </div>
+                                <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                                  const f = e.target.files?.[0];
+                                  if (!f) return;
+                                  try {
+                                    setSaving(true);
+                                    const res = await eventService.uploadImage(f);
+                                    setSectionForm(f => ({ ...f, imageUrl: res.url }));
+                                    showToast("Image uploaded!");
+                                  } catch (err: any) {
+                                    showToast("Upload failed: " + (err.message || err));
+                                  } finally { setSaving(false); }
+                                }} />
+                              </label>
+                              <input placeholder="Or paste an image URL…" value={sectionForm.imageUrl} onChange={e => setSectionForm(f => ({ ...f, imageUrl: e.target.value }))} className={inp} />
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className={label}>Display Order</label>
+                              <input type="number" placeholder="0" value={sectionForm.displayOrder} onChange={e => setSectionForm(f => ({ ...f, displayOrder: parseInt(e.target.value) || 0 }))} className={inp} />
+                              <p className="text-[10px] text-[#aaa] mt-1">Lower = appears first.</p>
+                            </div>
+                            <div>
+                              <label className={label}>Status</label>
+                              <div className="flex items-center gap-3 mt-2">
+                                <button type="button" onClick={() => setSectionForm(f => ({ ...f, status: f.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }))}
+                                  className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${sectionForm.status === "ACTIVE" ? "bg-green-500" : "bg-[#e5e7eb]"}`}>
+                                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${sectionForm.status === "ACTIVE" ? "translate-x-5" : "translate-x-0"}`} />
+                                </button>
+                                <span className="text-xs font-semibold text-[#555]">{sectionForm.status === "ACTIVE" ? "Visible" : "Hidden"}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <button type="submit" disabled={saving} className={saveBtn}>
+                            <Save size={13} />{saving ? "Saving..." : editingSection ? "Save Changes" : "Add Section"}
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Right: Existing Sections List */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-bold text-sm text-[#1a1a1a]">Page Sections</h3>
+                          <p className="text-xs text-[#888] mt-0.5">Drag or reorder by changing the order number. Attendees see these on the event page.</p>
+                        </div>
+
+                        {eventSections.length === 0 ? (
+                          <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-10 text-center">
+                            <Layers size={28} className="mx-auto text-[#ccc] mb-2" />
+                            <p className="font-bold text-xs text-[#1a1a1a]">No sections yet</p>
+                            <p className="text-[10px] text-[#aaa] mt-0.5">Build your event page by adding sections on the left.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {[...eventSections]
+                              .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+                              .map((sec) => {
+                                const typeInfo = SECTION_TYPES.find(t => t.type === (sec.sectionType || "CUSTOM")) || SECTION_TYPES[SECTION_TYPES.length - 1];
+                                const isEditing = editingSection?.sectionId === sec.sectionId || editingSection?.id === sec.id;
+                                return (
+                                  <div key={sec.sectionId || sec.id} className={`bg-white border rounded-2xl p-4 flex items-start gap-3 transition-colors ${isEditing ? "border-[#FF4747] ring-1 ring-[#FF4747]/20" : sec.status === "INACTIVE" ? "border-[#e5e7eb] opacity-50" : "border-[#e5e7eb]"}`}>
+                                    <div className="w-9 h-9 rounded-xl bg-[#fafafa] border border-[#f0f0f0] flex items-center justify-center shrink-0">
+                                      {(() => {
+                                        const IconComponent = typeInfo.icon;
+                                        return <IconComponent size={16} className="text-[#888]" />;
+                                      })()}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold text-xs text-[#1a1a1a] truncate">{sec.title}</span>
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#f0f0f0] text-[#888]">#{sec.displayOrder ?? 0}</span>
+                                        {sec.status === "INACTIVE" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Hidden</span>}
+                                      </div>
+                                      <p className="text-[10px] text-[#FF4747] font-semibold mt-0.5">{typeInfo.label}</p>
+                                      {sec.content && <p className="text-[10px] text-[#aaa] mt-0.5 line-clamp-1">{sec.content}</p>}
+                                    </div>
+                                    <div className="flex flex-col gap-1 shrink-0">
+                                      <button type="button" onClick={() => {
+                                        setEditingSection(sec);
+                                        setSectionForm({ title: sec.title || "", content: sec.content || "", imageUrl: sec.imageUrl || "", displayOrder: sec.displayOrder || 0, sectionType: sec.sectionType || "CUSTOM", status: sec.status || "ACTIVE" });
+                                      }} className="flex items-center justify-center p-1.5 text-xs text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer" title="Edit">
+                                        <Pencil size={11} />
+                                      </button>
+                                      <button type="button" onClick={() => deleteSection(sec.sectionId || sec.id)} className="flex items-center justify-center p-1.5 text-xs text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors cursor-pointer" title="Delete">
+                                        <Trash2 size={11} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
                   );
                 })()}
 
@@ -3458,7 +3423,7 @@ function NewCategoryRow({ tenantId, onCreated }: { tenantId?: string; onCreated:
       await eventService.createEventCategory({ tenantId, name });
       setName(""); setOpen(false);
       onCreated();
-    } catch {} finally { setSaving(false); }
+    } catch { } finally { setSaving(false); }
   };
 
   if (!open) return (

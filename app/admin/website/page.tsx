@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Upload, Save, Globe, Link2, Mail, Building, Layout, Palette, Plus, Trash2, HelpCircle, BarChart3 } from "lucide-react";
+import { Upload, Save, Globe, Link2, Mail, Building, Layout, Palette, Plus, Trash2, HelpCircle, BarChart3, ShieldCheck, CheckCircle2, AlertCircle, Copy, RefreshCw } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 import { eventService } from "@/app/utils/services/eventService";
 import { useLanguage } from "@/app/context/LanguageContext";
+import * as T from "@/app/utils/types/auth";
 
 export default function WebsitePage() {
   const { t } = useLanguage();
@@ -13,6 +14,14 @@ export default function WebsitePage() {
   const [brandingLoading, setBrandingLoading] = useState<"logo" | "banner" | null>(null);
   const [brandingMsg, setBrandingMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Custom Domain State
+  const [tenantSettings, setTenantSettings] = useState<T.TenantSettingsResponse | null>(null);
+  const [customDomainInput, setCustomDomainInput] = useState("");
+  const [savingDomain, setSavingDomain] = useState(false);
+  const [verifyingDomain, setVerifyingDomain] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [domainMsg, setDomainMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Customization Form State
   const [form, setForm] = useState({
@@ -44,12 +53,17 @@ export default function WebsitePage() {
     const auth = getStoredAuth();
     if (!auth) return;
     try {
-      const [tenantData, evs, regs] = await Promise.all([
+      const [tenantData, tenantSettingsData, evs, regs] = await Promise.all([
         authService.getTenantById(auth.tenantId),
+        authService.getMyTenantSettings().catch(() => null),
         eventService.getMyEvents().catch(() => []),
         eventService.getMyTenantRegistrations().catch(() => []),
       ]);
       setTenant(tenantData);
+      if (tenantSettingsData) {
+        setTenantSettings(tenantSettingsData);
+        setCustomDomainInput(tenantSettingsData.customDomain || "");
+      }
       if (tenantData) {
         const liveEventCount = (evs || []).length;
         const liveAttendeeCount = (regs || []).length;
@@ -94,6 +108,57 @@ export default function WebsitePage() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleSaveCustomDomain = async () => {
+    const auth = getStoredAuth();
+    if (!auth) return;
+    setSavingDomain(true);
+    setDomainMsg(null);
+    try {
+      let updatedSettings: T.TenantSettingsResponse;
+      if (tenantSettings?.settingId) {
+        updatedSettings = await authService.updateTenantSetting(tenantSettings.settingId, {
+          tenantId: auth.tenantId,
+          customDomain: customDomainInput.trim() || undefined,
+        });
+      } else {
+        updatedSettings = await authService.createTenantSetting({
+          tenantId: auth.tenantId,
+          customDomain: customDomainInput.trim() || undefined,
+        });
+      }
+      setTenantSettings(updatedSettings);
+      setCustomDomainInput(updatedSettings.customDomain || "");
+      setDomainMsg({
+        type: "success",
+        text: updatedSettings.customDomain
+          ? "Custom domain saved. Publish the DNS TXT record below to verify ownership."
+          : "Custom domain cleared.",
+      });
+    } catch (err: any) {
+      console.error(err);
+      const msg = err?.response?.data?.message || err?.message || "Failed to save custom domain.";
+      setDomainMsg({ type: "error", text: msg });
+    } finally {
+      setSavingDomain(false);
+    }
+  };
+
+  const handleVerifyDomain = async () => {
+    setVerifyingDomain(true);
+    setDomainMsg(null);
+    try {
+      const verifiedSettings = await authService.verifyMyDomain();
+      setTenantSettings(verifiedSettings);
+      setDomainMsg({ type: "success", text: "Domain verified successfully! Custom domain is now active." });
+    } catch (err: any) {
+      console.error(err);
+      const msg = err?.response?.data?.message || err?.message || "Verification failed. Please check your DNS TXT record.";
+      setDomainMsg({ type: "error", text: msg });
+    } finally {
+      setVerifyingDomain(false);
     }
   };
 
@@ -525,6 +590,131 @@ export default function WebsitePage() {
                     {t("adminWebsite.subdomain.helpText", { slug: form.slug || "yours" })}
                   </p>
                 </div>
+              </div>
+
+              {/* CUSTOM DOMAIN SETTING */}
+              <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3 mb-1">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={16} className="text-[#EB4203]" />
+                    <h2 className="font-display font-bold text-sm text-[#1a1a1a]">Custom Domain</h2>
+                  </div>
+                  {tenantSettings?.customDomain && (
+                    tenantSettings?.domainVerified ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                        <CheckCircle2 size={12} /> Verified
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                        <AlertCircle size={12} /> Pending Verification
+                      </span>
+                    )
+                  )}
+                </div>
+
+                {domainMsg && (
+                  <div className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    domainMsg.type === "success" 
+                      ? "bg-green-50 text-green-700 border border-green-200" 
+                      : "bg-red-50 text-red-600 border border-red-200"
+                  }`}>
+                    <span>{domainMsg.text}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-[#666] uppercase tracking-wider mb-1.5">
+                    Domain Name (e.g. events.mycompany.com)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="events.yourdomain.com"
+                      value={customDomainInput}
+                      onChange={e => setCustomDomainInput(e.target.value.toLowerCase().trim())}
+                      className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] placeholder:text-[#9ca3af] outline-none focus:border-[#EB4203] transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveCustomDomain}
+                      disabled={savingDomain}
+                      className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-xl transition-colors shrink-0 disabled:opacity-50"
+                    >
+                      {savingDomain ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[#888] mt-1.5 leading-relaxed">
+                    Custom domains require a PREMIUM plan. Unverified domains will not serve event pages until ownership is verified.
+                  </p>
+                </div>
+
+                {/* Verification Instructions when domain is set but not verified */}
+                {tenantSettings?.customDomain && !tenantSettings?.domainVerified && (
+                  <div className="mt-4 pt-4 border-t border-[#f3f4f6] space-y-3 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <AlertCircle size={14} className="text-amber-600" />
+                        DNS Verification Instructions
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={handleVerifyDomain}
+                        disabled={verifyingDomain}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#EB4203] hover:bg-[#c23b02] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-50 shadow-sm"
+                      >
+                        <RefreshCw size={12} className={verifyingDomain ? "animate-spin" : ""} />
+                        {verifyingDomain ? "Checking DNS..." : "Verify DNS TXT Record"}
+                      </button>
+                    </div>
+
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Add the following <strong>TXT</strong> record to your domain provider&apos;s DNS management settings to verify ownership:
+                    </p>
+
+                    <div className="space-y-2 bg-white p-3 rounded-lg border border-amber-200/80 text-xs font-mono">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-500 font-sans font-semibold">Record Type:</span>
+                        <span className="font-bold text-gray-800">TXT</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-gray-500 font-sans font-semibold">Host / Name:</span>
+                        <span className="font-bold text-gray-800 select-all">_yowevent-verify.{tenantSettings.customDomain}</span>
+                      </div>
+                      <div className="pt-1 border-t border-gray-100 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="text-gray-500 font-sans font-semibold shrink-0">TXT Value:</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-bold text-gray-800 truncate select-all">{tenantSettings.domainVerificationToken || "Generating..."}</span>
+                          {tenantSettings.domainVerificationToken && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(tenantSettings.domainVerificationToken || "");
+                                setCopiedToken(true);
+                                setTimeout(() => setCopiedToken(false), 2000);
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-800 shrink-0"
+                              title="Copy Token"
+                            >
+                              <Copy size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {copiedToken && (
+                      <span className="text-[10px] text-emerald-600 font-semibold block text-right">
+                        Token copied to clipboard!
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {tenantSettings?.customDomain && tenantSettings?.domainVerified && (
+                  <div className="mt-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <span>Your domain <strong>{tenantSettings.customDomain}</strong> is active and pointed to your event portal.</span>
+                  </div>
+                )}
               </div>
 
               {/* ORGANIZER STATISTICS */}

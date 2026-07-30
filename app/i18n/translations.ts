@@ -22,6 +22,7 @@ import { adminEvents } from "./namespaces/adminEvents";
 import { adminOrders } from "./namespaces/adminOrders";
 import { adminPayouts } from "./namespaces/adminPayouts";
 import { adminDevelopers } from "./namespaces/adminDevelopers";
+import { apiDashboard } from "./namespaces/apiDashboard";
 import { adminSupport } from "./namespaces/adminSupport";
 import { adminPlatform } from "./namespaces/adminPlatform";
 import { adminProject } from "./namespaces/adminProject";
@@ -56,6 +57,7 @@ export const en = {
   adminOrders: adminOrders.en,
   adminPayouts: adminPayouts.en,
   adminDevelopers: adminDevelopers.en,
+  apiDashboard: apiDashboard.en,
   adminSupport: adminSupport.en,
   adminPlatform: adminPlatform.en,
   adminProject: adminProject.en,
@@ -91,6 +93,7 @@ export const fr = {
   adminOrders: adminOrders.fr,
   adminPayouts: adminPayouts.fr,
   adminDevelopers: adminDevelopers.fr,
+  apiDashboard: apiDashboard.fr,
   adminSupport: adminSupport.fr,
   adminPlatform: adminPlatform.fr,
   adminProject: adminProject.fr,

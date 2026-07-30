@@ -74,6 +74,8 @@ export interface TenantSettingsResponse {
   language?: string;
   currency?: string;
   customDomain?: string;
+  domainVerified?: boolean;
+  domainVerificationToken?: string;
   emailSenderName?: string;
   notificationPrefs?: string;
   primaryColor?: string;

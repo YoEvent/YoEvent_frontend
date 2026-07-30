@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { eventService } from "@/app/utils/services/eventService";
 import { authService } from "@/app/utils/services/authService";
 import { getStoredAuth } from "@/app/utils/api";
-import { Calendar, Search, MapPin, Wifi, Tag, ArrowRight, Bookmark, Building2 } from "lucide-react";
+import { Calendar, Search, MapPin, Wifi, Tag, ArrowRight, Bookmark, Building2, Music, Briefcase, Cpu, Trophy } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useLanguage } from "@/app/context/LanguageContext";
@@ -147,18 +147,23 @@ export default function PublicEventsPage() {
           </p>
 
           {/* Welcoming sector snapshot — a quick visual taste of what's out there */}
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-4 mt-6">
             {[
-              { label: t("eventsBrowse.hero.sectors.music"), img: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=200" },
-              { label: t("eventsBrowse.hero.sectors.business"), img: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=200" },
-              { label: t("eventsBrowse.hero.sectors.tech"), img: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=200" },
-              { label: t("eventsBrowse.hero.sectors.sports"), img: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=200" },
-            ].map(s => (
-              <div key={s.label} className="flex flex-col items-center gap-1.5">
-                <img src={s.img} alt={s.label} className="w-14 h-14 rounded-full object-cover border-4 border-white shadow-lg shadow-black/10" />
-                <span className="text-[10px] font-semibold text-[#888]">{s.label}</span>
-              </div>
-            ))}
+              { label: t("eventsBrowse.hero.sectors.music"), icon: Music },
+              { label: t("eventsBrowse.hero.sectors.business"), icon: Briefcase },
+              { label: t("eventsBrowse.hero.sectors.tech"), icon: Cpu },
+              { label: t("eventsBrowse.hero.sectors.sports"), icon: Trophy },
+            ].map(s => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className="flex flex-col items-center gap-1.5 group cursor-default">
+                  <div className="w-14 h-14 rounded-full bg-[#FF4747]/10 border border-[#FF4747]/20 flex items-center justify-center shadow-sm text-[#FF4747] group-hover:bg-[#FF4747] group-hover:text-white transition-colors">
+                    <Icon size={24} strokeWidth={1.5} />
+                  </div>
+                  <span className="text-[10px] font-semibold text-[#888] group-hover:text-[#FF4747] transition-colors">{s.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </header>

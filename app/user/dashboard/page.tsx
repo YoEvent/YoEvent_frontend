@@ -139,6 +139,7 @@ export default function AttendeeDashboard() {
   const [engageQaInput, setEngageQaInput] = useState("");
   const [engageLoading, setEngageLoading] = useState(false);
   const [engageEventMeta, setEngageEventMeta] = useState<any>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // ── handlers (unchanged logic) ──────────────────────────────
 
@@ -571,16 +572,40 @@ export default function AttendeeDashboard() {
   // ── render ─────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-white flex text-[#1a1a1a]">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row text-[#1a1a1a]">
+
+      {/* MOBILE HEADER */}
+      <div className="md:hidden flex items-center justify-between bg-white border-b border-[#e5e7eb] p-4 sticky top-0 z-30">
+        <Link href="/" className="font-display text-xl font-black tracking-tight">
+          Yow<span className="text-[#FF4747]">Event</span>
+        </Link>
+        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 -mr-2 text-[#1a1a1a] cursor-pointer">
+          <LayoutDashboard size={24} />
+        </button>
+      </div>
+
+      {/* MOBILE OVERLAY */}
+      {isMobileMenuOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/20 z-40"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
 
       {/* SIDEBAR */}
-      <aside className="w-[260px] shrink-0 bg-white border-r border-[#e5e7eb] flex flex-col sticky top-0 h-screen">
+      <aside className={`
+        fixed md:sticky top-0 left-0 h-screen w-[260px] shrink-0 bg-white border-r border-[#e5e7eb] flex flex-col z-50 transition-transform duration-300
+        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+      `}>
 
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-[#f0f0f0]">
+        <div className="px-6 py-5 border-b border-[#f0f0f0] flex items-center justify-between">
           <Link href="/" className="font-display text-xl font-black tracking-tight">
             Yow<span className="text-[#FF4747]">Event</span>
           </Link>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-[#888] hover:text-[#1a1a1a] cursor-pointer">
+            <X size={20} />
+          </button>
         </div>
 
         {/* User identity */}
@@ -607,7 +632,7 @@ export default function AttendeeDashboard() {
           {NAV.map(({ id, label, icon: Icon, count }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => { setActiveTab(id); setIsMobileMenuOpen(false); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                 activeTab === id
                   ? "bg-[#FF4747]/10 text-[#FF4747] font-semibold"
@@ -656,7 +681,7 @@ export default function AttendeeDashboard() {
       </aside>
 
       {/* MAIN */}
-      <main className="flex-1 min-w-0 p-8">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 w-full overflow-x-hidden">
 
         {/* ── OVERVIEW ── */}
         {activeTab === "overview" && (
@@ -671,19 +696,19 @@ export default function AttendeeDashboard() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
               {[
                 { label: t("userDashboard.overview.stats.ticketsOwned"),  value: myTickets.filter(tk => tk.status !== "REFUNDED").length, color: "#FF4747",  bg: "#FF4747" },
                 { label: t("userDashboard.overview.stats.upcomingEvents"), value: upcoming.length, color: "#10b981", bg: "#10b981" },
                 { label: t("userDashboard.overview.stats.savedEvents"),   value: savedEvents.length, color: "#6366f1", bg: "#6366f1" },
               ].map(s => (
-                <div key={s.label} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.bg}15` }}>
-                    <div className="w-3 h-3 rounded-full" style={{ background: s.bg }} />
+                <div key={s.label} className="bg-white border border-[#e5e7eb] rounded-2xl p-3 sm:p-5 flex flex-col sm:flex-row items-center sm:gap-4 text-center sm:text-left shadow-sm">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 mb-2 sm:mb-0" style={{ background: `${s.bg}15` }}>
+                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full" style={{ background: s.bg }} />
                   </div>
                   <div>
-                    <div className="font-black text-2xl text-[#1a1a1a]">{s.value}</div>
-                    <div className="text-xs text-[#888]">{s.label}</div>
+                    <div className="font-black text-xl sm:text-2xl text-[#1a1a1a] leading-none mb-1 sm:mb-0">{s.value}</div>
+                    <div className="text-[10px] sm:text-xs text-[#888] leading-tight line-clamp-2">{s.label}</div>
                   </div>
                 </div>
               ))}
@@ -698,7 +723,7 @@ export default function AttendeeDashboard() {
                     {t("userDashboard.overview.upcomingEvents.viewAll")} <ChevronRight size={12} />
                   </button>
                 </div>
-                <div className="grid md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   {upcoming.map(tk => (
                     <div key={tk.orderId} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 hover:border-[#FF4747]/30 hover:shadow-sm transition-all">
                       <div className="w-8 h-8 rounded-lg bg-[#FF4747]/10 flex items-center justify-center mb-3">

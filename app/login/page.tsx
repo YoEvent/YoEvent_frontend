@@ -10,7 +10,8 @@ function LoginForm() {
   const router = useRouter();
   const { t } = useLanguage();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from"); // e.g. /t/acme-events or /events/[id]
+  const from = searchParams.get("from"); // e.g. /t/acme-events, /events/[id], or the "eventaas" sentinel
+  const isEventaas = from === "eventaas";
   const reason = searchParams.get("reason");
   const sessionExpired = reason === "session_expired";
   const [show, setShow] = useState(false);
@@ -86,6 +87,10 @@ function LoginForm() {
 
       if (resolvedRole === "SUPER_ADMIN") {
         router.push("/super-admin");
+      } else if (from === "eventaas") {
+        // Signed up via the EventaaS site with an API plan — land on the API-quota
+        // dashboard instead of the regular organizer dashboard.
+        router.push("/api-dashboard");
       } else if (resolvedRole === "ATTENDEE") {
         router.push(from || "/user/dashboard");
       } else {
@@ -105,18 +110,18 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <nav className="flex items-center justify-between px-16 py-5 bg-white border-b border-[#e5e7eb]">
-        <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
-          Yow<span className="text-[#EB4203]">Event</span>
+      <nav className="flex items-center justify-between px-6 md:px-16 py-5 bg-white border-b border-[#e5e7eb]">
+        <Link href={isEventaas ? "/eventaas" : "/"} className="font-display text-2xl font-black tracking-tight text-[#1a1a1a]">
+          {isEventaas ? <>Event<span className="text-[#EB4203]">aaS</span></> : <>Yow<span className="text-[#EB4203]">Event</span></>}
         </Link>
         <span className="text-sm text-[#888]">{t("loginPage.noAccount")}{" "}
           <Link href={from ? `/register?from=${encodeURIComponent(from)}` : "/register"} className="text-[#1a1a1a] font-semibold hover:underline">{t("loginPage.signUpFree")}</Link>
         </span>
       </nav>
 
-      <main className="flex-1 flex items-center justify-center px-6 py-16">
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 md:py-16">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-3xl shadow-xl border border-[#e5e7eb] p-10">
+          <div className="bg-white rounded-3xl shadow-xl border border-[#e5e7eb] p-6 sm:p-10">
             <div className="text-center mb-8">
               <div className="w-14 h-14 bg-gradient-to-br from-[#FF4747]/10 to-[#EB4203]/20 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">🎟</div>
               <h1 className="font-display text-3xl font-bold tracking-tight mb-1 text-[#EB4203]">{t("loginPage.welcomeBack")}</h1>

@@ -28,6 +28,8 @@ export default function middleware(req: NextRequest) {
     "/updates",
     "/developers",
     "/eventaas",
+    "/api-dashboard",
+    "/terms",
     "/user",
     "/utils",
     "/favicon.ico",
@@ -70,5 +72,5 @@ export default function middleware(req: NextRequest) {
   }
 
   // Custom domain → /site/[domain]
-  return NextResponse.rewrite(new URL(`/site/${hostname}${pathname}`, req.url));
+  return NextResponse.rewrite(new URL(`/site/${host}${pathname}`, req.url));
 }

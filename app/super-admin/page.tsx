@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck, TrendingUp, TrendingDown, Minus, AlertCircle, Check } from "lucide-react";
+import { LayoutDashboard, Layers, Users, Building, LogOut, Search, Plus, Edit3, Trash2, ShieldCheck, TrendingUp, TrendingDown, Minus, AlertCircle, Check, Zap } from "lucide-react";
 import { api, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
+import { formatPrice } from "@/app/utils/pricingPlans";
 import { useLanguage } from "@/app/context/LanguageContext";
 
 // ── Transactions : agrégation & sparkline (100% frontend, pas de nouvel endpoint backend) ──
@@ -237,10 +238,13 @@ export default function SuperAdminPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [loadingClaims, setLoadingClaims] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "plans" | "tenants" | "users" | "finances">("overview");
- 
+  const [activeTab, setActiveTab] = useState<"overview" | "plans" | "apiplans" | "tenants" | "users" | "finances">("overview");
+
   // Data states
   const [plans, setPlans] = useState<any[]>([]);
+  // EventaaS API plans — sold and managed independently from YoEvent hosting
+  // plans above so hosting-plan upgrades never grant free backend API access.
+  const [apiPlans, setApiPlans] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -276,7 +280,19 @@ export default function SuperAdminPage() {
     commissionType: "PERCENTAGE",
     commissionRate: 10
   });
- 
+
+  const [editingApiPlan, setEditingApiPlan] = useState<any | null>(null);
+  const [creatingApiPlan, setCreatingApiPlan] = useState(false);
+  const [apiPlanForm, setApiPlanForm] = useState({
+    name: "",
+    price: 0,
+    billingCycle: "MONTHLY",
+    currency: "XAF",
+    maxApiCallsPerMonth: 1000,
+    description: "",
+    status: "ACTIVE",
+  });
+
   // Search/Filters
   const [tenantSearch, setTenantSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
@@ -344,6 +360,10 @@ export default function SuperAdminPage() {
         console.error("Failed to load subscription plans:", err);
         return [];
       }),
+      api.get<any[]>("/api/v1/apiplans").catch((err) => {
+        console.error("Failed to load API plans:", err);
+        return [];
+      }),
       api.get<any[]>("/api/v1/tenants").catch((err) => {
         console.error("Failed to load tenants:", err);
         return [];
@@ -352,10 +372,7 @@ export default function SuperAdminPage() {
         console.error("Failed to load users:", err);
         return [];
       }),
-      api.get<any>("/api/v1/platform/revenue").catch((err) => {
-        console.error("Failed to load platform revenue:", err);
-        return null;
-      }),
+      api.get<any>("/api/v1/platform/revenue").catch(() => null),
       api.get<any[]>("/api/v1/payments").catch((err) => {
         console.error("Failed to load payments:", err);
         return [];
@@ -364,22 +381,32 @@ export default function SuperAdminPage() {
         console.error("Failed to load registrations:", err);
         return [];
       }),
-      api.get<any[]>("/api/v1/platform/withdrawals").catch((err) => {
-        console.error("Failed to load platform withdrawals:", err);
-        return [];
-      }),
+      api.get<any[]>("/api/v1/platform/withdrawals").catch(() => []),
       api.get<any>("/api/v1/platforms/commission").catch((err) => {
         console.error("Failed to load platform commission settings:", err);
         return null;
       }),
-    ]).then(([plansData, tenantsData, usersData, revenueData, paymentsData, registrationsData, withdrawalsData, commissionData]) => {
+    ]).then(([plansData, apiPlansData, tenantsData, usersData, revenueData, paymentsData, registrationsData, withdrawalsData, commissionData]) => {
       setPlans(plansData || []);
+      setApiPlans(apiPlansData || []);
       setTenants(tenantsData || []);
       setUsers(usersData || []);
-      setPlatformRevenue(revenueData);
       setPayments(paymentsData || []);
       setRegistrations(registrationsData || []);
       setWithdrawals(withdrawalsData || []);
+
+      const computedCollected = (paymentsData || [])
+        .filter((p: any) => p.status === "COMPLETED")
+        .reduce((acc: number, p: any) => acc + (parseFloat(p.platformFee) || 0), 0);
+      const computedWithdrawn = (withdrawalsData || [])
+        .reduce((acc: number, w: any) => acc + (parseFloat(w.amount) || 0), 0);
+
+      setPlatformRevenue(revenueData || {
+        totalCollected: computedCollected,
+        totalWithdrawn: computedWithdrawn,
+        availableBalance: computedCollected - computedWithdrawn
+      });
+
       if (commissionData) {
         setCommissionSettings({
           baseCommissionRate: commissionData.baseCommissionRate ?? 10,
@@ -547,6 +574,59 @@ export default function SuperAdminPage() {
     }
   };
 
+  // API plan actions (EventaaS — independent of the hosting plans above)
+  const saveApiPlanEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingApiPlan) return;
+    try {
+      const sanitized = {
+        name: editingApiPlan.name || "",
+        price: Number.isNaN(editingApiPlan.price) || editingApiPlan.price == null ? 0 : editingApiPlan.price,
+        billingCycle: editingApiPlan.billingCycle || "MONTHLY",
+        currency: editingApiPlan.currency || "XAF",
+        maxApiCallsPerMonth: Number.isNaN(editingApiPlan.maxApiCallsPerMonth) || editingApiPlan.maxApiCallsPerMonth == null ? 0 : editingApiPlan.maxApiCallsPerMonth,
+        description: editingApiPlan.description || "",
+        status: editingApiPlan.status || "ACTIVE",
+      };
+      const data = await api.put<any>(`/api/v1/apiplans/${editingApiPlan.planId}`, sanitized);
+      setApiPlans((prev) => prev.map((p) => p.planId === data.planId ? data : p));
+      setEditingApiPlan(null);
+    } catch (err) {
+      console.error("Failed to update API plan:", err);
+    }
+  };
+
+  const createApiPlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const sanitized = {
+        name: apiPlanForm.name || "",
+        price: Number.isNaN(apiPlanForm.price) || apiPlanForm.price == null ? 0 : apiPlanForm.price,
+        billingCycle: apiPlanForm.billingCycle || "MONTHLY",
+        currency: apiPlanForm.currency || "XAF",
+        maxApiCallsPerMonth: Number.isNaN(apiPlanForm.maxApiCallsPerMonth) || apiPlanForm.maxApiCallsPerMonth == null ? 0 : apiPlanForm.maxApiCallsPerMonth,
+        description: apiPlanForm.description || "",
+        status: apiPlanForm.status || "ACTIVE",
+      };
+      const data = await api.post<any>("/api/v1/apiplans", sanitized);
+      setApiPlans((prev) => [...prev, data]);
+      setCreatingApiPlan(false);
+      setApiPlanForm({ name: "", price: 0, billingCycle: "MONTHLY", currency: "XAF", maxApiCallsPerMonth: 1000, description: "", status: "ACTIVE" });
+    } catch (err) {
+      console.error("Failed to create API plan:", err);
+    }
+  };
+
+  const deleteApiPlan = async (id: string) => {
+    if (!confirm("Delete this API plan?")) return;
+    try {
+      await api.delete(`/api/v1/apiplans/${id}`);
+      setApiPlans((prev) => prev.filter((p) => p.planId !== id));
+    } catch (err) {
+      console.error("Failed to delete API plan:", err);
+    }
+  };
+
   // Tenant attendees
   const viewTenantAttendees = (tenant: any) => {
     setViewingTenant(tenant);
@@ -639,11 +719,11 @@ export default function SuperAdminPage() {
         note: withdrawalNote
       });
       const [rev, wds] = await Promise.all([
-        api.get<any>("/api/v1/platform/revenue"),
-        api.get<any[]>("/api/v1/platform/withdrawals")
+        api.get<any>("/api/v1/platform/revenue").catch(() => null),
+        api.get<any[]>("/api/v1/platform/withdrawals").catch(() => [])
       ]);
-      setPlatformRevenue(rev);
-      setWithdrawals(wds);
+      if (rev) setPlatformRevenue(rev);
+      if (wds) setWithdrawals(wds);
       setWithdrawalAmount("");
       setWithdrawalNote("");
       setWithdrawalSuccess(true);
@@ -711,6 +791,7 @@ export default function SuperAdminPage() {
           {[
             { id: "overview", label: t("superAdmin.sidebar.navOverview"), icon: LayoutDashboard },
             { id: "plans", label: t("superAdmin.sidebar.navPlans"), icon: Layers },
+            { id: "apiplans", label: "API Plans", icon: Zap },
             { id: "tenants", label: t("superAdmin.sidebar.navTenants"), icon: Building },
             { id: "users", label: t("superAdmin.sidebar.navUsers"), icon: Users },
             { id: "finances", label: "Finances", icon: ShieldCheck },
@@ -754,6 +835,7 @@ export default function SuperAdminPage() {
           <h1 className="font-display text-lg font-bold text-[#EB4203] capitalize">
             {(activeTab === "overview" ? t("superAdmin.sidebar.navOverview")
               : activeTab === "plans" ? t("superAdmin.sidebar.navPlans")
+                : activeTab === "apiplans" ? "API Plans"
                 : activeTab === "tenants" ? t("superAdmin.sidebar.navTenants")
                   : activeTab === "users" ? t("superAdmin.sidebar.navUsers")
                     : "Finances")} {t("superAdmin.header.administration")}
@@ -1363,6 +1445,197 @@ export default function SuperAdminPage() {
                               className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold rounded-lg cursor-pointer"
                             >
                               {t("superAdmin.plans.saveChanges")}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* API PLANS TAB (EventaaS — independent of the hosting plans above) */}
+              {activeTab === "apiplans" && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-zinc-500">Plans sold through EventaaS. Monthly API-call quota only — no event/user limits, independent of YoEvent hosting plans.</p>
+                    <button
+                      onClick={() => setCreatingApiPlan(true)}
+                      className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold text-xs rounded-lg flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Plus size={14} /> Create API Plan
+                    </button>
+                  </div>
+
+                  <div className="bg-white border border-[#e5e7eb] rounded-2xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#e5e7eb] text-[10px] text-zinc-500 uppercase tracking-wider bg-[#f9fafb]/30">
+                          <th className="p-4 pl-6">Plan name</th>
+                          <th className="p-4">Price</th>
+                          <th className="p-4">Billing cycle</th>
+                          <th className="p-4 text-center">Calls / month</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4 pr-6 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs text-[#222] divide-y divide-[#e5e7eb]">
+                        {apiPlans.map((plan) => (
+                          <tr key={plan.planId} className="hover:bg-zinc-800/10 transition-colors">
+                            <td className="p-4 pl-6 font-bold text-[#1a1a1a]">{plan.name}</td>
+                            <td className="p-4">{formatPrice(plan.price, plan.currency)}</td>
+                            <td className="p-4"><span className="bg-stone-100 px-2 py-0.5 rounded text-[10px] uppercase font-bold text-stone-600">{plan.billingCycle}</span></td>
+                            <td className="p-4 text-center">{Number(plan.maxApiCallsPerMonth || 0).toLocaleString()}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${plan.status === "ACTIVE" ? "bg-green-50 text-green-700" : "bg-zinc-100 text-zinc-500"}`}>
+                                {plan.status || "ACTIVE"}
+                              </span>
+                            </td>
+                            <td className="p-4 pr-6 text-right space-x-2">
+                              <button
+                                onClick={() => setEditingApiPlan(plan)}
+                                className="p-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded transition-colors cursor-pointer"
+                                title="Edit API plan"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                onClick={() => deleteApiPlan(plan.planId)}
+                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded transition-colors cursor-pointer"
+                                title="Delete API plan"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {(creatingApiPlan || editingApiPlan) && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+                      <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6">
+                        <div>
+                          <h3 className="font-display text-lg font-bold text-[#EB4203]">
+                            {editingApiPlan ? "Edit API plan" : "Create API plan"}
+                          </h3>
+                          <p className="text-xs text-zinc-500">Independent from YoEvent hosting plans — purely a monthly API-call quota.</p>
+                        </div>
+                        <form
+                          onSubmit={editingApiPlan ? saveApiPlanEdit : createApiPlan}
+                          className="space-y-4 text-xs"
+                        >
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Plan name</label>
+                              <input
+                                type="text" required
+                                value={editingApiPlan ? (editingApiPlan.name ?? "") : apiPlanForm.name}
+                                onChange={(e) => editingApiPlan
+                                  ? setEditingApiPlan({ ...editingApiPlan, name: e.target.value })
+                                  : setApiPlanForm({ ...apiPlanForm, name: e.target.value })}
+                                placeholder="GROWTH"
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Price</label>
+                              <input
+                                type="number" required min="0" step="0.01"
+                                value={editingApiPlan ? (editingApiPlan.price ?? 0) : apiPlanForm.price}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
+                                  editingApiPlan
+                                    ? setEditingApiPlan({ ...editingApiPlan, price: val })
+                                    : setApiPlanForm({ ...apiPlanForm, price: val });
+                                }}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Billing cycle</label>
+                              <select
+                                value={editingApiPlan ? (editingApiPlan.billingCycle ?? "MONTHLY") : apiPlanForm.billingCycle}
+                                onChange={(e) => editingApiPlan
+                                  ? setEditingApiPlan({ ...editingApiPlan, billingCycle: e.target.value })
+                                  : setApiPlanForm({ ...apiPlanForm, billingCycle: e.target.value })}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 font-semibold"
+                              >
+                                <option value="MONTHLY">Monthly</option>
+                                <option value="YEARLY">Yearly</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Currency</label>
+                              <input
+                                type="text"
+                                value={editingApiPlan ? (editingApiPlan.currency ?? "XAF") : apiPlanForm.currency}
+                                onChange={(e) => editingApiPlan
+                                  ? setEditingApiPlan({ ...editingApiPlan, currency: e.target.value })
+                                  : setApiPlanForm({ ...apiPlanForm, currency: e.target.value })}
+                                className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Max API calls / month</label>
+                            <input
+                              type="number" required min="0"
+                              value={editingApiPlan ? (editingApiPlan.maxApiCallsPerMonth ?? 0) : apiPlanForm.maxApiCallsPerMonth}
+                              onChange={(e) => {
+                                const val = e.target.value === "" ? 0 : parseInt(e.target.value, 10);
+                                editingApiPlan
+                                  ? setEditingApiPlan({ ...editingApiPlan, maxApiCallsPerMonth: val })
+                                  : setApiPlanForm({ ...apiPlanForm, maxApiCallsPerMonth: val });
+                              }}
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Description</label>
+                            <input
+                              type="text"
+                              value={editingApiPlan ? (editingApiPlan.description ?? "") : apiPlanForm.description}
+                              onChange={(e) => editingApiPlan
+                                ? setEditingApiPlan({ ...editingApiPlan, description: e.target.value })
+                                : setApiPlanForm({ ...apiPlanForm, description: e.target.value })}
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-zinc-500 uppercase tracking-wider mb-1.5">Status</label>
+                            <select
+                              value={editingApiPlan ? (editingApiPlan.status ?? "ACTIVE") : apiPlanForm.status}
+                              onChange={(e) => editingApiPlan
+                                ? setEditingApiPlan({ ...editingApiPlan, status: e.target.value })
+                                : setApiPlanForm({ ...apiPlanForm, status: e.target.value })}
+                              className="w-full px-3 py-2 border border-[#e5e7eb] rounded-xl bg-[#f9fafb] text-[#1a1a1a] outline-none focus:border-amber-400 font-semibold"
+                            >
+                              <option value="ACTIVE">Active</option>
+                              <option value="INACTIVE">Inactive</option>
+                            </select>
+                          </div>
+
+                          <div className="flex justify-end gap-3 pt-4 border-t border-[#e5e7eb]">
+                            <button
+                              type="button"
+                              onClick={() => { setCreatingApiPlan(false); setEditingApiPlan(null); }}
+                              className="px-4 py-2 border border-[#e5e7eb] hover:bg-zinc-800 text-[#222] rounded-lg cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-zinc-950 font-bold rounded-lg cursor-pointer"
+                            >
+                              {editingApiPlan ? "Save changes" : "Create plan"}
                             </button>
                           </div>
                         </form>

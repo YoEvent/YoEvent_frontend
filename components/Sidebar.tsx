@@ -18,6 +18,15 @@ const sidebarStructure: SidebarLink[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/events", label: "Events", icon: Calendar },
   {
+    label: "Logistics",
+    icon: Package,
+    subLinks: [
+      { href: "/admin/resources", label: "Resources & Spaces", icon: Package },
+      { href: "/admin/agenda", label: "Agenda & Sessions", icon: Calendar },
+      { href: "/admin/team", label: "Team & Crew", icon: UserCheck },
+    ]
+  },
+  {
     label: "Operations",
     icon: ShoppingCart,
     subLinks: [
@@ -27,15 +36,6 @@ const sidebarStructure: SidebarLink[] = [
       { href: "/admin/payouts", label: "Payouts", icon: DollarSign },
       { href: "/admin/applications", label: "Applications", icon: Users },
       { href: "/admin/engagements", label: "Performance", icon: BarChart2 },
-    ]
-  },
-  {
-    label: "Logistics",
-    icon: Package,
-    subLinks: [
-      { href: "/admin/resources", label: "Resources & Spaces", icon: Package },
-      { href: "/admin/agenda", label: "Agenda & Sessions", icon: Calendar },
-      { href: "/admin/team", label: "Team & Crew", icon: UserCheck },
     ]
   },
   {

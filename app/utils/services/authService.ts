@@ -24,6 +24,8 @@ export const authService = {
   /** @deprecated Use getMyTenantSettings() */
   getTenantSettingByTenantId: (_tenantId: string) => api.get<T.TenantSettingsResponse>("api/v1/tenantsettingss/mine"),
   updateTenantSetting: (id: string, data: T.TenantSettingsRequest) => api.put<T.TenantSettingsResponse>(`api/v1/tenantsettingss/${id}`, data),
+  verifyMyDomain: () => api.post<T.TenantSettingsResponse>("api/v1/tenantsettingss/mine/verify-domain"),
+  verifyDomainByTenantId: (tenantId: string) => api.post<T.TenantSettingsResponse>(`api/v1/tenantsettingss/by-tenant/${tenantId}/verify-domain`),
   deleteTenantSetting: (id: string) => api.delete<void>(`api/v1/tenantsettingss/${id}`),
 
   // Tenants

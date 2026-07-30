@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Zap, Shield, Globe, Code2, Layers, BarChart3, Webhook, Key, CheckCircle2, ChevronRight, Mail } from "lucide-react";
 import { api, getStoredAuth } from "@/app/utils/api";
-import { DEFAULT_PRICING_PLANS, getActivePlans, formatPrice, type PricingPlan } from "@/app/utils/pricingPlans";
+import { DEFAULT_API_PRICING_PLANS, getActiveApiPlans, formatPrice, type ApiPricingPlan } from "@/app/utils/pricingPlans";
 import { useLanguage } from "@/app/context/LanguageContext";
 
 // Non-translated technical metadata for each microservice card — paired by index
@@ -24,7 +24,7 @@ const SUPPORT_EMAIL = "api@yowevent.com";
 export default function EventaaSPage() {
   const { t, tl } = useLanguage();
   const [auth, setAuth] = useState<{ tenantId: string; email: string } | null>(null);
-  const [plans, setPlans] = useState<PricingPlan[]>(DEFAULT_PRICING_PLANS);
+  const [plans, setPlans] = useState<ApiPricingPlan[]>(DEFAULT_API_PRICING_PLANS);
 
   useEffect(() => {
     const stored = getStoredAuth();
@@ -32,24 +32,31 @@ export default function EventaaSPage() {
   }, []);
 
   useEffect(() => {
-    api.get<PricingPlan[]>("/api/v1/subscriptionplans", { skipAuth: true })
-      .then((data) => setPlans(getActivePlans(data)))
-      .catch(() => setPlans(DEFAULT_PRICING_PLANS));
+    api.get<ApiPricingPlan[]>("/api/v1/apiplans", { skipAuth: true })
+      .then((data) => setPlans(getActiveApiPlans(data)))
+      .catch(() => setPlans(DEFAULT_API_PRICING_PLANS));
   }, []);
 
   const hasWorkspace = !!auth?.tenantId;
-  // Not logged in → sign up. Logged in without a tenant yet → become an organizer first.
-  // Logged in with a tenant → go straight to the API keys dashboard.
-  const primaryCtaHref = !auth ? "/register" : hasWorkspace ? "/admin/developers" : "/user/dashboard?upgrade=1";
-  const signInHref = hasWorkspace ? "/admin/developers" : "/login";
+  // Not logged in → sign up (flagged `from=eventaas` so registration skips the
+  // attendee/organizer choice and login lands on the API-quota dashboard instead of
+  // the regular organizer dashboard). Logged in without a tenant yet → become an
+  // organizer first. Logged in with a tenant → go straight to the API dashboard.
+  const primaryCtaHref = !auth ? "/register?from=eventaas" : hasWorkspace ? "/api-dashboard" : "/user/dashboard?upgrade=1";
+  const signInHref = hasWorkspace ? "/api-dashboard" : "/login?from=eventaas";
 
-  const planHref = (plan: PricingPlan) => {
-    if (plan.price === 0) return primaryCtaHref;
+  const planHref = (plan: ApiPricingPlan) => {
+    if (plan.price === 0) {
+      return !auth ? `/register?from=eventaas&plan=${encodeURIComponent(plan.name)}` : primaryCtaHref;
+    }
     // Paid tiers are billed through the real subscription checkout.
-    return !auth ? "/register" : hasWorkspace ? "/pricing" : "/user/dashboard?upgrade=1";
+    if (!auth) return `/register?from=eventaas&plan=${encodeURIComponent(plan.name)}`;
+    // Already has a workspace — send to the API dashboard, which surfaces the
+    // API-plan upgrade CTA (not /pricing, which is the YoEvent hosting catalog).
+    return hasWorkspace ? "/api-dashboard" : "/user/dashboard?upgrade=1";
   };
 
-  const planCta = (plan: PricingPlan) => {
+  const planCta = (plan: ApiPricingPlan) => {
     if (plan.price === 0) return hasWorkspace ? t("eventaas.pricing.manageApiKeys") : t("eventaas.pricing.getApiKey");
     return hasWorkspace ? t("eventaas.pricing.upgradeAndGetAccess") : t("eventaas.pricing.startBuilding");
   };
@@ -58,7 +65,10 @@ export default function EventaaSPage() {
   const services = SERVICES_META.map((meta, i) => ({ ...meta, ...serviceItems[i] }));
   const featureItems: { title: string; desc: string }[] = tl("eventaas.features.items");
   const howItWorksSteps: { title: string; desc: string }[] = tl("eventaas.howItWorks.steps");
-  const apiPlanCopy: Record<string, { calls: string; workspaces: string; extra: string[] }> = tl("eventaas.pricing.apiPlanCopy");
+  // Positional (not name-keyed) since the real API-plan catalog's names (FREE/
+  // STARTER/GROWTH/SCALE) no longer match these translation keys — plans are
+  // sorted cheapest-first same as this copy list, so index alignment holds.
+  const apiPlanCopyList: { extra: string[] }[] = Object.values(tl("eventaas.pricing.apiPlanCopy"));
 
   return (
     <div className="min-h-screen bg-white text-[#1a1a1a]">
@@ -225,8 +235,9 @@ export default function EventaaSPage() {
           <p className="text-[#888] text-sm mt-3">{t("eventaas.pricing.subtitle")}</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {plans.map((p) => {
-            const copy = apiPlanCopy[p.name] || apiPlanCopy.Starter;
+          {plans.map((p, i) => {
+            const copy = apiPlanCopyList[i] || apiPlanCopyList[apiPlanCopyList.length - 1];
+            const callsLine = `${p.maxApiCallsPerMonth.toLocaleString()} API calls/month`;
             const highlight = !!p.popular;
             return (
               <div key={p.name} className={`rounded-2xl p-7 border flex flex-col ${highlight ? "bg-[#FF4747] border-[#FF4747]" : "bg-white border-[#e5e7eb]"}`}>
@@ -236,7 +247,7 @@ export default function EventaaSPage() {
                   {p.price > 0 && <span className={`text-xs ml-1.5 ${highlight ? "text-white/70" : "text-[#888]"}`}>{t("eventaas.pricing.perMonth")}</span>}
                 </div>
                 <ul className="space-y-2.5 mb-8 flex-1">
-                  {[copy.calls, copy.workspaces, ...copy.extra].map((f) => (
+                  {[callsLine, ...copy.extra].map((f) => (
                     <li key={f} className="flex items-center gap-2.5 text-xs">
                       <CheckCircle2 size={13} className={highlight ? "text-white/80" : "text-[#FF4747]"} />
                       <span className={highlight ? "text-white/80" : "text-[#555]"}>{f}</span>

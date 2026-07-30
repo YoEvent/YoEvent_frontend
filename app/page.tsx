@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getStoredAuth } from "@/app/utils/api";
@@ -10,8 +11,8 @@ import Footer from "@/components/Footer";
 import { useLanguage } from "@/app/context/LanguageContext";
 
 const trustedOrgs = [
-  "Nairobi Tech Hub", "Kigali Innovation City", "Lagos Creative Week",
-  "Accra Business Forum", "Cape Town Summit Group", "Dakar Startup Circle",
+  "RENTAL WEB", "YOWPAINTER", "YOWYOB SEARCH",
+  "FLEETMAN", "VERIFID", "TIIBNTICK", "RIDNGO", "YOWYOB EDUCATION"
 ];
 
 type Flag = true | false | "partial";
@@ -46,7 +47,7 @@ export default function LandingPage() {
     eventService.getEvents({ skipAuth: true })
       .then((data: any) => {
         const list: any[] = Array.isArray(data) ? data : (data?.content ?? []);
-        setFeaturedEvents(list.filter(e => e.status === "PUBLISHED" || e.status === "ACTIVE").slice(0, 3));
+        setFeaturedEvents(list.filter(e => e.status === "PUBLISHED" || e.status === "ACTIVE").slice(0, 10));
         if (list.length > 0) {
           setEventCount(String(list.length));
           const uniqueTenants = new Set(list.map(e => e.tenantId).filter(Boolean));
@@ -76,13 +77,7 @@ export default function LandingPage() {
     ? t("home.hero.organizersCount", { count: organizerCount.toLocaleString(), plural: organizerCount !== 1 ? "s" : "" })
     : t("home.hero.organizersDefault");
 
-  const mockEvents = [
-    { eventId: "e1", title: "Nairobi Tech Summit 2026", description: "Join tech leaders across East Africa discussing microservices, cloud scaling, and AI ecosystems.", startDate: "2026-07-12T09:00:00Z", format: "IN_PERSON", isPaid: true, coverImage: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=600" },
-    { eventId: "e2", title: "Africa Design Week", description: "Celebrating innovative typography, layout systems, and product designs shaping modern applications.", startDate: "2026-08-05T10:00:00Z", format: "VIRTUAL", isPaid: false, coverImage: "https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=600" },
-    { eventId: "e3", title: "FinTech Innovation Forum", description: "Discussing payments, banking APIs, security auditing, and ledger-based tracking architectures.", startDate: "2026-09-18T08:30:00Z", format: "IN_PERSON", isPaid: true, coverImage: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=600" },
-  ];
-
-  const displayEvents = featuredEvents.length > 0 ? featuredEvents : mockEvents;
+  const displayEvents = featuredEvents;
   const dateLocale = language === "fr" ? "fr-FR" : "en-US";
 
   const featureItems: { title: string; desc: string }[] = tl("home.features.items");
@@ -95,9 +90,17 @@ export default function LandingPage() {
       <Navbar />
 
       {/* ── HERO ── */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="relative min-h-[90vh] flex items-center overflow-hidden bg-white">
         <div className="relative z-10 w-full max-w-[90rem] mx-auto px-8 md:px-16 py-24 grid md:grid-cols-2 gap-16 items-center">
-          <div>
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
             <div className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-4 py-1.5 text-xs font-semibold text-[#FF4747] mb-8">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF4747] animate-pulse" />
               {t("home.hero.badge", { rating: avgRatingVal.toFixed(1), organizers: organizersLabel })}
@@ -135,7 +138,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* Hero illustration */}
           <div className="hidden md:flex justify-center relative">
@@ -194,12 +197,17 @@ export default function LandingPage() {
             to { transform: translateX(-50%); }
           }
         `}</style>
-      </section>
+      </motion.section>
 
       {/* ── TRUSTED BY ── */}
-      <section className="px-8 md:px-16 py-14 bg-white border-y border-[#f5f5f5]">
+      <motion.section 
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-14 bg-white border-y border-[#f5f5f5]">
         <div className="max-w-[90rem] mx-auto">
-          <p className="text-center text-xs font-semibold tracking-[3px] text-[#FF4747] uppercase mb-8">
+          <p className="text-center text-lg font-bold tracking-[4px] text-[#FF4747] uppercase mb-8">
             {t("home.trusted.label")}
           </p>
           <div className="relative overflow-hidden">
@@ -214,10 +222,15 @@ export default function LandingPage() {
             <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent" />
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── FEATURED EVENTS ── */}
-      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+      <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
         <div className="max-w-[90rem] mx-auto">
           <div className="flex items-end justify-between flex-wrap gap-4 mb-12">
             <div>
@@ -229,9 +242,9 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-7">
+          <div className="flex overflow-x-auto gap-7 pb-8 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {displayEvents.map((ev: any) => (
-              <Link key={ev.eventId} href={`/events/${ev.eventId}`} className="group block bg-white rounded-3xl overflow-hidden border border-[#f0f0f0] hover:border-[#FF4747]/40 hover:-translate-y-1 transition-all duration-300">
+              <Link key={ev.eventId} href={`/events/${ev.eventId}`} className="group block shrink-0 w-[85vw] md:w-[380px] bg-white rounded-3xl overflow-hidden border border-[#f0f0f0] hover:border-[#FF4747]/40 hover:-translate-y-1 transition-all duration-300 snap-start">
                 <div className="relative h-56 bg-stone-100 overflow-hidden">
                   <img src={ev.coverImage || "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=600"} alt={ev.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -252,10 +265,15 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── FEATURES ── */}
-      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+      <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
         <div className="max-w-[90rem] mx-auto">
           <div className="mb-16 max-w-xl">
             <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.features.eyebrow")}</span>
@@ -278,10 +296,15 @@ export default function LandingPage() {
             })}
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── HOW IT WORKS ── */}
-      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+      <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
         <div className="relative z-10 max-w-7xl mx-auto text-center">
           <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.howItWorks.eyebrow")}</span>
           <h2 className="font-display text-5xl font-black tracking-tight mb-4">{t("home.howItWorks.title")}</h2>
@@ -306,10 +329,15 @@ export default function LandingPage() {
             </button>
           </Link>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── OFFLINE PROMO ── */}
-      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+      <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
         <div className="max-w-[90rem] mx-auto grid md:grid-cols-2 gap-14 items-center">
           <div>
             <div className="inline-flex items-center gap-2 bg-[#FF4747]/10 border border-[#FF4747]/20 rounded-full px-3 py-1 text-xs font-semibold text-[#FF4747] mb-7">
@@ -337,7 +365,7 @@ export default function LandingPage() {
           </div>
 
           {/* No-connectivity visual — large WiFi-off mark, minimal and clean */}
-          <div className="relative flex items-center justify-center py-8">
+          <div className="relative hidden md:flex items-center justify-center py-8">
             <div className="absolute w-full max-w-[42rem] aspect-square rounded-full bg-gradient-to-br from-[#FF4747]/10 via-[#F7E998]/15 to-transparent blur-3xl" />
             <img
               src="/nowifi.png"
@@ -346,10 +374,15 @@ export default function LandingPage() {
             />
           </div>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── COMPARISON ── */}
-      <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+      <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
             <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.comparison.eyebrow")}</span>
@@ -383,13 +416,18 @@ export default function LandingPage() {
             {t("home.comparison.footnote")}
           </p>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── FAQ ── */}
       <FaqSection />
 
       {/* ── CTA ── */}
-      <section className="px-8 md:px-16 py-24 bg-[#FF4747] text-white text-center">
+      <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-[#FF4747] text-white text-center">
         <h2 className="font-display text-6xl font-black mb-4 tracking-tight">{t("home.cta.title")}</h2>
         <p className="text-white/80 text-lg max-w-lg mx-auto mb-10 leading-relaxed">
           {t("home.cta.subtitle")}
@@ -406,7 +444,7 @@ export default function LandingPage() {
             </button>
           </Link>
         </div>
-      </section>
+      </motion.section>
 
       <Footer />
     </div>
@@ -426,7 +464,12 @@ function FaqSection() {
   const faqs: { q: string; a: string }[] = tl("home.faq.items");
 
   return (
-    <section className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
+    <motion.section 
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-50px" }}
+        transition={{ duration: 0.6 }}
+        className="px-8 md:px-16 py-24 bg-white border-t border-[#f0f0f0]">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
           <span className="text-sm font-black text-white bg-[#FF4747] tracking-[4px] rounded-full px-5 py-2 inline-block mb-4.5 uppercase">{t("home.faq.eyebrow")}</span>
@@ -449,6 +492,6 @@ function FaqSection() {
           ))}
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 }

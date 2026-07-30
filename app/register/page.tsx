@@ -7,7 +7,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { api, setStoredAuth } from "@/app/utils/api";
 import { paymentService } from "@/app/utils/services/paymentService";
-import { getActivePlans, formatPrice } from "@/app/utils/pricingPlans";
+import { getActivePlans, getActiveApiPlans, formatPrice } from "@/app/utils/pricingPlans";
 import { useLanguage } from "@/app/context/LanguageContext";
 
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "mock_key";
@@ -39,12 +39,14 @@ function StripeCardSubscribeForm({
   mappedPlan,
   tenantId,
   email,
+  planType,
   onSuccess,
   onError,
 }: {
   mappedPlan: any;
   tenantId: string;
   email: string;
+  planType: "HOSTING" | "API";
   onSuccess: () => void;
   onError: (msg: string) => void;
 }) {
@@ -81,6 +83,7 @@ function StripeCardSubscribeForm({
       const result = await paymentService.createSubscription({
         tenantId,
         planId: mappedPlan.planId,
+        planType,
         amount: mappedPlan.price,
         currency: mappedPlan.currency || "XAF",
         provider: "stripe",
@@ -132,13 +135,16 @@ function RegisterFormContent() {
   const searchParams = useSearchParams();
   const planName = searchParams.get("plan") || "";
   const from = searchParams.get("from") || "";
+  // API access is tenant-scoped, so an EventaaS signup always needs a workspace —
+  // skip the attendee/organizer choice and go straight to the organizer form.
+  const isApiSignup = from === "eventaas";
 
   const [show, setShow] = useState(false);
   const [showC, setShowC] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isOrg, setIsOrg] = useState(false);
-  const [roleMode, setRoleMode] = useState<"ATTENDEE" | "ORGANIZER">("ATTENDEE");
+  const [roleMode, setRoleMode] = useState<"ATTENDEE" | "ORGANIZER">(isApiSignup ? "ORGANIZER" : "ATTENDEE");
   const [form, setForm] = useState({ firstName: "", lastName: "", username: "", email: "", orgName: "", password: "", confirm: "", agree: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -156,14 +162,17 @@ function RegisterFormContent() {
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   useEffect(() => {
-    api.get<any[]>("/api/v1/subscriptionplans", { skipAuth: true })
+    // EventaaS signups check out against the independent API-plan catalog;
+    // normal YoEvent signups against the hosting-plan catalog.
+    const endpoint = isApiSignup ? "/api/v1/apiplans" : "/api/v1/subscriptionplans";
+    api.get<any[]>(endpoint, { skipAuth: true })
       .then((data) => {
-        setPlans(getActivePlans(data));
+        setPlans(isApiSignup ? getActiveApiPlans(data) : getActivePlans(data));
       })
       .catch((err) => {
-        console.error("Failed to load subscription plans:", err);
+        console.error("Failed to load plans:", err);
       });
-  }, []);
+  }, [isApiSignup]);
 
   // `planName` (a `?plan=` query param) is matched directly against the real,
   // backend-configured plan list — whatever a super admin has named/priced plans as,
@@ -318,6 +327,7 @@ function RegisterFormContent() {
       const subscription = await paymentService.createSubscription({
         tenantId: registeredAuth.tenantId,
         planId: mappedPlan.planId,
+        planType: isApiSignup ? "API" : "HOSTING",
         amount: mappedPlan.price,
         currency: "XAF",
         provider: "momo",
@@ -361,18 +371,18 @@ function RegisterFormContent() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* NAV */}
-      <nav className="flex items-center justify-between px-16 py-5 bg-white border-b border-[#e5e7eb]">
-        <Link href="/" className="font-display text-2xl font-black tracking-tight text-[#1a1a1a] hover:opacity-80 transition-opacity">
-          Yow<span className="text-[#FF4747]">Event</span>
+      <nav className="flex items-center justify-between px-6 md:px-16 py-5 bg-white border-b border-[#e5e7eb]">
+        <Link href={isApiSignup ? "/eventaas" : "/"} className="font-display text-2xl font-black tracking-tight text-[#1a1a1a] hover:opacity-80 transition-opacity">
+          {isApiSignup ? <>Event<span className="text-[#FF4747]">aaS</span></> : <>Yow<span className="text-[#FF4747]">Event</span></>}
         </Link>
         <span className="text-sm text-[#888]">{t("registerPage.nav.alreadyHaveAccount")}{" "}
           <Link href={from ? `/login?from=${encodeURIComponent(from)}` : "/login"} className="text-[#1a1a1a] font-semibold hover:underline">{t("registerPage.nav.login")}</Link>
         </span>
       </nav>
 
-      <main className="flex-1 grid md:grid-cols-2">
+      <main className="flex-1 flex flex-col md:grid md:grid-cols-2">
         {/* LEFT */}
-        <div className="relative overflow-hidden bg-[#0A0A0C] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#291717] via-[#0A0A0C] to-[#0A0A0C] px-16 py-16 flex flex-col justify-center border-r border-[#1a1a24]/40">
+        <div className="relative hidden md:flex overflow-hidden bg-[#0A0A0C] bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#291717] via-[#0A0A0C] to-[#0A0A0C] px-16 py-16 flex-col justify-center border-r border-[#1a1a24]/40">
           {/* Subtle grid mesh overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
           
@@ -401,8 +411,8 @@ function RegisterFormContent() {
         </div>
 
         {/* RIGHT */}
-        <div className="bg-[#f8f9fa] flex items-center justify-center px-6 py-12">
-          <div className="bg-white border border-[#e5e7eb] rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.02)] max-w-md w-full">
+        <div className="bg-[#f8f9fa] flex flex-1 items-center justify-center px-4 sm:px-6 py-8 md:py-12">
+          <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.02)] max-w-md w-full">
           {showPayment ? (
             <div>
               {!paymentSuccess && !momoWaiting && (
@@ -476,6 +486,7 @@ function RegisterFormContent() {
                         mappedPlan={mappedPlan}
                         tenantId={registeredAuth?.tenantId || ""}
                         email={registeredAuth?.email || form.email}
+                        planType={isApiSignup ? "API" : "HOSTING"}
                         onSuccess={onPaymentSuccess}
                         onError={(msg) => setCardErrors({ submit: msg })}
                       />
@@ -535,26 +546,32 @@ function RegisterFormContent() {
                 </div>
               )}
 
-              <div className="flex bg-white rounded-xl p-1 mb-6 border border-[#e5e7eb]">
-                <button
-                  type="button"
-                  onClick={() => setRoleMode("ATTENDEE")}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    roleMode === "ATTENDEE" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
-                  }`}
-                >
-                  {t("registerPage.form.tabAttendee")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setRoleMode("ORGANIZER"); setIsOrg(true); }}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    roleMode === "ORGANIZER" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
-                  }`}
-                >
-                  {t("registerPage.form.tabOrganizer")}
-                </button>
-              </div>
+              {isApiSignup ? (
+                <div className="bg-[#FF4747]/5 border border-[#FF4747]/20 rounded-xl px-4 py-2.5 mb-6 text-xs text-[#FF4747] font-semibold">
+                  Signing up for API access — a workspace is created automatically for your API keys.
+                </div>
+              ) : (
+                <div className="flex bg-white rounded-xl p-1 mb-6 border border-[#e5e7eb]">
+                  <button
+                    type="button"
+                    onClick={() => setRoleMode("ATTENDEE")}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      roleMode === "ATTENDEE" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
+                    }`}
+                  >
+                    {t("registerPage.form.tabAttendee")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRoleMode("ORGANIZER"); setIsOrg(true); }}
+                    className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      roleMode === "ORGANIZER" ? "bg-[#FF4747] text-white shadow-sm" : "text-[#555] hover:text-[#FF4747]"
+                    }`}
+                  >
+                    {t("registerPage.form.tabOrganizer")}
+                  </button>
+                </div>
+              )}
 
               {roleMode === "ORGANIZER" && (
                 <div className="flex bg-stone-100 rounded-lg p-1 mb-6 border border-stone-200 w-2/3">
@@ -645,7 +662,7 @@ function RegisterFormContent() {
                 <div className="flex items-start gap-2.5">
                   <input type="checkbox" id="agree" checked={form.agree} onChange={(e) => set("agree", e.target.checked)} className="mt-0.5 accent-[#1a1a1a]" />
                   <label htmlFor="agree" className="text-xs text-[#666]">
-                    I agree to the <a href="#" className="text-[#1a1a1a] font-semibold hover:underline">Terms of Service</a> and <a href="#" className="text-[#1a1a1a] font-semibold hover:underline">Privacy Policy</a>
+                    I agree to the <Link href="/terms" target="_blank" className="text-[#1a1a1a] font-semibold hover:underline">Terms of Service</Link> and <Link href="/terms" target="_blank" className="text-[#1a1a1a] font-semibold hover:underline">Privacy Policy</Link>
                   </label>
                 </div>
                 {errors.agree && <p className="text-xs text-red-500 -mt-2">{errors.agree}</p>}

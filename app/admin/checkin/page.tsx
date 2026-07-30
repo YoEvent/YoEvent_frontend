@@ -1,11 +1,14 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
+import QrScanner from "@/components/QrScanner";
 import { eventService } from "@/app/utils/services/eventService";
 import { getStoredAuth } from "@/app/utils/api";
+import { savePendingCheckIn, getPendingCheckIns, deletePendingCheckIn, countPendingCheckIns } from "@/app/utils/offlineDb";
 import {
   ScanLine, Check, X, AlertCircle, Search, QrCode, Users,
-  Calendar, ChevronDown, CheckCircle2, XCircle
+  Calendar, ChevronDown, CheckCircle2, XCircle, Camera, Keyboard,
+  Maximize, Minimize, WifiOff, RefreshCw
 } from "lucide-react";
 import { useLanguage } from "@/app/context/LanguageContext";
 
@@ -28,6 +31,11 @@ export default function CheckInPage() {
   const [result, setResult] = useState<CheckInResult | null>(null);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [scanMode, setScanMode] = useState<"manual" | "camera">("camera");
+  const [kioskMode, setKioskMode] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueueCount, setOfflineQueueCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -65,6 +73,61 @@ export default function CheckInPage() {
     } catch {}
   };
 
+  // Syncs any check-ins queued in IndexedDB while the device was offline —
+  // matches the pattern useOfflineSync uses for pending events.
+  const syncPendingCheckIns = useCallback(async () => {
+    if (!navigator.onLine || syncing) return;
+    setSyncing(true);
+    try {
+      const pending = await getPendingCheckIns();
+      for (const item of pending) {
+        try {
+          await eventService.checkInRegistration(item.registrationId, item.sessionId);
+          await deletePendingCheckIn(item.id);
+        } catch {
+          // leave queued, retry next time we come online
+        }
+      }
+      setOfflineQueueCount(await countPendingCheckIns());
+      if (selectedEventId) await loadRegistrations(selectedEventId);
+    } finally {
+      setSyncing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEventId]);
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    countPendingCheckIns().then(setOfflineQueueCount);
+
+    const onOnline = () => { setIsOnline(true); syncPendingCheckIns(); };
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    syncPendingCheckIns();
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleKioskMode = async () => {
+    try {
+      if (!kioskMode) {
+        await document.documentElement.requestFullscreen();
+        setKioskMode(true);
+      } else {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        setKioskMode(false);
+      }
+    } catch {
+      // Fullscreen can be denied (e.g. no user gesture, browser policy) — the rest
+      // of kiosk mode (bigger touch targets, hidden sidebar) still applies below.
+      setKioskMode((k) => !k);
+    }
+  };
+
   const doCheckIn = async (regId: string) => {
     if (!selectedSessionId) {
       setResult({ success: false, message: "Select a session before checking in." });
@@ -72,6 +135,28 @@ export default function CheckInPage() {
     }
     setProcessing(true);
     setResult(null);
+
+    if (!navigator.onLine) {
+      try {
+        await savePendingCheckIn(regId, selectedSessionId);
+        setOfflineQueueCount(await countPendingCheckIns());
+        // Optimistic local update so the kiosk operator sees it as done immediately.
+        setRegistrations((prev) =>
+          prev.map((r: any) => (r.registrationId || r.id) === regId
+            ? { ...r, checkedIn: true, checkedInAt: new Date().toISOString() }
+            : r)
+        );
+        setResult({ success: true, message: "Checked in offline — will sync automatically once back online." });
+        setManualCode("");
+      } catch (err: any) {
+        setResult({ success: false, message: err.message || "Failed to queue offline check-in." });
+      } finally {
+        setProcessing(false);
+        setTimeout(() => inputRef.current?.focus(), 100);
+      }
+      return;
+    }
+
     try {
       const updated = await eventService.checkInRegistration(regId, selectedSessionId);
       setResult({ success: true, message: t("adminCheckin.result.checkInSuccessMessage"), registration: updated });
@@ -85,11 +170,11 @@ export default function CheckInPage() {
     }
   };
 
-  const handleManualSearch = async () => {
-    if (!manualCode.trim()) return;
-    
+  const resolveAndCheckIn = async (rawCode: string) => {
+    if (!rawCode.trim()) return;
+
     let match = null;
-    const searchCode = manualCode.trim();
+    const searchCode = rawCode.trim();
 
     // Check if it's an order QR code
     if (searchCode.startsWith("YOEVENT:ORDER:")) {
@@ -130,7 +215,7 @@ export default function CheckInPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") handleManualSearch();
+    if (e.key === "Enter") resolveAndCheckIn(manualCode);
   };
 
   const filteredRegs = registrations.filter((r: any) => {
@@ -141,23 +226,47 @@ export default function CheckInPage() {
   });
 
   const checkedInCount = registrations.filter((r: any) => r.checkedIn).length;
-  const pendingCount = registrations.length - checkedInCount;
+  const notCheckedInCount = registrations.length - checkedInCount;
 
   return (
-    <div className="flex bg-[#f9fafb] min-h-screen text-[#1a1a1a]">
-      <Sidebar />
+    <div className={`flex bg-[#f9fafb] min-h-screen text-[#1a1a1a] ${kioskMode ? "text-lg" : ""}`}>
+      {!kioskMode && <Sidebar />}
 
-      <div className="ml-[220px] flex-1 p-8">
+      <div className={`${kioskMode ? "" : "ml-[220px]"} flex-1 p-8`}>
         <div className="max-w-4xl mx-auto">
 
           {/* Header */}
-          <div className="mb-8">
-            <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Admin</p>
-            <h1 className="font-display font-black text-3xl text-[#1a1a1a] flex items-center gap-3">
-              <ScanLine size={28} className="text-[#FF4747]" /> Check-in Scanner
-            </h1>
-            <p className="text-[#888] text-sm mt-1">Scan QR codes or enter confirmation codes to check attendees in.</p>
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">Admin</p>
+              <h1 className="font-display font-black text-3xl text-[#1a1a1a] flex items-center gap-3">
+                <ScanLine size={28} className="text-[#FF4747]" /> Check-in Scanner
+              </h1>
+              <p className="text-[#888] text-sm mt-1">Scan QR codes or enter confirmation codes to check attendees in.</p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleKioskMode}
+              title={kioskMode ? "Exit kiosk mode" : "Enter kiosk mode (fullscreen, unattended device)"}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-white border border-[#e5e7eb] rounded-xl text-xs font-semibold text-[#666] hover:text-[#FF4747] transition-colors cursor-pointer"
+            >
+              {kioskMode ? <Minimize size={14} /> : <Maximize size={14} />}
+              {kioskMode ? "Exit kiosk" : "Kiosk mode"}
+            </button>
           </div>
+
+          {/* Offline / sync status */}
+          {(!isOnline || offlineQueueCount > 0) && (
+            <div className={`mb-6 rounded-2xl p-4 flex items-center gap-3 text-xs border ${!isOnline ? "bg-amber-50 border-amber-200 text-amber-800" : "bg-blue-50 border-blue-200 text-blue-800"}`}>
+              {!isOnline ? <WifiOff size={16} className="shrink-0" /> : <RefreshCw size={16} className={`shrink-0 ${syncing ? "animate-spin" : ""}`} />}
+              <span className="flex-1">
+                {!isOnline
+                  ? "You're offline — check-ins are being queued on this device and will sync automatically once reconnected."
+                  : `${offlineQueueCount} check-in${offlineQueueCount === 1 ? "" : "s"} queued from earlier — ${syncing ? "syncing now…" : "syncing…"}`}
+              </span>
+              {offlineQueueCount > 0 && <span className="shrink-0 font-bold">{offlineQueueCount}</span>}
+            </div>
+          )}
 
           {/* Event + session selector */}
           <div className="bg-white border border-[#e5e7eb] rounded-2xl p-5 mb-6 grid sm:grid-cols-2 gap-4">
@@ -204,7 +313,7 @@ export default function CheckInPage() {
               {[
                 { label: "Total Registrations", value: registrations.length, color: "#6366f1", bg: "#6366f1" },
                 { label: "Checked In", value: checkedInCount, color: "#10b981", bg: "#10b981" },
-                { label: "Pending", value: pendingCount, color: "#f59e0b", bg: "#f59e0b" },
+                { label: "Pending", value: notCheckedInCount, color: "#f59e0b", bg: "#f59e0b" },
               ].map(s => (
                 <div key={s.label} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${s.bg}15` }}>
@@ -221,18 +330,49 @@ export default function CheckInPage() {
 
           <div className="grid md:grid-cols-2 gap-6">
 
-            {/* Manual check-in */}
+            {/* Manual / camera check-in */}
             <div className="space-y-4">
               <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
-                <h2 className="font-bold text-sm text-[#1a1a1a] mb-1 flex items-center gap-2">
-                  <QrCode size={16} className="text-[#FF4747]" /> Manual / QR Check-in
-                </h2>
-                <p className="text-xs text-[#888] mb-4">Enter a confirmation code or paste QR data, then press Enter or click Check In.</p>
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="font-bold text-sm text-[#1a1a1a] flex items-center gap-2">
+                    <QrCode size={16} className="text-[#FF4747]" /> Check-in
+                  </h2>
+                  <div className="flex bg-[#f5f5f5] rounded-full p-1 border border-[#e5e7eb]">
+                    <button
+                      type="button"
+                      onClick={() => setScanMode("camera")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer flex items-center gap-1 ${scanMode === "camera" ? "bg-[#FF4747] text-white" : "text-[#666]"}`}
+                    >
+                      <Camera size={11} /> Camera
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScanMode("manual")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-full transition-all cursor-pointer flex items-center gap-1 ${scanMode === "manual" ? "bg-[#FF4747] text-white" : "text-[#666]"}`}
+                    >
+                      <Keyboard size={11} /> Manual
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-[#888] mb-4">
+                  {scanMode === "camera"
+                    ? "Point the camera at an attendee's QR code — check-in fires automatically on detection."
+                    : "Enter a confirmation code or paste QR data, then press Enter or click Check In."}
+                </p>
+
+                {scanMode === "camera" && (
+                  <div className="mb-3">
+                    <QrScanner
+                      paused={processing}
+                      onDetected={(value) => resolveAndCheckIn(value)}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <input
                     ref={inputRef}
-                    autoFocus
+                    autoFocus={scanMode === "manual"}
                     value={manualCode}
                     onChange={e => setManualCode(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -241,7 +381,7 @@ export default function CheckInPage() {
                   />
                   <button
                     type="button"
-                    onClick={handleManualSearch}
+                    onClick={() => resolveAndCheckIn(manualCode)}
                     disabled={processing || !manualCode.trim() || !selectedEventId || !selectedSessionId}
                     className="w-full py-3 bg-[#FF4747] text-white font-bold rounded-xl hover:bg-[#e03e3e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                   >

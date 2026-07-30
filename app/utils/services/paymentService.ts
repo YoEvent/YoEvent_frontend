@@ -20,7 +20,7 @@ export const paymentService = {
     api.post<any>("api/v1/payments/withdrawals", data),
   getWithdrawals: () => api.get<any[]>("api/v1/payments/withdrawals"),
   deleteWithdrawal: (id: string) => api.delete<void>(`api/v1/payments/withdrawals/${id}`),
-  createSubscription: (data: { tenantId: string; planId: string; amount: number; currency: string; provider: string; paymentMethodId?: string; phoneNumber?: string }) =>
+  createSubscription: (data: { tenantId: string; planId: string; planType?: "HOSTING" | "API"; amount: number; currency: string; provider: string; paymentMethodId?: string; phoneNumber?: string }) =>
     api.post<any>("api/v1/subscriptions", data),
   checkSubscriptionMobileMoneyStatus: (subscriptionId: string) =>
     api.get<{ subscriptionId: string; status: string; provider: string; reference: string }>(

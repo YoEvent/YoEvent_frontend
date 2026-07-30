@@ -1,8 +1,11 @@
-const CACHE_NAME = "yowevent-v2";
+const CACHE_NAME = "yowevent-v3";
 const ASSETS = [
   "/",
   "/favicon.ico",
-  "/manifest.json"
+  "/manifest.json",
+  "/offline.html",
+  "/icon.svg",
+  "/icon-maskable.svg"
 ];
 
 self.addEventListener("install", (event) => {
@@ -53,8 +56,8 @@ self.addEventListener("fetch", (event) => {
           // If network fails, serve from cache
           return caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse;
-            // Universal fallback if both network and cache fail
-            return caches.match("/");
+            // Fall back to the cached home page, then the offline fallback page
+            return caches.match("/").then((home) => home || caches.match("/offline.html"));
           });
         })
     );
