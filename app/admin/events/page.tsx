@@ -72,6 +72,7 @@ export default function EventsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [showEventsPanel, setShowEventsPanel] = useState(false);
 
   // ── New event form ──
   const [newTitle, setNewTitle] = useState("");
@@ -1119,58 +1120,117 @@ export default function EventsPage() {
         </div>
       )}
 
-      
-      {/* FLOATING ACTION BUTTONS */}
-      <div className="fixed top-4 right-8 z-[100] flex items-center gap-3">
-        {(selectedId || showNew) && (
-          <button onClick={() => { setShowNew(false); setSelectedId(""); }} className="px-4 py-2 bg-[#1a1a1a] shadow-lg text-white rounded-full text-xs font-bold hover:bg-[#333] transition-colors cursor-pointer flex items-center gap-2">
-            <List size={14} /> View Event List
-          </button>
-        )}
-        {!showNew && (
-          <button onClick={() => { setShowNew(true); setSelectedId(""); }} className="px-4 py-2 bg-[#FF4747] shadow-lg text-white rounded-full text-xs font-bold hover:bg-[#e03e3e] transition-colors cursor-pointer flex items-center gap-2">
-            <Plus size={14} /> New Event
-          </button>
-        )}
-      </div>
+      <div className="ml-[220px] flex-1 flex flex-col h-full overflow-hidden">
 
-      <div className="ml-[220px] flex-1 flex h-full overflow-hidden">
-
-        {/* ── LEFT: Event list ── */}
-        {!(selectedId || showNew) && (
-          <aside className="w-72 bg-white border-r border-[#e5e7eb] flex flex-col h-screen sticky top-0 shrink-0">
-          <div className="p-5 border-b border-[#e5e7eb]">
-            <h2 className="font-display font-black text-[#1a1a1a] text-base mb-4">{t("adminEvents.sidebar.title")}</h2>
-            <button onClick={() => { setShowNew(true); setSelectedId(""); }} className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer">
-              <Plus size={14} /> {t("adminEvents.sidebar.newEvent")}
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto py-2">
-            {events.length === 0 ? (
-              <div className="px-5 py-8 text-center text-xs text-[#aaa]">{t("adminEvents.sidebar.empty")}</div>
-            ) : events.map(ev => (
-              <button key={ev.eventId} onClick={() => selectEvent(ev.eventId)}
-                className={`w-full text-left px-5 py-4 border-b border-[#f5f5f5] hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedId === ev.eventId ? "bg-[#fff5f5] border-l-2 border-l-[#FF4747]" : ""}`}>
-                <div className="font-semibold text-sm text-[#1a1a1a] truncate mb-1">{ev.title}</div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ev.status === "PUBLISHED" ? "bg-green-100 text-green-700" : "bg-[#f5f5f5] text-[#888]"}`}>{ev.status}</span>
+        {/* ── Events Panel Modal ── */}
+        {showEventsPanel && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+              onClick={() => setShowEventsPanel(false)}
+            />
+            {/* Slide-in panel */}
+            <div className="fixed right-0 top-0 h-full w-[380px] z-[101] bg-white shadow-2xl flex flex-col" style={{ animation: "slideInRight 0.25s ease" }}>
+              <div className="p-6 border-b border-[#f0f0f0] flex items-center justify-between">
+                <div>
+                  <h2 className="font-display font-black text-[#1a1a1a] text-lg">Your Events</h2>
+                  <p className="text-xs text-[#888] mt-0.5">{events.length} event{events.length !== 1 ? "s" : ""} created</p>
                 </div>
-              </button>
-            ))}
-          </div>
-        </aside>
-          )}
+                <button onClick={() => setShowEventsPanel(false)} className="w-9 h-9 rounded-xl bg-[#f5f5f5] flex items-center justify-center hover:bg-[#ebebeb] transition-colors cursor-pointer">
+                  <X size={16} className="text-[#555]" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {events.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center px-8 py-16">
+                    <div className="w-14 h-14 bg-[#FF4747]/10 rounded-2xl flex items-center justify-center mb-4">
+                      <Calendar size={24} className="text-[#FF4747]" />
+                    </div>
+                    <p className="font-bold text-[#1a1a1a] mb-1">No events yet</p>
+                    <p className="text-xs text-[#aaa] mb-5">Create your first event to get started.</p>
+                    <button onClick={() => { setShowEventsPanel(false); setShowNew(true); setSelectedId(""); }} className="px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer flex items-center gap-2">
+                      <Plus size={13} /> New Event
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-2">
+                    {events.map(ev => (
+                      <button
+                        key={ev.eventId}
+                        onClick={() => { selectEvent(ev.eventId); setShowEventsPanel(false); }}
+                        className={`w-full text-left p-4 rounded-2xl border transition-all cursor-pointer group ${
+                          selectedId === ev.eventId
+                            ? "border-[#FF4747] bg-[#fff5f5] ring-1 ring-[#FF4747]/20"
+                            : "border-[#f0f0f0] hover:border-[#FF4747]/40 hover:bg-[#fafafa]"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {ev.coverImage ? (
+                            <img src={ev.coverImage} alt={ev.title} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-[#f0f0f0]" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FF4747]/10 to-[#F7E998]/20 flex items-center justify-center shrink-0">
+                              <Calendar size={18} className="text-[#FF4747]/50" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm text-[#1a1a1a] truncate group-hover:text-[#FF4747] transition-colors">{ev.title}</div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                                ev.status === "PUBLISHED" ? "bg-green-100 text-green-700"
+                                : ev.status === "CANCELLED" ? "bg-red-100 text-red-600"
+                                : "bg-[#f5f5f5] text-[#888]"
+                              }`}>{ev.status}</span>
+                              {ev.format && <span className="text-[9px] font-medium text-[#aaa]">{ev.format === "IN_PERSON" ? "In Person" : ev.format === "VIRTUAL" ? "Virtual" : "Hybrid"}</span>}
+                            </div>
+                          </div>
+                          {selectedId === ev.eventId && <Check size={14} className="text-[#FF4747] shrink-0 mt-0.5" />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-[#f0f0f0]">
+                <button
+                  onClick={() => { setShowEventsPanel(false); setShowNew(true); setSelectedId(""); }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer"
+                >
+                  <Plus size={14} /> Create New Event
+                </button>
+              </div>
+            </div>
+            <style>{`
+              @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to   { transform: translateX(0);    opacity: 1; }
+              }
+            `}</style>
+          </>
+        )}
 
-          {/* -- RIGHT: Editor -- */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ── MAIN CONTENT ── */}
 
           {/* ── NEW EVENT FORM ── */}
           {showNew && (
-            <div className="flex-1 p-8">
+            <>
+              {/* Shared header for create form */}
+              <header className="bg-white border-b border-[#e5e7eb] px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+                <div>
+                  <h1 className="font-display font-black text-[#1a1a1a] text-lg">{t("adminEvents.createForm.heading")}</h1>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowEventsPanel(true)} className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer">
+                    <List size={12} /> View Events
+                    {events.length > 0 && <span className="bg-white/20 text-[9px] font-black px-1.5 py-0.5 rounded-full">{events.length}</span>}
+                  </button>
+                  <button onClick={() => { setShowNew(false); }} className="flex items-center gap-2 px-3 py-1.5 bg-[#f5f5f5] text-[#555] text-xs font-bold rounded-xl hover:bg-[#eee] transition-colors cursor-pointer">
+                    <X size={12} /> Cancel
+                  </button>
+                </div>
+              </header>
+              <div className="flex-1 overflow-y-auto p-8">
               <div className="max-w-2xl">
-                <h1 className="font-display text-2xl font-black text-[#1a1a1a] mb-2">{t("adminEvents.createForm.heading")}</h1>
-                <p className="text-sm text-[#888] mb-8">{t("adminEvents.createForm.subtitle")}</p>
                 <form onSubmit={handleCreateEvent} className="bg-white border border-[#e5e7eb] rounded-3xl p-8 space-y-5">
                   <div>
                     <label className={label}>{t("adminEvents.createForm.titleLabel")}</label>
@@ -1213,7 +1273,8 @@ export default function EventsPage() {
                   </button>
                 </form>
               </div>
-            </div>
+              </div>
+            </>
           )}
 
           {/* ── EVENT EDITOR ── */}
@@ -1226,6 +1287,15 @@ export default function EventsPage() {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${selectedEvent?.status === "PUBLISHED" ? "bg-green-100 text-green-700" : "bg-[#f5f5f5] text-[#888]"}`}>{selectedEvent?.status}</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* View Events + New Event always visible */}
+                  <button onClick={() => setShowEventsPanel(true)} className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer">
+                    <List size={12} /> View Events
+                    {events.length > 0 && <span className="bg-white/20 text-[9px] font-black px-1.5 py-0.5 rounded-full">{events.length}</span>}
+                  </button>
+                  <button onClick={() => { setShowNew(true); setSelectedId(""); }} className="flex items-center gap-2 px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer">
+                    <Plus size={12} /> New Event
+                  </button>
+                  <div className="w-px h-5 bg-[#e5e7eb] mx-1" />
                   {tab === "details"       && <button onClick={saveDetails}  disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveDetails")}</button>}
                   {tab === "schedule"      && <button onClick={saveSchedule} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSchedule")}</button>}
                   {tab === "location"      && <button onClick={() => locFormRef.current?.requestSubmit()}     disabled={saving} className={saveBtn}>{editingLocation ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveLocation")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addLocation")}</>}</button>}
@@ -3428,18 +3498,28 @@ export default function EventsPage() {
 
           {/* Empty state */}
           {!selectedId && !showNew && (
-            <div className="flex-1 flex items-center justify-center text-center p-12">
-              <div>
-                <div className="w-16 h-16 bg-[#FF4747]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><Calendar size={28} className="text-[#FF4747]" /></div>
-                <h3 className="font-display font-black text-xl text-[#1a1a1a] mb-2">Select or create an event</h3>
-                <p className="text-sm text-[#888] mb-6">Choose an event from the left to start editing, or create a new one.</p>
-                <button onClick={() => setShowNew(true)} className="px-6 py-3 bg-[#FF4747] text-white text-sm font-bold rounded-full hover:bg-[#e03e3e] transition-colors cursor-pointer flex items-center gap-2 mx-auto">
-                  <Plus size={15} /> New Event
-                </button>
+            <>
+              <header className="bg-white border-b border-[#e5e7eb] px-8 py-4 flex items-center justify-between sticky top-0 z-30">
+                <h1 className="font-display font-black text-[#1a1a1a] text-lg">Events</h1>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setShowEventsPanel(true)} className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer">
+                    <List size={12} /> View Events
+                    {events.length > 0 && <span className="bg-white/20 text-[9px] font-black px-1.5 py-0.5 rounded-full">{events.length}</span>}
+                  </button>
+                  <button onClick={() => setShowNew(true)} className="flex items-center gap-2 px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer">
+                    <Plus size={12} /> New Event
+                  </button>
+                </div>
+              </header>
+              <div className="flex-1 flex items-center justify-center text-center p-12">
+                <div>
+                  <div className="w-16 h-16 bg-[#FF4747]/10 rounded-2xl flex items-center justify-center mx-auto mb-4"><Calendar size={28} className="text-[#FF4747]" /></div>
+                  <h3 className="font-display font-black text-xl text-[#1a1a1a] mb-2">Select or create an event</h3>
+                  <p className="text-sm text-[#888] mb-6">Click <strong>View Events</strong> to pick one, or <strong>New Event</strong> to create.</p>
+                </div>
               </div>
-            </div>
+            </>
           )}
-        </div>
       </div>
     </div>
   );
