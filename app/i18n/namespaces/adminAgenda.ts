@@ -1,5 +1,9 @@
 export const adminAgenda = {
   en: {
+    filters: {
+      allLocations: "All Locations",
+      allDays: "All Days",
+    },
     header: {
       title: "Agenda & Sessions",
       activeEvent: "Active Event",
@@ -13,6 +17,7 @@ export const adminAgenda = {
       duplicate: "Dup",
       delete: "Delete",
       copySuffix: " (Copy)",
+      add: "Add Session",
       types: {
         TALK: "Talk",
         WORKSHOP: "Workshop",
@@ -44,6 +49,8 @@ export const adminAgenda = {
       save: "Save Session",
       adding: "Adding...",
       add: "Add Session",
+      customTypePlaceholder: "e.g. Q&A, Fireside",
+      addType: "Add Type",
     },
     tracks: {
       heading: "Event Tracks",
@@ -85,6 +92,10 @@ export const adminAgenda = {
     },
   },
   fr: {
+    filters: {
+      allLocations: "Tous les lieux",
+      allDays: "Tous les jours",
+    },
     header: {
       title: "Programme et sessions",
       activeEvent: "Événement actif",
@@ -98,6 +109,7 @@ export const adminAgenda = {
       duplicate: "Dupl.",
       delete: "Supprimer",
       copySuffix: " (copie)",
+      add: "Ajouter une session",
       types: {
         TALK: "Conférence",
         WORKSHOP: "Atelier",
@@ -129,6 +141,8 @@ export const adminAgenda = {
       save: "Enregistrer la session",
       adding: "Ajout...",
       add: "Ajouter la session",
+      customTypePlaceholder: "ex: Q&A, Fireside",
+      addType: "Ajouter Type",
     },
     tracks: {
       heading: "Pistes de l'événement",

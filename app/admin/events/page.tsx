@@ -151,7 +151,7 @@ export default function EventsPage() {
 
   // ── Speakers ──
   const [speakers, setSpeakers] = useState<any[]>([]);
-  const [speakerForm, setSpeakerForm] = useState({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" });
+  const [speakerForm, setSpeakerForm] = useState({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "", locationUrl: "" });
   const [editingSpeaker, setEditingSpeaker] = useState<any>(null);
   const speakerFormRef = useRef<HTMLFormElement>(null);
   const sponsorFormRef = useRef<HTMLFormElement>(null);
@@ -171,6 +171,19 @@ export default function EventsPage() {
   const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showVisibilityDropdown, setShowVisibilityDropdown] = useState(false);
   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
+  const [showSessionTrackDropdown, setShowSessionTrackDropdown] = useState(false);
+  const [showTrackLocationDropdown, setShowTrackLocationDropdown] = useState(false);
+  const [showTrackScheduleDropdown, setShowTrackScheduleDropdown] = useState(false);
+  const [showQaSessionDropdown, setShowQaSessionDropdown] = useState(false);
+  const [showCouponTypeDropdown, setShowCouponTypeDropdown] = useState(false);
+  const [showSpeakerSessionDropdown, setShowSpeakerSessionDropdown] = useState(false);
+  const [showSpeakerLocationDropdown, setShowSpeakerLocationDropdown] = useState(false);
+  const [showSponsorPackageDropdown, setShowSponsorPackageDropdown] = useState(false);
+  const [showExhibitorLocationDropdown, setShowExhibitorLocationDropdown] = useState(false);
+  const [showAnnouncementTypeDropdown, setShowAnnouncementTypeDropdown] = useState(false);
+  const [showEmailAudienceDropdown, setShowEmailAudienceDropdown] = useState(false);
+  const [showSessionTypeDropdown, setShowSessionTypeDropdown] = useState(false);
+  const [showTicketLocationDropdown, setShowTicketLocationDropdown] = useState(false);
 
   const handleCreateCategoryInline = async () => {
     if (!newCategoryName.trim()) return;
@@ -949,7 +962,7 @@ export default function EventsPage() {
         await eventService.createSessionSpeaker(payload);
         showToast(t("adminEvents.toasts.speakerAdded"));
       }
-      setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" });
+      setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "", locationUrl: "" });
       await loadEventData(selectedId);
     } catch { showToast(editingSpeaker ? t("adminEvents.toasts.speakerUpdateFailed") : t("adminEvents.toasts.speakerAddFailed")); }
     finally { setSaving(false); }
@@ -2372,12 +2385,42 @@ export default function EventsPage() {
                       {locations.length > 0 && (
                         <div>
                           <label className={label}>Location</label>
-                          <select value={ticketForm.locationId} onChange={e => setTicketForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                            <option value="">— All locations —</option>
-                            {locations.map(loc => (
-                              <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowTicketLocationDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className={ticketForm.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                {ticketForm.locationId ? (() => { const l = locations.find(loc => loc.locationId === ticketForm.locationId); return l ? (l.type === "VIRTUAL" ? l.virtualPlatform : l.venueName) : "- All locations -"; })() : "- All locations -"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showTicketLocationDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showTicketLocationDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowTicketLocationDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setTicketForm(f => ({ ...f, locationId: "" })); setShowTicketLocationDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!ticketForm.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    - All locations -
+                                  </button>
+                                  {locations.map(loc => (
+                                    <button
+                                      key={loc.locationId}
+                                      type="button"
+                                      onClick={() => { setTicketForm(f => ({ ...f, locationId: loc.locationId })); setShowTicketLocationDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${ticketForm.locationId === loc.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
                       {sessions.length > 0 && (
@@ -2549,11 +2592,35 @@ export default function EventsPage() {
                         <div><label className={label}>Session Title *</label><input required placeholder="e.g. Opening Keynote" value={sessionForm.title} onChange={e => setSessionForm(f => ({ ...f, title: e.target.value }))} className={inp} /></div>
                         <div><label className={label}>Description</label><textarea value={sessionForm.description} onChange={e => setSessionForm(f => ({ ...f, description: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
                         <div className="grid grid-cols-3 gap-4">
-                          <div>
+                          <div className="relative">
                             <label className={label}>Type</label>
-                            <select value={sessionForm.type} onChange={e => setSessionForm(f => ({ ...f, type: e.target.value }))} className={inp}>
-                              {["TALK", "WORKSHOP", "PANEL", "NETWORKING", "BREAK", "OTHER"].map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setShowSessionTypeDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className="text-[#1a1a1a]">
+                                {sessionForm.type || "Select Type"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showSessionTypeDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showSessionTypeDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSessionTypeDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  {["TALK", "WORKSHOP", "PANEL", "NETWORKING", "BREAK", "OTHER"].map(t => (
+                                    <button
+                                      key={t}
+                                      type="button"
+                                      onClick={() => { setSessionForm(f => ({ ...f, type: t })); setShowSessionTypeDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${sessionForm.type === t ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {t}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div><label className={label}>Start Time</label><input type="datetime-local" value={sessionForm.startTime} onChange={e => setSessionForm(f => ({ ...f, startTime: e.target.value }))} className={inp} /></div>
                           <div><label className={label}>End Time</label><input type="datetime-local" value={sessionForm.endTime} onChange={e => setSessionForm(f => ({ ...f, endTime: e.target.value }))} className={inp} /></div>
@@ -2563,12 +2630,42 @@ export default function EventsPage() {
                             <label className={label}>Capacity{maxCapacity > 0 && <span className="ml-1 text-[#aaa] normal-case font-normal tracking-normal">— max {maxCapacity}</span>}</label>
                             <input type="number" min={1} max={maxCapacity || undefined} value={sessionForm.capacity} onChange={e => setSessionForm(f => ({ ...f, capacity: Number(e.target.value) }))} className={inp} />
                           </div>
-                          <div>
+                          <div className="relative">
                             <label className={label}>Track</label>
-                            <select value={sessionForm.trackId} onChange={e => setSessionForm(f => ({ ...f, trackId: e.target.value }))} className={inp}>
-                              <option value="">— No track —</option>
-                              {tracks.map(t => <option key={t.trackId || t.id} value={t.trackId || t.id}>{t.name}</option>)}
-                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setShowSessionTrackDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className={sessionForm.trackId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                {sessionForm.trackId ? tracks.find(t => (t.trackId || t.id) === sessionForm.trackId)?.name || "- No track -" : "- No track -"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showSessionTrackDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showSessionTrackDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSessionTrackDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setSessionForm(f => ({ ...f, trackId: "" })); setShowSessionTrackDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!sessionForm.trackId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    - No track -
+                                  </button>
+                                  {tracks.map(t => (
+                                    <button
+                                      key={t.trackId || t.id}
+                                      type="button"
+                                      onClick={() => { setSessionForm(f => ({ ...f, trackId: t.trackId || t.id })); setShowSessionTrackDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${sessionForm.trackId === (t.trackId || t.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {t.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                         <button type="submit" disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? "Saving..." : "Save Session"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Session"}</>}</button>
@@ -2652,26 +2749,80 @@ export default function EventsPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           {locations.length > 0 && (
-                            <div>
+                            <div className="relative">
                               <label className={label}>Location</label>
-                              <select value={trackForm.locationId} onChange={e => setTrackForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                                <option value="">— Select Location —</option>
-                                {locations.map(loc => (
-                                  <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                                ))}
-                              </select>
+                              <button
+                                type="button"
+                                onClick={() => setShowTrackLocationDropdown(v => !v)}
+                                className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                              >
+                                <span className={trackForm.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                  {trackForm.locationId ? (() => { const l = locations.find(loc => loc.locationId === trackForm.locationId); return l ? (l.type === "VIRTUAL" ? l.virtualPlatform : l.venueName) : "- Select Location -"; })() : "- Select Location -"}
+                                </span>
+                                <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showTrackLocationDropdown ? "rotate-90" : ""}`} />
+                              </button>
+                              {showTrackLocationDropdown && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setShowTrackLocationDropdown(false)} />
+                                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setTrackForm(f => ({ ...f, locationId: "" })); setShowTrackLocationDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!trackForm.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      - Select Location -
+                                    </button>
+                                    {locations.map(loc => (
+                                      <button
+                                        key={loc.locationId}
+                                        type="button"
+                                        onClick={() => { setTrackForm(f => ({ ...f, locationId: loc.locationId })); setShowTrackLocationDropdown(false); }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${trackForm.locationId === loc.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                      >
+                                        {loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           )}
-                          <div>
+                          <div className="relative">
                             <label className={label}>Day</label>
-                            <select value={trackForm.eventScheduleId} onChange={e => setTrackForm(f => ({ ...f, eventScheduleId: e.target.value }))} className={inp}>
-                              <option value="">— Any day —</option>
-                              {schedules.map((sc: any) => (
-                                <option key={sc.scheduleId || sc.id} value={sc.scheduleId || sc.id}>
-                                  {sc.startDatetime ? new Date(sc.startDatetime).toLocaleDateString() : (sc.scheduleId || sc.id)}
-                                </option>
-                              ))}
-                            </select>
+                            <button
+                              type="button"
+                              onClick={() => setShowTrackScheduleDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className={trackForm.eventScheduleId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                {trackForm.eventScheduleId ? (() => { const s = schedules.find((sc: any) => (sc.scheduleId || sc.id) === trackForm.eventScheduleId); return s && s.startDatetime ? new Date(s.startDatetime).toLocaleDateString() : (trackForm.eventScheduleId || "- Any day -"); })() : "- Any day -"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showTrackScheduleDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showTrackScheduleDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowTrackScheduleDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setTrackForm(f => ({ ...f, eventScheduleId: "" })); setShowTrackScheduleDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!trackForm.eventScheduleId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    - Any day -
+                                  </button>
+                                  {schedules.map((sc: any) => (
+                                    <button
+                                      key={sc.scheduleId || sc.id}
+                                      type="button"
+                                      onClick={() => { setTrackForm(f => ({ ...f, eventScheduleId: sc.scheduleId || sc.id })); setShowTrackScheduleDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${trackForm.eventScheduleId === (sc.scheduleId || sc.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {sc.startDatetime ? new Date(sc.startDatetime).toLocaleDateString() : (sc.scheduleId || sc.id)}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                         <button type="submit" disabled={saving} className={saveBtn + " w-full justify-center"}>
@@ -2763,13 +2914,42 @@ export default function EventsPage() {
                         </div>
                       ) : (
                         <form onSubmit={addQA} className="space-y-3">
-                          <div>
-                            <label className={label}>Session *</label>
-                            <select value={qaForm.sessionId} onChange={e => setQaForm(f => ({ ...f, sessionId: e.target.value }))} className={inp} required>
-                              <option value="">— Select session —</option>
-                              {sessions.map(s => <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>)}
-                            </select>
-                          </div>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowQaSessionDropdown(v => !v)}
+                                className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                              >
+                                <span className={qaForm.sessionId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                  {qaForm.sessionId ? sessions.find(s => (s.sessionId || s.id) === qaForm.sessionId)?.title || "- Select session -" : "- Select session -"}
+                                </span>
+                                <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showQaSessionDropdown ? "rotate-90" : ""}`} />
+                              </button>
+                              {showQaSessionDropdown && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setShowQaSessionDropdown(false)} />
+                                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setQaForm(f => ({ ...f, sessionId: "" })); setShowQaSessionDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!qaForm.sessionId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      - Select session -
+                                    </button>
+                                    {sessions.map(s => (
+                                      <button
+                                        key={s.sessionId || s.id}
+                                        type="button"
+                                        onClick={() => { setQaForm(f => ({ ...f, sessionId: s.sessionId || s.id })); setShowQaSessionDropdown(false); }}
+                                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${qaForm.sessionId === (s.sessionId || s.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                      >
+                                        {s.title}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           <div><label className={label}>Question *</label><textarea required placeholder="Enter a question for attendees..." value={qaForm.questionText} onChange={e => setQaForm(f => ({ ...f, questionText: e.target.value }))} rows={3} className={inp + " resize-none"} /></div>
                           <label className="flex items-center gap-2 cursor-pointer text-sm text-[#555]">
                             <input type="checkbox" checked={qaForm.isAnonymous} onChange={e => setQaForm(f => ({ ...f, isAnonymous: e.target.checked }))} className="rounded" />
@@ -2814,10 +2994,38 @@ export default function EventsPage() {
                         <div><label className={label}>Coupon Code *</label><input required placeholder="SUMMER20" value={couponForm.code} onChange={e => setCouponForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} className={inp} style={{ fontFamily: "monospace" }} /></div>
                         <div>
                           <label className={label}>Discount Type</label>
-                          <select value={couponForm.type} onChange={e => setCouponForm(f => ({ ...f, type: e.target.value }))} className={inp}>
-                            <option value="PERCENTAGE">Percentage (%)</option>
-                            <option value="FIXED">Fixed Amount (FCFA)</option>
-                          </select>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowCouponTypeDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className="text-[#1a1a1a]">
+                                {couponForm.type === "PERCENTAGE" ? "Percentage (%)" : "Fixed Amount (FCFA)"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showCouponTypeDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showCouponTypeDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowCouponTypeDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  {[
+                                    { value: "PERCENTAGE", label: "Percentage (%)" },
+                                    { value: "FIXED", label: "Fixed Amount (FCFA)" }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => { setCouponForm(f => ({ ...f, type: opt.value })); setShowCouponTypeDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${couponForm.type === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -2859,8 +3067,8 @@ export default function EventsPage() {
                               )}
                             </div>
                             <div className="flex gap-1 shrink-0 flex-col">
-                              <button type="button" onClick={() => { setEditingSpeaker(s); setSpeakerForm({ name: s.name || "", bio: s.bio || "", photoUrl: s.photoUrl || "", company: s.company || "", title: s.title || "", sessionId: s.sessionId || "", locationId: s.locationId || "" }); speakerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
-                              <button type="button" onClick={async () => { if (!confirm("Remove speaker?")) return; try { await eventService.deleteSessionSpeaker(s.speakerId || s.id); await loadEventData(selectedId); showToast("Speaker removed!"); } catch { showToast("Failed to remove speaker."); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
+                              <button type="button" onClick={() => { setEditingSpeaker(s); setSpeakerForm({ name: s.name || "", bio: s.bio || "", photoUrl: s.photoUrl || "", company: s.company || "", title: s.title || "", sessionId: s.sessionId || "", locationId: s.locationId || "", locationUrl: s.locationUrl || "" }); speakerFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer"><Pencil size={9} /> Edit</button>
+                              <button type="button" onClick={async () => { if (!confirm("Remove speaker?")) return; try { await eventService.deleteSessionSpeaker(s.speakerId || s.id); await loadEventData(selectedId); showToast("Speaker removed!"); } catch { showToast("Failed to remove speaker!"); } }} className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"><Trash2 size={9} /> Del</button>
                             </div>
                           </div>
                         ))}
@@ -2871,7 +3079,7 @@ export default function EventsPage() {
                   <div className="bg-white border border-[#e5e7eb] rounded-3xl p-7">
                     <div className="flex items-center justify-between mb-5">
                       <h3 className="font-bold text-sm text-[#1a1a1a]">{editingSpeaker ? "Edit Speaker" : "Add Speaker"}</h3>
-                      {editingSpeaker && <button type="button" onClick={() => { setEditingSpeaker(null); setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>}
+                      {editingSpeaker && <button type="button" onClick={() => { setEditingSpeaker(null); setSpeakerForm({ name: "", bio: "", photoUrl: "", company: "", title: "", sessionId: "", locationId: "", locationUrl: "" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel edit</button>}
                     </div>
                     <form ref={speakerFormRef} onSubmit={saveSpeaker} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
@@ -2891,24 +3099,86 @@ export default function EventsPage() {
                               <Plus size={10} /> Create Session
                             </button>
                           </div>
-                          <select value={speakerForm.sessionId} onChange={e => setSpeakerForm(f => ({ ...f, sessionId: e.target.value }))} className={inp}>
-                            <option value="">— No session —</option>
-                            {sessions.map((s: any) => <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>)}
-                          </select>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowSpeakerSessionDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className={speakerForm.sessionId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                {speakerForm.sessionId ? sessions.find((s: any) => (s.sessionId || s.id) === speakerForm.sessionId)?.title || "- No session -" : "- No session -"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showSpeakerSessionDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showSpeakerSessionDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSpeakerSessionDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setSpeakerForm(f => ({ ...f, sessionId: "" })); setShowSpeakerSessionDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!speakerForm.sessionId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    - No session -
+                                  </button>
+                                  {sessions.map((s: any) => (
+                                    <button
+                                      key={s.sessionId || s.id}
+                                      type="button"
+                                      onClick={() => { setSpeakerForm(f => ({ ...f, sessionId: s.sessionId || s.id })); setShowSpeakerSessionDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${speakerForm.sessionId === (s.sessionId || s.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {s.title}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
+                        <div className="relative">
                           <label className={label}>Direct Location Link (Override)</label>
-                          <select value={speakerForm.locationId} onChange={e => setSpeakerForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                            <option value="">— Select Location (Optional) —</option>
-                            {locations.map((loc: any) => (
-                              <option key={loc.locationId || loc.id} value={loc.locationId || loc.id}>
-                                {loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person")}
-                              </option>
-                            ))}
-                          </select>
+                          <input type="url" placeholder="https://" value={speakerForm.locationUrl} onChange={e => setSpeakerForm(f => ({ ...f, locationUrl: e.target.value }))} className={inp} />
                         </div>
+                        <div className="relative">
+                          <label className={label}>Location (Optional)</label>
+                          <button
+                              type="button"
+                              onClick={() => setShowSpeakerLocationDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className={speakerForm.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                                {speakerForm.locationId ? (() => { const l = locations.find((loc: any) => (loc.locationId || loc.id) === speakerForm.locationId); return l ? (l.type === "VIRTUAL" ? (l.virtualPlatform || "Virtual") : (l.venueName || l.address || "In Person")) : "- Select Location (Optional) -"; })() : "- Select Location (Optional) -"}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showSpeakerLocationDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showSpeakerLocationDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowSpeakerLocationDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setSpeakerForm(f => ({ ...f, locationId: "" })); setShowSpeakerLocationDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!speakerForm.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    - Select Location (Optional) -
+                                  </button>
+                                  {locations.map((loc: any) => (
+                                    <button
+                                      key={loc.locationId || loc.id}
+                                      type="button"
+                                      onClick={() => { setSpeakerForm(f => ({ ...f, locationId: loc.locationId || loc.id })); setShowSpeakerLocationDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${speakerForm.locationId === (loc.locationId || loc.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {loc.type === "VIRTUAL" ? (loc.virtualPlatform || "Virtual") : (loc.venueName || loc.address || "In Person")}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                       </div>
                       <div><label className={label}>Bio</label><textarea placeholder="Brief speaker biography..." value={speakerForm.bio} onChange={e => setSpeakerForm(f => ({ ...f, bio: e.target.value }))} rows={3} className={inp + " resize-none"} /></div>
 
@@ -3040,12 +3310,42 @@ export default function EventsPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div><label className={label}>Website</label><input type="url" placeholder="https://acme.com" value={sponsorForm.website} onChange={e => setSponsorForm(f => ({ ...f, website: e.target.value }))} className={inp} /></div>
-                        <div>
+                        <div className="relative">
                           <label className={label}>Package</label>
-                          <select value={sponsorForm.packageId} onChange={e => setSponsorForm(f => ({ ...f, packageId: e.target.value }))} className={inp}>
-                            <option value="">— No package —</option>
-                            {sponsorPackages.map((p: any) => <option key={p.packageId || p.id} value={p.packageId || p.id}>{p.name}</option>)}
-                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setShowSponsorPackageDropdown(v => !v)}
+                            className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                          >
+                            <span className={sponsorForm.packageId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                              {sponsorForm.packageId ? sponsorPackages.find((p: any) => (p.packageId || p.id) === sponsorForm.packageId)?.name || "- No package -" : "- No package -"}
+                            </span>
+                            <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showSponsorPackageDropdown ? "rotate-90" : ""}`} />
+                          </button>
+                          {showSponsorPackageDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowSponsorPackageDropdown(false)} />
+                              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => { setSponsorForm(f => ({ ...f, packageId: "" })); setShowSponsorPackageDropdown(false); }}
+                                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!sponsorForm.packageId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                >
+                                  - No package -
+                                </button>
+                                {sponsorPackages.map((p: any) => (
+                                  <button
+                                    key={p.packageId || p.id}
+                                    type="button"
+                                    onClick={() => { setSponsorForm(f => ({ ...f, packageId: p.packageId || p.id })); setShowSponsorPackageDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${sponsorForm.packageId === (p.packageId || p.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    {p.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div>
@@ -3335,14 +3635,42 @@ export default function EventsPage() {
                         {exhibitorForm.logoUrl && <button type="button" onClick={() => setExhibitorForm(f => ({ ...f, logoUrl: "" }))} className="text-xs text-red-500 mt-1 cursor-pointer hover:underline">Remove logo</button>}
                       </div>
                       {locations.length > 0 && (
-                        <div>
+                        <div className="relative">
                           <label className={label}>Location</label>
-                          <select value={exhibitorForm.locationId} onChange={e => setExhibitorForm(f => ({ ...f, locationId: e.target.value }))} className={inp}>
-                            <option value="">— All locations —</option>
-                            {locations.map(loc => (
-                              <option key={loc.locationId} value={loc.locationId}>{loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}</option>
-                            ))}
-                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setShowExhibitorLocationDropdown(v => !v)}
+                            className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                          >
+                            <span className={exhibitorForm.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                              {exhibitorForm.locationId ? (() => { const l = locations.find(loc => loc.locationId === exhibitorForm.locationId); return l ? (l.type === "VIRTUAL" ? l.virtualPlatform : l.venueName) : "- All locations -"; })() : "- All locations -"}
+                            </span>
+                            <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showExhibitorLocationDropdown ? "rotate-90" : ""}`} />
+                          </button>
+                          {showExhibitorLocationDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowExhibitorLocationDropdown(false)} />
+                              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                <button
+                                  type="button"
+                                  onClick={() => { setExhibitorForm(f => ({ ...f, locationId: "" })); setShowExhibitorLocationDropdown(false); }}
+                                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!exhibitorForm.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                >
+                                  - All locations -
+                                </button>
+                                {locations.map(loc => (
+                                  <button
+                                    key={loc.locationId}
+                                    type="button"
+                                    onClick={() => { setExhibitorForm(f => ({ ...f, locationId: loc.locationId })); setShowExhibitorLocationDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${exhibitorForm.locationId === loc.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    {loc.type === "VIRTUAL" ? loc.virtualPlatform : loc.venueName}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                       <button type="submit" disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? "Saving..." : "Save Exhibitor"}</> : <><Plus size={13} />{saving ? "Adding..." : "Add Exhibitor"}</>}</button>
@@ -3389,13 +3717,44 @@ export default function EventsPage() {
                         <div><label className={label}>Title *</label><input required placeholder="Important Update" value={announcementForm.title} onChange={e => setAnnouncementForm(f => ({ ...f, title: e.target.value }))} className={inp} /></div>
                         <div>
                           <label className={label}>Type</label>
-                          <select value={announcementForm.type} onChange={e => setAnnouncementForm(f => ({ ...f, type: e.target.value }))} className={inp}>
-                            <option value="GENERAL">General</option>
-                            <option value="URGENT">Urgent</option>
-                            <option value="SCHEDULE_CHANGE">Schedule Change</option>
-                            <option value="REMINDER">Reminder</option>
-                            <option value="LOGISTICS">Logistics</option>
-                          </select>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowAnnouncementTypeDropdown(v => !v)}
+                              className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                            >
+                              <span className="text-[#1a1a1a]">
+                                {(() => {
+                                  const types: Record<string, string> = { GENERAL: "General", URGENT: "Urgent", SCHEDULE_CHANGE: "Schedule Change", REMINDER: "Reminder", LOGISTICS: "Logistics" };
+                                  return types[announcementForm.type] || "General";
+                                })()}
+                              </span>
+                              <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showAnnouncementTypeDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showAnnouncementTypeDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-40" onClick={() => setShowAnnouncementTypeDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                  {[
+                                    { value: "GENERAL", label: "General" },
+                                    { value: "URGENT", label: "Urgent" },
+                                    { value: "SCHEDULE_CHANGE", label: "Schedule Change" },
+                                    { value: "REMINDER", label: "Reminder" },
+                                    { value: "LOGISTICS", label: "Logistics" }
+                                  ].map((opt) => (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => { setAnnouncementForm(f => ({ ...f, type: opt.value })); setShowAnnouncementTypeDropdown(false); }}
+                                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${announcementForm.type === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div><label className={label}>Content *</label><textarea required placeholder="Write your announcement here..." value={announcementForm.content} onChange={e => setAnnouncementForm(f => ({ ...f, content: e.target.value }))} rows={5} className={inp + " resize-none"} /></div>
@@ -3490,13 +3849,44 @@ export default function EventsPage() {
                       <div><label className={label}>Subject *</label><input required placeholder="e.g. Your tickets are confirmed!" value={emailForm.subject} onChange={e => setEmailForm(f => ({ ...f, subject: e.target.value }))} className={inp} /></div>
                       <div>
                         <label className={label}>Target Audience</label>
-                        <select value={emailForm.targetAudience} onChange={e => setEmailForm(f => ({ ...f, targetAudience: e.target.value }))} className={inp}>
-                          <option value="ALL_REGISTRANTS">All Registrants</option>
-                          <option value="TICKET_HOLDERS">Ticket Holders</option>
-                          <option value="WAITLIST">Waitlist</option>
-                          <option value="SPEAKERS">Speakers</option>
-                          <option value="SPONSORS">Sponsors</option>
-                        </select>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setShowEmailAudienceDropdown(v => !v)}
+                            className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}
+                          >
+                            <span className="text-[#1a1a1a]">
+                              {(() => {
+                                const audiences: Record<string, string> = { ALL_REGISTRANTS: "All Registrants", TICKET_HOLDERS: "Ticket Holders", WAITLIST: "Waitlist", SPEAKERS: "Speakers", SPONSORS: "Sponsors" };
+                                return audiences[emailForm.targetAudience] || "All Registrants";
+                              })()}
+                            </span>
+                            <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showEmailAudienceDropdown ? "rotate-90" : ""}`} />
+                          </button>
+                          {showEmailAudienceDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowEmailAudienceDropdown(false)} />
+                              <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-48 overflow-y-auto">
+                                {[
+                                  { value: "ALL_REGISTRANTS", label: "All Registrants" },
+                                  { value: "TICKET_HOLDERS", label: "Ticket Holders" },
+                                  { value: "WAITLIST", label: "Waitlist" },
+                                  { value: "SPEAKERS", label: "Speakers" },
+                                  { value: "SPONSORS", label: "Sponsors" }
+                                ].map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => { setEmailForm(f => ({ ...f, targetAudience: opt.value })); setShowEmailAudienceDropdown(false); }}
+                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${emailForm.targetAudience === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div><label className={label}>Email Body *</label><textarea required placeholder="Write your email content here..." value={emailForm.body} onChange={e => setEmailForm(f => ({ ...f, body: e.target.value }))} rows={8} className={inp + " resize-none"} /></div>
                       <div><label className={label}>Schedule (leave empty to send now)</label><input type="datetime-local" value={emailForm.scheduledAt} onChange={e => setEmailForm(f => ({ ...f, scheduledAt: e.target.value }))} className={inp} /></div>

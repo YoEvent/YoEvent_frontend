@@ -54,14 +54,8 @@ interface ResourceItem {
   quantityReserved?: number;
   quantityRemaining?: number;
   unit?: string;
-  condition?: string;
-  purchaseDate?: string;
-  purchaseCost?: number;
-  supplier?: string;
-  warrantyExpiry?: string;
-  lastMaintenance?: string;
-  nextMaintenance?: string;
-  barcode?: string;
+  uniqueIdentifier?: string;
+  itemsPerUnit?: number;
   image?: string;
   notes?: string;
 }
@@ -146,14 +140,8 @@ export default function ResourcesPage() {
     quantityAvailable: 1,
     quantityReserved: 0,
     unit: "Piece",
-    condition: "Good",
-    purchaseDate: "",
-    purchaseCost: 0,
-    supplier: "",
-    warrantyExpiry: "",
-    lastMaintenance: "",
-    nextMaintenance: "",
-    barcode: "",
+    uniqueIdentifier: "",
+    itemsPerUnit: 1,
     image: "",
     notes: ""
   });
@@ -181,6 +169,27 @@ export default function ResourcesPage() {
     status: "ACTIVE",
     notes: ""
   });
+
+  const [showEventFilterDropdown, setShowEventFilterDropdown] = useState(false);
+  const [showLocationFilterDropdown, setShowLocationFilterDropdown] = useState(false);
+  const [showSearchInput, setShowSearchInput] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  const [showResEventDropdown, setShowResEventDropdown] = useState(false);
+  const [showResLocDropdown, setShowResLocDropdown] = useState(false);
+  const [showResRoomDropdown, setShowResRoomDropdown] = useState(false);
+  const [showResCategoryDropdown, setShowResCategoryDropdown] = useState(false);
+  const [showResUnitDropdown, setShowResUnitDropdown] = useState(false);
+  const [showResStatusDropdown, setShowResStatusDropdown] = useState(false);
+  
+  const [showRoomEventDropdown, setShowRoomEventDropdown] = useState(false);
+  const [showRoomLocDropdown, setShowRoomLocDropdown] = useState(false);
+  const [showRoomStatusDropdown, setShowRoomStatusDropdown] = useState(false);
+  const [showRoomTypeDropdown, setShowRoomTypeDropdown] = useState(false);
+  
+  const [showAllocResDropdown, setShowAllocResDropdown] = useState(false);
+  const [showAllocRoomDropdown, setShowAllocRoomDropdown] = useState(false);
+  const [showAllocStatusDropdown, setShowAllocStatusDropdown] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -282,14 +291,8 @@ export default function ResourcesPage() {
       quantityAvailable: Number(resourceForm.quantityAvailable),
       quantityReserved: Number(resourceForm.quantityReserved),
       unit: resourceForm.unit || undefined,
-      condition: resourceForm.condition || undefined,
-      purchaseDate: resourceForm.purchaseDate || undefined,
-      purchaseCost: resourceForm.purchaseCost ? Number(resourceForm.purchaseCost) : undefined,
-      supplier: resourceForm.supplier || undefined,
-      warrantyExpiry: resourceForm.warrantyExpiry || undefined,
-      lastMaintenance: resourceForm.lastMaintenance || undefined,
-      nextMaintenance: resourceForm.nextMaintenance || undefined,
-      barcode: resourceForm.barcode || undefined,
+      uniqueIdentifier: resourceForm.uniqueIdentifier || undefined,
+      itemsPerUnit: resourceForm.itemsPerUnit ? Number(resourceForm.itemsPerUnit) : 1,
       image: resourceForm.image || undefined,
       notes: resourceForm.notes || undefined
     };
@@ -311,14 +314,8 @@ export default function ResourcesPage() {
         description: "",
         category: "Audio",
         unit: "Piece",
-        condition: "Good",
-        purchaseDate: "",
-        purchaseCost: 0,
-        supplier: "",
-        warrantyExpiry: "",
-        lastMaintenance: "",
-        nextMaintenance: "",
-        barcode: "",
+        uniqueIdentifier: "",
+        itemsPerUnit: 1,
         image: "",
         notes: ""
       }));
@@ -486,10 +483,20 @@ export default function ResourcesPage() {
   });
 
   const filteredAllocations = allocations.filter(al => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (al.resourceName || "").toLowerCase().includes(q) || (al.roomName || "").toLowerCase().includes(q) || (al.notes || "").toLowerCase().includes(q);
-  });
+      const resource = resources.find(r => (r.resourceId || r.id) === al.resourceId);
+      const room = rooms.find(r => (r.roomId || r.id) === al.roomId);
+      const alEventId = resource?.eventId || room?.eventId;
+      const alLocationId = resource?.locationId || room?.locationId;
+      
+      const evMatch = selectedEventId === "ALL" || alEventId === selectedEventId;
+      const locMatch = selectedLocationId === "ALL" || alLocationId === selectedLocationId;
+      
+      const queryMatch = !searchQuery || (al.resourceName || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (al.roomName || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (al.notes || "").toLowerCase().includes(searchQuery.toLowerCase());
+        
+      return evMatch && locMatch && queryMatch;
+    });
 
   // How many units of an asset are still free to allocate (total stock minus active allocations, excluding the one being edited)
   const getRemainingQuantity = (resourceId: string, excludeAllocationId?: string) => {
@@ -530,72 +537,25 @@ export default function ResourcesPage() {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            {/* Tab switchers */}
-            <div className="bg-[#f5f5f5] p-1 rounded-xl flex gap-1 border border-[#e5e7eb]">
-              <button
-                onClick={() => { setActiveTab("assets"); setSearchQuery(""); }}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${activeTab === "assets" ? "bg-white text-[#FF4747] shadow-sm" : "text-[#666] hover:text-[#1a1a1a]"}`}
-              >
-                {t("adminResources.header.tabAssets")}
-              </button>
-              <button
-                onClick={() => { setActiveTab("rooms"); setSearchQuery(""); }}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${activeTab === "rooms" ? "bg-white text-[#FF4747] shadow-sm" : "text-[#666] hover:text-[#1a1a1a]"}`}
-              >
-                {t("adminResources.header.tabRooms")}
-              </button>
-              <button
-                onClick={() => { setActiveTab("allocations"); setSearchQuery(""); }}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${activeTab === "allocations" ? "bg-white text-[#FF4747] shadow-sm" : "text-[#666] hover:text-[#1a1a1a]"}`}
-              >
-                {t("adminResources.header.tabAllocations") || "Allocations"}
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setEditingResource(null);
+                setEditingRoom(null);
+                setEditingAllocation(null);
+                setResourceForm(f => ({ ...f, name: "", quantity: 1, description: "" }));
+                setRoomForm(f => ({ ...f, name: "", capacity: 20, floor: "", description: "" }));
+                setAllocationForm({ resourceId: "", roomId: "", quantity: 1, startTime: "", endTime: "", status: "ACTIVE", notes: "" });
+                setIsDrawerOpen(true);
+              }}
+              className="bg-[#FF4747] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#e03e3e] transition-colors flex items-center gap-2 cursor-pointer shadow-sm shadow-[#FF4747]/20"
+            >
+              <Plus size={14} />
+              {activeTab === "assets" ? t("adminResources.form.addAsset") : activeTab === "rooms" ? t("adminResources.form.addSpace") : (t("adminResources.form.addAllocation") || "New Allocation")}
+            </button>
           </div>
         </header>
 
-        {/* CONTROLS BAR (FILTERS & SEARCH) */}
-        <div className="bg-white border-b border-[#e5e7eb] px-8 py-3.5 flex flex-wrap items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3 flex-1 min-w-[280px]">
-            {/* Event Filter */}
-            <div className="flex items-center gap-1.5 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-3 py-1.5 shrink-0">
-              <Calendar size={13} className="text-[#888]" />
-              <select
-                value={selectedEventId}
-                onChange={e => { setSelectedEventId(e.target.value); setSelectedLocationId("ALL"); }}
-                className="bg-transparent text-[11px] text-[#1a1a1a] font-semibold outline-none cursor-pointer"
-              >
-                <option value="ALL">{t("adminResources.filters.allEvents")}</option>
-                {events.map(ev => <option key={ev.eventId || ev.id} value={ev.eventId || ev.id}>{ev.title}</option>)}
-              </select>
-            </div>
 
-            {/* Location Filter */}
-            <div className="flex items-center gap-1.5 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-3 py-1.5 shrink-0">
-              <MapPin size={13} className="text-[#888]" />
-              <select
-                value={selectedLocationId}
-                onChange={e => setSelectedLocationId(e.target.value)}
-                className="bg-transparent text-[11px] text-[#1a1a1a] font-semibold outline-none cursor-pointer"
-              >
-                <option value="ALL">{t("adminResources.filters.allLocations")}</option>
-                {filterLocations.map(loc => <option key={loc.locationId} value={loc.locationId}>{loc.venueName}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Search bar */}
-          <div className="relative w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aaa]" size={13} />
-            <input
-              type="text"
-              placeholder={activeTab === "assets" ? t("adminResources.filters.searchAssetsPlaceholder") : activeTab === "rooms" ? t("adminResources.filters.searchSpacesPlaceholder") : (t("adminResources.filters.searchAllocationsPlaceholder") || "Search allocations...")}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-[#f9fafb] border border-[#e5e7eb] rounded-xl pl-9 pr-4 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-            />
-          </div>
-        </div>
 
         {/* STATS OVERVIEW PANEL */}
         {!loading && (
@@ -657,67 +617,105 @@ export default function ResourcesPage() {
               <span className="text-xs">{t("adminResources.loading.fetching")}</span>
             </div>
           ) : (
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.2fr_1.8fr] h-full overflow-hidden p-8 gap-8">
+            <div className="flex-1 flex flex-col h-full overflow-hidden p-8 gap-6">
               
-              {/* LEFT COLUMN: CREATE / EDIT FORM */}
-              <div className="bg-white border border-[#e5e7eb] rounded-3xl p-6 shadow-sm overflow-y-auto flex flex-col h-full space-y-5">
-                <div className="flex items-center justify-between border-b border-[#f3f4f6] pb-3 shrink-0">
-                  <div className="flex items-center gap-2">
-                    {activeTab === "assets" ? <Armchair size={16} className="text-[#FF4747]" /> : activeTab === "rooms" ? <Home size={16} className="text-[#FF4747]" /> : <Link2 size={16} className="text-[#FF4747]" />}
-                    <h2 className="font-display font-bold text-xs text-[#1a1a1a]">
-                      {activeTab === "assets"
-                        ? (editingResource ? t("adminResources.form.editAsset") : t("adminResources.form.addAsset"))
-                        : activeTab === "rooms"
-                        ? (editingRoom ? t("adminResources.form.editSpace") : t("adminResources.form.addSpace"))
-                        : (editingAllocation ? (t("adminResources.form.editAllocation") || "Edit Allocation") : (t("adminResources.form.addAllocation") || "New Allocation"))
-                      }
-                    </h2>
+              {/* SLIDE-OUT DRAWER FOR CREATE/EDIT FORM */}
+              <>
+                {isDrawerOpen && (
+                  <div className="fixed inset-0 bg-black/20 z-[60] backdrop-blur-sm transition-opacity" onClick={() => setIsDrawerOpen(false)} />
+                )}
+                <div className={`fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white shadow-2xl z-[70] transform transition-transform duration-300 ease-in-out ${isDrawerOpen ? "translate-x-0" : "translate-x-full"} flex flex-col h-screen`}>
+                  <div className="flex items-center justify-between border-b border-[#f3f4f6] p-6 shrink-0 bg-white">
+                    <div className="flex items-center gap-2">
+                      {activeTab === "assets" ? <Armchair size={16} className="text-[#FF4747]" /> : activeTab === "rooms" ? <Home size={16} className="text-[#FF4747]" /> : <Link2 size={16} className="text-[#FF4747]" />}
+                      <h2 className="font-display font-bold text-sm text-[#1a1a1a]">
+                        {activeTab === "assets"
+                          ? (editingResource ? t("adminResources.form.editAsset") : t("adminResources.form.addAsset"))
+                          : activeTab === "rooms"
+                          ? (editingRoom ? t("adminResources.form.editSpace") : t("adminResources.form.addSpace"))
+                          : (editingAllocation ? (t("adminResources.form.editAllocation") || "Edit Allocation") : (t("adminResources.form.addAllocation") || "New Allocation"))
+                        }
+                      </h2>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {(editingResource || editingRoom || editingAllocation) && (
+                        <button
+                          onClick={() => {
+                            setEditingResource(null);
+                            setEditingRoom(null);
+                            setEditingAllocation(null);
+                            setResourceForm(f => ({ ...f, name: "", quantity: 1, description: "" }));
+                            setRoomForm(f => ({ ...f, name: "", capacity: 20, floor: "", description: "" }));
+                            setAllocationForm({ resourceId: "", roomId: "", quantity: 1, startTime: "", endTime: "", status: "ACTIVE", notes: "" });
+                          }}
+                          className="text-[10px] text-[#aaa] hover:text-[#1a1a1a] cursor-pointer underline font-bold uppercase"
+                        >
+                          {t("adminResources.form.cancelEdit")}
+                        </button>
+                      )}
+                      <button onClick={() => setIsDrawerOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#f9fafb] text-[#888] hover:text-[#1a1a1a] cursor-pointer transition-colors hover:bg-red-50 hover:text-red-500">
+                        <Plus size={16} className="rotate-45" />
+                      </button>
+                    </div>
                   </div>
-                  {(editingResource || editingRoom || editingAllocation) && (
-                    <button
-                      onClick={() => {
-                        setEditingResource(null);
-                        setEditingRoom(null);
-                        setEditingAllocation(null);
-                        setResourceForm(f => ({ ...f, name: "", quantity: 1, description: "" }));
-                        setRoomForm(f => ({ ...f, name: "", capacity: 20, floor: "", description: "" }));
-                        setAllocationForm({ resourceId: "", roomId: "", quantity: 1, startTime: "", endTime: "", status: "ACTIVE", notes: "" });
-                      }}
-                      className="text-[10px] text-[#aaa] hover:text-[#1a1a1a] cursor-pointer underline font-bold uppercase"
-                    >
-                      {t("adminResources.form.cancelEdit")}
-                    </button>
-                  )}
-                </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 flex flex-col space-y-5 pb-20">
 
                 {activeTab === "assets" ? (
                   /* ASSETS FORM */
                   <form onSubmit={saveResource} className="space-y-4 flex-1" key="assets-form">
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.targetEvent")}</label>
-                      <select
-                        value={resourceForm.eventId}
-                        onChange={e => handleFormEventChange(e.target.value)}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        required
-                      >
-                        {events.map(ev => <option key={ev.eventId || ev.id} value={ev.eventId || ev.id}>{ev.title}</option>)}
-                      </select>
+                      <button type="button" onClick={() => setShowResEventDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className={resourceForm.eventId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                          {resourceForm.eventId ? events.find(ev => (ev.eventId || ev.id) === resourceForm.eventId)?.title || "Select event" : "Select event"}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showResEventDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showResEventDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowResEventDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            {events.map(ev => {
+                              const id = ev.eventId || ev.id;
+                              const isSelected = id === resourceForm.eventId;
+                              return (
+                                <button key={id} type="button" onClick={() => { handleFormEventChange(id); setShowResEventDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {ev.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.allocatedLocation")}</label>
-                      <select
-                        value={resourceForm.locationId}
-                        onChange={e => setResourceForm({ ...resourceForm, locationId: e.target.value })}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                      >
-                        <option value="">{t("adminResources.form.noSpecificLocation")}</option>
-                        {locations
-                          .filter(l => l.eventId === resourceForm.eventId || l.event?.eventId === resourceForm.eventId)
-                          .map(loc => <option key={loc.locationId} value={loc.locationId}>{loc.venueName}</option>)
-                        }
-                      </select>
+                      <button type="button" onClick={() => setShowResLocDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className={resourceForm.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                          {resourceForm.locationId ? locations.find(loc => loc.locationId === resourceForm.locationId)?.venueName || t("adminResources.form.noSpecificLocation") : t("adminResources.form.noSpecificLocation")}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showResLocDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showResLocDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowResLocDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            <button type="button" onClick={() => { setResourceForm(f => ({ ...f, locationId: "" })); setShowResLocDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${!resourceForm.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                              {t("adminResources.form.noSpecificLocation")}
+                            </button>
+                            {locations.filter(l => l.eventId === resourceForm.eventId || l.event?.eventId === resourceForm.eventId).map(loc => {
+                              const isSelected = loc.locationId === resourceForm.locationId;
+                              return (
+                                <button key={loc.locationId} type="button" onClick={() => { setResourceForm(f => ({ ...f, locationId: loc.locationId })); setShowResLocDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {loc.venueName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -732,52 +730,74 @@ export default function ResourcesPage() {
                           className={inp}
                         />
                       </div>
-                      <div>
+                      <div className="relative">
                         <label className={labelStyle}>{t("adminResources.form.categoryType")}</label>
-                        <select
-                          value={resourceForm.type}
-                          onChange={e => setResourceForm({ ...resourceForm, type: e.target.value as ResourceType })}
-                          className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        >
-                          <option value="EQUIPMENT">{t("adminResources.options.resourceType.equipment")}</option>
-                          <option value="MATERIAL">{t("adminResources.options.resourceType.material")}</option>
-                          <option value="SERVICE">{t("adminResources.options.resourceType.service")}</option>
-                          <option value="UTILITY">{t("adminResources.options.resourceType.utility")}</option>
-                        </select>
+                        <button type="button" onClick={() => setShowResRoomDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                          <span className="text-[#1a1a1a]">
+                            {resourceForm.type === "EQUIPMENT" ? t("adminResources.options.resourceType.equipment") : resourceForm.type === "MATERIAL" ? t("adminResources.options.resourceType.material") : resourceForm.type === "SERVICE" ? t("adminResources.options.resourceType.service") : t("adminResources.options.resourceType.utility")}
+                          </span>
+                          <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showResRoomDropdown ? "rotate-90" : ""}`} />
+                        </button>
+                        {showResRoomDropdown && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowResRoomDropdown(false)} />
+                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                              {[
+                                { value: "EQUIPMENT", label: t("adminResources.options.resourceType.equipment") },
+                                { value: "MATERIAL", label: t("adminResources.options.resourceType.material") },
+                                { value: "SERVICE", label: t("adminResources.options.resourceType.service") },
+                                { value: "UTILITY", label: t("adminResources.options.resourceType.utility") }
+                              ].map(opt => (
+                                <button key={opt.value} type="button" onClick={() => { setResourceForm(f => ({ ...f, type: opt.value as ResourceType })); setShowResRoomDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${resourceForm.type === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
+                      <div className="relative">
                         <label className={labelStyle}>{t("adminResources.form.categoryDetail")}</label>
-                        <select
-                          value={resourceForm.category}
-                          onChange={e => setResourceForm({ ...resourceForm, category: e.target.value })}
-                          className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        >
-                          <option value="Audio">{t("adminResources.options.category.audio")}</option>
-                          <option value="Video">{t("adminResources.options.category.video")}</option>
-                          <option value="Furniture">{t("adminResources.options.category.furniture")}</option>
-                          <option value="IT Equipment">{t("adminResources.options.category.itEquipment")}</option>
-                          <option value="Decoration">{t("adminResources.options.category.decoration")}</option>
-                          <option value="Catering">{t("adminResources.options.category.catering")}</option>
-                          <option value="Security">{t("adminResources.options.category.security")}</option>
-                          <option value="Other">{t("adminResources.options.category.other")}</option>
-                        </select>
+                        <button type="button" onClick={() => setShowResCategoryDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                          <span className="text-[#1a1a1a]">
+                            {resourceForm.category === "Audio" ? t("adminResources.options.category.audio") : resourceForm.category === "Video" ? t("adminResources.options.category.video") : resourceForm.category === "Furniture" ? t("adminResources.options.category.furniture") : resourceForm.category === "IT Equipment" ? t("adminResources.options.category.itEquipment") : resourceForm.category === "Decoration" ? t("adminResources.options.category.decoration") : resourceForm.category === "Catering" ? t("adminResources.options.category.catering") : resourceForm.category === "Security" ? t("adminResources.options.category.security") : t("adminResources.options.category.other")}
+                          </span>
+                          <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showResCategoryDropdown ? "rotate-90" : ""}`} />
+                        </button>
+                        {showResCategoryDropdown && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowResCategoryDropdown(false)} />
+                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                              {[
+                                { value: "Audio", label: t("adminResources.options.category.audio") },
+                                { value: "Video", label: t("adminResources.options.category.video") },
+                                { value: "Furniture", label: t("adminResources.options.category.furniture") },
+                                { value: "IT Equipment", label: t("adminResources.options.category.itEquipment") },
+                                { value: "Decoration", label: t("adminResources.options.category.decoration") },
+                                { value: "Catering", label: t("adminResources.options.category.catering") },
+                                { value: "Security", label: t("adminResources.options.category.security") },
+                                { value: "Other", label: t("adminResources.options.category.other") }
+                              ].map(opt => (
+                                <button key={opt.value} type="button" onClick={() => { setResourceForm(f => ({ ...f, category: opt.value })); setShowResCategoryDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${resourceForm.category === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.condition")}</label>
-                        <select
-                          value={resourceForm.condition}
-                          onChange={e => setResourceForm({ ...resourceForm, condition: e.target.value })}
-                          className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        >
-                          <option value="New">{t("adminResources.options.condition.new")}</option>
-                          <option value="Good">{t("adminResources.options.condition.good")}</option>
-                          <option value="Fair">{t("adminResources.options.condition.fair")}</option>
-                          <option value="Needs Repair">{t("adminResources.options.condition.needsRepair")}</option>
-                          <option value="Damaged">{t("adminResources.options.condition.damaged")}</option>
-                        </select>
+                      <div className="relative">
+                        <label className={labelStyle}>{t("adminResources.form.uniqueIdentifier") || "Unique Identifier"}</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. pt-001"
+                          value={resourceForm.uniqueIdentifier}
+                          onChange={e => setResourceForm({ ...resourceForm, uniqueIdentifier: e.target.value })}
+                          className={inp}
+                        />
                       </div>
                     </div>
 
@@ -794,108 +814,47 @@ export default function ResourcesPage() {
                         />
                       </div>
                       <div>
-                        <label className={labelStyle}>{t("adminResources.form.qtyReserved")}</label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={resourceForm.quantityReserved}
-                          onChange={e => setResourceForm({ ...resourceForm, quantityReserved: parseInt(e.target.value) || 0 })}
-                          className={inp}
-                        />
+                        <div>
+                          <label className={labelStyle}>{t("adminResources.form.itemsPerUnit") || "Items per Unit"}</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={resourceForm.itemsPerUnit}
+                            onChange={e => setResourceForm({ ...resourceForm, itemsPerUnit: parseInt(e.target.value) || 1 })}
+                            className={inp}
+                          />
+                        </div>
                       </div>
-                      <div>
+                      <div className="relative">
                         <label className={labelStyle}>{t("adminResources.form.unit")}</label>
-                        <select
-                          value={resourceForm.unit}
-                          onChange={e => setResourceForm({ ...resourceForm, unit: e.target.value })}
-                          className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        >
-                          <option value="Piece">{t("adminResources.options.unit.piece")}</option>
-                          <option value="Set">{t("adminResources.options.unit.set")}</option>
-                          <option value="Box">{t("adminResources.options.unit.box")}</option>
-                          <option value="Meter">{t("adminResources.options.unit.meter")}</option>
-                        </select>
+                        <button type="button" onClick={() => setShowResUnitDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                          <span className="text-[#1a1a1a]">
+                            {resourceForm.unit === "Piece" ? t("adminResources.options.unit.piece") : resourceForm.unit === "Set" ? t("adminResources.options.unit.set") : resourceForm.unit === "Box" ? t("adminResources.options.unit.box") : t("adminResources.options.unit.meter")}
+                          </span>
+                          <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showResUnitDropdown ? "rotate-90" : ""}`} />
+                        </button>
+                        {showResUnitDropdown && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowResUnitDropdown(false)} />
+                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                              {[
+                                { value: "Piece", label: t("adminResources.options.unit.piece") },
+                                { value: "Set", label: t("adminResources.options.unit.set") },
+                                { value: "Box", label: t("adminResources.options.unit.box") },
+                                { value: "Meter", label: t("adminResources.options.unit.meter") }
+                              ].map(opt => (
+                                <button key={opt.value} type="button" onClick={() => { setResourceForm(f => ({ ...f, unit: opt.value })); setShowResUnitDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${resourceForm.unit === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.purchaseDate")}</label>
-                        <input
-                          type="date"
-                          value={resourceForm.purchaseDate}
-                          onChange={e => setResourceForm({ ...resourceForm, purchaseDate: e.target.value })}
-                          className={inp}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.purchaseCost")}</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder={t("adminResources.form.purchaseCostPlaceholder")}
-                          value={resourceForm.purchaseCost || ""}
-                          onChange={e => setResourceForm({ ...resourceForm, purchaseCost: parseFloat(e.target.value) || 0 })}
-                          className={inp}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.supplier")}</label>
-                        <input
-                          type="text"
-                          placeholder={t("adminResources.form.supplierPlaceholder")}
-                          value={resourceForm.supplier}
-                          onChange={e => setResourceForm({ ...resourceForm, supplier: e.target.value })}
-                          className={inp}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.warrantyExpiry")}</label>
-                        <input
-                          type="date"
-                          value={resourceForm.warrantyExpiry}
-                          onChange={e => setResourceForm({ ...resourceForm, warrantyExpiry: e.target.value })}
-                          className={inp}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.lastMaintenance")}</label>
-                        <input
-                          type="date"
-                          value={resourceForm.lastMaintenance}
-                          onChange={e => setResourceForm({ ...resourceForm, lastMaintenance: e.target.value })}
-                          className={inp}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.nextMaintenance")}</label>
-                        <input
-                          type="date"
-                          value={resourceForm.nextMaintenance}
-                          onChange={e => setResourceForm({ ...resourceForm, nextMaintenance: e.target.value })}
-                          className={inp}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className={labelStyle}>{t("adminResources.form.barcode")}</label>
-                        <input
-                          type="text"
-                          placeholder={t("adminResources.form.barcodePlaceholder")}
-                          value={resourceForm.barcode}
-                          onChange={e => setResourceForm({ ...resourceForm, barcode: e.target.value })}
-                          className={inp}
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className={labelStyle}>{t("adminResources.form.imageUrl")}</label>
                         <label className="flex items-center gap-3 border-2 border-dashed border-[#e5e7eb] rounded-xl px-3 py-2 cursor-pointer hover:border-[#FF4747] transition-colors group">
@@ -927,17 +886,30 @@ export default function ResourcesPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
+                      <div className="relative">
                         <label className={labelStyle}>{t("adminResources.form.allocationStatus")}</label>
-                        <select
-                          value={resourceForm.status}
-                          onChange={e => setResourceForm({ ...resourceForm, status: e.target.value as ResourceStatus })}
-                          className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        >
-                          <option value="AVAILABLE">{t("adminResources.options.resourceStatus.available")}</option>
-                          <option value="RESERVED">{t("adminResources.options.resourceStatus.reserved")}</option>
-                          <option value="MAINTENANCE">{t("adminResources.options.resourceStatus.maintenance")}</option>
-                        </select>
+                        <button type="button" onClick={() => setShowResStatusDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                          <span className="text-[#1a1a1a]">
+                            {resourceForm.status === "AVAILABLE" ? t("adminResources.options.resourceStatus.available") : resourceForm.status === "RESERVED" ? t("adminResources.options.resourceStatus.reserved") : t("adminResources.options.resourceStatus.maintenance")}
+                          </span>
+                          <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showResStatusDropdown ? "rotate-90" : ""}`} />
+                        </button>
+                        {showResStatusDropdown && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowResStatusDropdown(false)} />
+                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                              {[
+                                { value: "AVAILABLE", label: t("adminResources.options.resourceStatus.available") },
+                                { value: "RESERVED", label: t("adminResources.options.resourceStatus.reserved") },
+                                { value: "MAINTENANCE", label: t("adminResources.options.resourceStatus.maintenance") }
+                              ].map(opt => (
+                                <button key={opt.value} type="button" onClick={() => { setResourceForm(f => ({ ...f, status: opt.value as ResourceStatus })); setShowResStatusDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${resourceForm.status === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div>
                         <label className={labelStyle}>{t("adminResources.form.descriptionNotes")}</label>
@@ -970,31 +942,58 @@ export default function ResourcesPage() {
                 ) : activeTab === "rooms" ? (
                   /* ROOMS FORM */
                   <form onSubmit={saveRoom} className="space-y-4 flex-1">
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.targetEvent")}</label>
-                      <select
-                        value={roomForm.eventId}
-                        onChange={e => handleFormEventChange(e.target.value)}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        required
-                      >
-                        {events.map(ev => <option key={ev.eventId || ev.id} value={ev.eventId || ev.id}>{ev.title}</option>)}
-                      </select>
+                      <button type="button" onClick={() => setShowRoomEventDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className={roomForm.eventId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                          {roomForm.eventId ? events.find(ev => (ev.eventId || ev.id) === roomForm.eventId)?.title || "Select event" : "Select event"}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showRoomEventDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showRoomEventDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowRoomEventDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            {events.map(ev => {
+                              const id = ev.eventId || ev.id;
+                              const isSelected = id === roomForm.eventId;
+                              return (
+                                <button key={id} type="button" onClick={() => { handleFormEventChange(id); setShowRoomEventDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {ev.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.venueLocation")}</label>
-                      <select
-                        value={roomForm.locationId}
-                        onChange={e => setRoomForm({ ...roomForm, locationId: e.target.value })}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                      >
-                        <option value="">{t("adminResources.form.noSpecificLocation")}</option>
-                        {locations
-                          .filter(l => l.eventId === roomForm.eventId || l.event?.eventId === roomForm.eventId)
-                          .map(loc => <option key={loc.locationId} value={loc.locationId}>{loc.venueName}</option>)
-                        }
-                      </select>
+                      <button type="button" onClick={() => setShowRoomLocDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className={roomForm.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                          {roomForm.locationId ? locations.find(loc => loc.locationId === roomForm.locationId)?.venueName || t("adminResources.form.noSpecificLocation") : t("adminResources.form.noSpecificLocation")}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showRoomLocDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showRoomLocDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowRoomLocDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            <button type="button" onClick={() => { setRoomForm(f => ({ ...f, locationId: "" })); setShowRoomLocDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${!roomForm.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                              {t("adminResources.form.noSpecificLocation")}
+                            </button>
+                            {locations.filter(l => l.eventId === roomForm.eventId || l.event?.eventId === roomForm.eventId).map(loc => {
+                              const isSelected = loc.locationId === roomForm.locationId;
+                              return (
+                                <button key={loc.locationId} type="button" onClick={() => { setRoomForm(f => ({ ...f, locationId: loc.locationId })); setShowRoomLocDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {loc.venueName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -1032,17 +1031,30 @@ export default function ResourcesPage() {
                           className={inp}
                         />
                       </div>
-                      <div>
+                      <div className="relative">
                         <label className={labelStyle}>{t("adminResources.form.roomStatus")}</label>
-                        <select
-                          value={roomForm.status}
-                          onChange={e => setRoomForm({ ...roomForm, status: e.target.value as RoomStatus })}
-                          className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        >
-                          <option value="AVAILABLE">{t("adminResources.options.roomStatus.available")}</option>
-                          <option value="OCCUPIED">{t("adminResources.options.roomStatus.occupied")}</option>
-                          <option value="MAINTENANCE">{t("adminResources.options.roomStatus.maintenance")}</option>
-                        </select>
+                        <button type="button" onClick={() => setShowRoomStatusDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                          <span className="text-[#1a1a1a]">
+                            {roomForm.status === "AVAILABLE" ? t("adminResources.options.roomStatus.available") : roomForm.status === "OCCUPIED" ? t("adminResources.options.roomStatus.occupied") : t("adminResources.options.roomStatus.maintenance")}
+                          </span>
+                          <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showRoomStatusDropdown ? "rotate-90" : ""}`} />
+                        </button>
+                        {showRoomStatusDropdown && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowRoomStatusDropdown(false)} />
+                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                              {[
+                                { value: "AVAILABLE", label: t("adminResources.options.roomStatus.available") },
+                                { value: "OCCUPIED", label: t("adminResources.options.roomStatus.occupied") },
+                                { value: "MAINTENANCE", label: t("adminResources.options.roomStatus.maintenance") }
+                              ].map(opt => (
+                                <button key={opt.value} type="button" onClick={() => { setRoomForm(f => ({ ...f, status: opt.value as RoomStatus })); setShowRoomStatusDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${roomForm.status === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -1057,27 +1069,38 @@ export default function ResourcesPage() {
                           className={inp}
                         />
                       </div>
-                      <div>
+                      <div className="relative">
                         <label className={labelStyle}>{t("adminResources.form.roomType")}</label>
-                        <div className="flex gap-1">
-                          <select
-                            value={roomForm.roomType}
-                            onChange={e => setRoomForm({ ...roomForm, roomType: e.target.value })}
-                            className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                          >
-                            <option value="Hall">{t("adminResources.options.roomType.hall")}</option>
-                            <option value="Conference Room">{t("adminResources.options.roomType.conferenceRoom")}</option>
-                            <option value="Classroom">{t("adminResources.options.roomType.classroom")}</option>
-                            <option value="Lab">{t("adminResources.options.roomType.lab")}</option>
-                            <option value="Outdoor">{t("adminResources.options.roomType.outdoor")}</option>
-                            <option value="Booth">{t("adminResources.options.roomType.booth")}</option>
-                            <option value="VIP Lounge">{t("adminResources.options.roomType.vipLounge")}</option>
-                            <option value="Exhibition Space">{t("adminResources.options.roomType.exhibitionSpace")}</option>
-                            {customRoomTypes.map((type, idx) => (
-                              <option key={idx} value={type}>{type}</option>
-                            ))}
-                          </select>
+                        <div className="flex gap-1 relative">
+                          <button type="button" onClick={() => setShowRoomTypeDropdown(v => !v)} className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                            <span className="text-[#1a1a1a]">
+                              {roomForm.roomType === "Hall" ? t("adminResources.options.roomType.hall") : roomForm.roomType === "Conference Room" ? t("adminResources.options.roomType.conferenceRoom") : roomForm.roomType === "Classroom" ? t("adminResources.options.roomType.classroom") : roomForm.roomType === "Lab" ? t("adminResources.options.roomType.lab") : roomForm.roomType === "Outdoor" ? t("adminResources.options.roomType.outdoor") : roomForm.roomType === "Booth" ? t("adminResources.options.roomType.booth") : roomForm.roomType === "VIP Lounge" ? t("adminResources.options.roomType.vipLounge") : roomForm.roomType === "Exhibition Space" ? t("adminResources.options.roomType.exhibitionSpace") : roomForm.roomType}
+                            </span>
+                            <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showRoomTypeDropdown ? "rotate-90" : ""}`} />
+                          </button>
                           <button type="button" onClick={() => setShowAddCustomType(!showAddCustomType)} className="px-3 py-2 bg-stone-100 hover:bg-stone-200 border border-[#e5e7eb] rounded-xl text-xs font-bold shrink-0 cursor-pointer">+</button>
+                          {showRoomTypeDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowRoomTypeDropdown(false)} />
+                              <div className="absolute left-0 right-[44px] top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                                {[
+                                  { value: "Hall", label: t("adminResources.options.roomType.hall") },
+                                  { value: "Conference Room", label: t("adminResources.options.roomType.conferenceRoom") },
+                                  { value: "Classroom", label: t("adminResources.options.roomType.classroom") },
+                                  { value: "Lab", label: t("adminResources.options.roomType.lab") },
+                                  { value: "Outdoor", label: t("adminResources.options.roomType.outdoor") },
+                                  { value: "Booth", label: t("adminResources.options.roomType.booth") },
+                                  { value: "VIP Lounge", label: t("adminResources.options.roomType.vipLounge") },
+                                  { value: "Exhibition Space", label: t("adminResources.options.roomType.exhibitionSpace") },
+                                  ...customRoomTypes.map(type => ({ value: type, label: type }))
+                                ].map((opt, idx) => (
+                                  <button key={idx} type="button" onClick={() => { setRoomForm(f => ({ ...f, roomType: opt.value })); setShowRoomTypeDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${roomForm.roomType === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                         {showAddCustomType && (
                           <div className="mt-2 p-3 bg-stone-50 border border-[#e5e7eb] rounded-xl space-y-2">
@@ -1118,19 +1141,43 @@ export default function ResourcesPage() {
                 ) : (
                   /* ALLOCATIONS FORM */
                   <form onSubmit={saveAllocation} className="space-y-4 flex-1">
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.asset") || "Asset"}</label>
-                      <select
-                        value={allocationForm.resourceId}
-                        onChange={e => setAllocationForm({ ...allocationForm, resourceId: e.target.value })}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        required
-                      >
-                        <option value="">{t("adminResources.form.selectAsset") || "Select an asset"}</option>
-                        {resources.map(res => (
-                          <option key={res.resourceId || res.id} value={res.resourceId || res.id}>{res.name}</option>
-                        ))}
-                      </select>
+                      <button type="button" onClick={() => setShowAllocResDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className={allocationForm.resourceId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                          {allocationForm.resourceId ? resources.find(res => (res.resourceId || res.id) === allocationForm.resourceId)?.name || "Select an asset" : t("adminResources.form.selectAsset") || "Select an asset"}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showAllocResDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showAllocResDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowAllocResDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            <button type="button" onClick={() => { setAllocationForm(f => ({ ...f, resourceId: "" })); setShowAllocResDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${!allocationForm.resourceId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                              {t("adminResources.form.selectAsset") || "Select an asset"}
+                            </button>
+                            {resources.filter(res => {
+                              const selectedRoom = rooms.find(rm => (rm.roomId || rm.id) === allocationForm.roomId);
+                              if (!selectedRoom || !selectedRoom.locationId) return true;
+                              return !res.locationId || res.locationId === selectedRoom.locationId;
+                            }).map(res => {
+                              const id = res.resourceId || res.id;
+                              const isSelected = id === allocationForm.resourceId;
+                              return (
+                                <button key={id} type="button" onClick={() => { 
+                                  const newResId = id || "";
+                                  const selectedRoom = rooms.find(r => (r.roomId || r.id) === allocationForm.roomId);
+                                  const isRoomValid = !selectedRoom || !selectedRoom.locationId || !res.locationId || selectedRoom.locationId === res.locationId;
+                                  setAllocationForm(f => ({ ...f, resourceId: newResId, roomId: isRoomValid ? f.roomId : "" }));
+                                  setShowAllocResDropdown(false); 
+                                }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {res.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {allocationForm.resourceId && (
@@ -1150,19 +1197,43 @@ export default function ResourcesPage() {
                       </div>
                     )}
 
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.room") || "Room"}</label>
-                      <select
-                        value={allocationForm.roomId}
-                        onChange={e => setAllocationForm({ ...allocationForm, roomId: e.target.value })}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                        required
-                      >
-                        <option value="">{t("adminResources.form.selectRoom") || "Select a room"}</option>
-                        {rooms.map(rm => (
-                          <option key={rm.roomId || rm.id} value={rm.roomId || rm.id}>{rm.name}</option>
-                        ))}
-                      </select>
+                      <button type="button" onClick={() => setShowAllocRoomDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className={allocationForm.roomId ? "text-[#1a1a1a]" : "text-[#aaa]"}>
+                          {allocationForm.roomId ? rooms.find(rm => (rm.roomId || rm.id) === allocationForm.roomId)?.name || "Select a room" : t("adminResources.form.selectRoom") || "Select a room"}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showAllocRoomDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showAllocRoomDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowAllocRoomDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            <button type="button" onClick={() => { setAllocationForm(f => ({ ...f, roomId: "" })); setShowAllocRoomDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${!allocationForm.roomId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                              {t("adminResources.form.selectRoom") || "Select a room"}
+                            </button>
+                            {rooms.filter(rm => {
+                              const selectedRes = resources.find(res => (res.resourceId || res.id) === allocationForm.resourceId);
+                              if (!selectedRes || !selectedRes.locationId) return true;
+                              return !rm.locationId || rm.locationId === selectedRes.locationId;
+                            }).map(rm => {
+                              const id = rm.roomId || rm.id;
+                              const isSelected = id === allocationForm.roomId;
+                              return (
+                                <button key={id} type="button" onClick={() => { 
+                                  const newRoomId = id || "";
+                                  const selectedRes = resources.find(r => (r.resourceId || r.id) === allocationForm.resourceId);
+                                  const isResValid = !selectedRes || !selectedRes.locationId || !rm.locationId || selectedRes.locationId === rm.locationId;
+                                  setAllocationForm(f => ({ ...f, roomId: newRoomId, resourceId: isResValid ? f.resourceId : "" }));
+                                  setShowAllocRoomDropdown(false); 
+                                }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {rm.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -1186,16 +1257,29 @@ export default function ResourcesPage() {
                       </div>
                     </div>
 
-                    <div>
+                    <div className="relative">
                       <label className={labelStyle}>{t("adminResources.form.allocationStatus") || "Status"}</label>
-                      <select
-                        value={allocationForm.status}
-                        onChange={e => setAllocationForm({ ...allocationForm, status: e.target.value })}
-                        className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-[#1a1a1a] outline-none focus:border-[#FF4747] transition-colors"
-                      >
-                        <option value="ACTIVE">{t("adminResources.options.allocationStatus.active") || "Active"}</option>
-                        <option value="ENDED">{t("adminResources.options.allocationStatus.ended") || "Ended"}</option>
-                      </select>
+                      <button type="button" onClick={() => setShowAllocStatusDropdown(v => !v)} className="w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-xs text-left flex items-center justify-between cursor-pointer focus:border-[#FF4747] transition-colors">
+                        <span className="text-[#1a1a1a]">
+                          {allocationForm.status === "ACTIVE" ? (t("adminResources.options.allocationStatus.active") || "Active") : (t("adminResources.options.allocationStatus.ended") || "Ended")}
+                        </span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showAllocStatusDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showAllocStatusDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowAllocStatusDropdown(false)} />
+                          <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
+                            {[
+                              { value: "ACTIVE", label: t("adminResources.options.allocationStatus.active") || "Active" },
+                              { value: "ENDED", label: t("adminResources.options.allocationStatus.ended") || "Ended" }
+                            ].map(opt => (
+                              <button key={opt.value} type="button" onClick={() => { setAllocationForm(f => ({ ...f, status: opt.value })); setShowAllocStatusDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${allocationForm.status === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     <div>
@@ -1215,7 +1299,9 @@ export default function ResourcesPage() {
                     </button>
                   </form>
                 )}
-              </div>
+                  </div>
+                </div>
+              </>
 
               {/* RIGHT COLUMN: CARDS LIST */}
               <div className="overflow-y-auto h-full space-y-4 pr-2">
@@ -1227,7 +1313,86 @@ export default function ResourcesPage() {
                       ? t("adminResources.list.activeSpaces", { count: filteredRooms.length })
                       : (t("adminResources.list.allocationsCount", { count: filteredAllocations.length }) || `${filteredAllocations.length} Allocations`)}
                   </h3>
-                  <span className="text-[10px] text-[#aaa]">{t("adminResources.list.filteredViews")}</span>
+                  <div className="flex items-center gap-3">
+                    {/* Event Filter */}
+                    <div className="relative flex items-center gap-1.5 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-3 py-1.5 shrink-0">
+                      <Calendar size={13} className="text-[#888]" />
+                      <button type="button" onClick={() => setShowEventFilterDropdown(v => !v)} className="bg-transparent text-[11px] text-[#1a1a1a] font-semibold outline-none cursor-pointer flex items-center justify-between gap-2 min-w-[100px]">
+                        <span>{selectedEventId === "ALL" ? t("adminResources.filters.allEvents") : events.find(ev => (ev.eventId || ev.id) === selectedEventId)?.title || t("adminResources.filters.allEvents")}</span>
+                        <ChevronRight size={10} className={`text-[#aaa] transition-transform ${showEventFilterDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showEventFilterDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowEventFilterDropdown(false)} />
+                          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 min-w-[150px] max-h-60 overflow-y-auto">
+                            <button type="button" onClick={() => { setSelectedEventId("ALL"); setSelectedLocationId("ALL"); setShowEventFilterDropdown(false); }} className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedEventId === "ALL" ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                              {t("adminResources.filters.allEvents")}
+                            </button>
+                            {events.map(ev => {
+                              const id = ev.eventId || ev.id;
+                              const isSelected = id === selectedEventId;
+                              return (
+                                <button key={id} type="button" onClick={() => { setSelectedEventId(id); setSelectedLocationId("ALL"); setShowEventFilterDropdown(false); }} className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {ev.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Location Filter */}
+                    <div className="relative flex items-center gap-1.5 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl px-3 py-1.5 shrink-0">
+                      <MapPin size={13} className="text-[#888]" />
+                      <button type="button" onClick={() => setShowLocationFilterDropdown(v => !v)} className="bg-transparent text-[11px] text-[#1a1a1a] font-semibold outline-none cursor-pointer flex items-center justify-between gap-2 min-w-[120px]">
+                        <span>{selectedLocationId === "ALL" ? t("adminResources.filters.allLocations") : filterLocations.find(loc => loc.locationId === selectedLocationId)?.venueName || t("adminResources.filters.allLocations")}</span>
+                        <ChevronRight size={10} className={`text-[#aaa] transition-transform ${showLocationFilterDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showLocationFilterDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowLocationFilterDropdown(false)} />
+                          <div className="absolute right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 min-w-[150px] max-h-60 overflow-y-auto">
+                            <button type="button" onClick={() => { setSelectedLocationId("ALL"); setShowLocationFilterDropdown(false); }} className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedLocationId === "ALL" ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                              {t("adminResources.filters.allLocations")}
+                            </button>
+                            {filterLocations.map(loc => {
+                              const isSelected = loc.locationId === selectedLocationId;
+                              return (
+                                <button key={loc.locationId} type="button" onClick={() => { setSelectedLocationId(loc.locationId); setShowLocationFilterDropdown(false); }} className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-[#fafafa] transition-colors cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                                  {loc.venueName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative flex items-center">
+                      <button type="button" onClick={() => setShowSearchInput(v => !v)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-[#f9fafb] border border-[#e5e7eb] text-[#888] hover:text-[#1a1a1a] hover:border-[#FF4747] transition-colors cursor-pointer" title="Search">
+                        <Search size={14} />
+                      </button>
+                      
+                      {showSearchInput && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowSearchInput(false)} />
+                          <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-[#e5e7eb] rounded-xl shadow-lg flex items-center px-3 py-2 z-50 transform origin-top transition-all">
+                            <Search className="text-[#aaa] mr-2 shrink-0" size={13} />
+                            <input
+                              type="text"
+                              placeholder={activeTab === "assets" ? t("adminResources.filters.searchAssetsPlaceholder") : activeTab === "rooms" ? t("adminResources.filters.searchSpacesPlaceholder") : (t("adminResources.filters.searchAllocationsPlaceholder") || "Search allocations...")}
+                              value={searchQuery}
+                              onChange={e => setSearchQuery(e.target.value)}
+                              className="w-full bg-transparent text-[11px] text-[#1a1a1a] outline-none placeholder:text-[#aaa]"
+                              autoFocus
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {activeTab === "assets" ? (
@@ -1239,7 +1404,7 @@ export default function ResourcesPage() {
                       <p className="text-[10px] text-[#aaa] mt-1">{t("adminResources.list.noAssetsDesc")}</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {filteredResources.map(res => {
                         const statusColors =
                           res.status === "AVAILABLE" ? "bg-green-50 text-green-700 border-green-200" :
@@ -1289,14 +1454,14 @@ export default function ResourcesPage() {
                                     {t("adminResources.list.remainingLabel", { qty: res.quantityRemaining })}
                                   </span>
                                 )}
-                                {res.condition && (
+                                {res.itemsPerUnit && res.itemsPerUnit > 1 && (
                                   <span className="px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded">
-                                    {t("adminResources.list.condLabel", { condition: res.condition })}
+                                    {res.itemsPerUnit} items per {res.unit || 'unit'}
                                   </span>
                                 )}
-                                {res.barcode && (
+                                {res.uniqueIdentifier && (
                                   <span className="px-1.5 py-0.5 bg-stone-100 text-stone-400 font-mono rounded">
-                                    {t("adminResources.list.barcodeLabel", { barcode: res.barcode })}
+                                    {res.uniqueIdentifier}
                                   </span>
                                 )}
                               </div>
@@ -1320,7 +1485,7 @@ export default function ResourcesPage() {
                                 <div className="flex gap-1 shrink-0">
                                   <button
                                     onClick={() => {
-                                      setEditingResource(res);
+                                      setEditingResource(res); setIsDrawerOpen(true);
                                       setResourceForm({
                                         name: res.name || "",
                                         type: (res.type || "EQUIPMENT") as ResourceType,
@@ -1333,14 +1498,8 @@ export default function ResourcesPage() {
                                         quantityAvailable: res.quantityAvailable || res.quantity || 1,
                                         quantityReserved: res.quantityReserved || 0,
                                         unit: res.unit || "Piece",
-                                        condition: res.condition || "Good",
-                                        purchaseDate: res.purchaseDate || "",
-                                        purchaseCost: res.purchaseCost || 0,
-                                        supplier: res.supplier || "",
-                                        warrantyExpiry: res.warrantyExpiry || "",
-                                        lastMaintenance: res.lastMaintenance || "",
-                                        nextMaintenance: res.nextMaintenance || "",
-                                        barcode: res.barcode || "",
+                                        uniqueIdentifier: res.uniqueIdentifier || "",
+                                        itemsPerUnit: res.itemsPerUnit || 1,
                                         image: res.image || "",
                                         notes: res.notes || ""
                                       });
@@ -1374,7 +1533,7 @@ export default function ResourcesPage() {
                       <p className="text-[10px] text-[#aaa] mt-1">{t("adminResources.list.noSpacesDesc")}</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {filteredRooms.map(rm => {
                         const statusColors =
                           rm.status === "AVAILABLE" ? "bg-green-50 text-green-700 border-green-200" :
@@ -1449,7 +1608,7 @@ export default function ResourcesPage() {
                                 <div className="flex gap-1 shrink-0">
                                   <button
                                     onClick={() => {
-                                      setEditingRoom(rm);
+                                      setEditingRoom(rm); setIsDrawerOpen(true);
                                       setRoomForm({
                                         name: rm.name || "",
                                         capacity: rm.capacity || 20,
@@ -1492,7 +1651,7 @@ export default function ResourcesPage() {
                       <p className="text-[10px] text-[#aaa] mt-1">{t("adminResources.list.noAllocationsDesc") || "Allocate an asset to a room to see it here"}</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {filteredAllocations.map(al => {
                         const statusColors = al.status === "ENDED" ? "bg-stone-100 text-stone-500 border-stone-200" : "bg-green-50 text-green-700 border-green-200";
                         return (
@@ -1542,7 +1701,7 @@ export default function ResourcesPage() {
                             <div className="border-t border-[#f3f4f6] pt-3 mt-1 flex justify-end gap-1">
                               <button
                                 onClick={() => {
-                                  setEditingAllocation(al);
+                                  setEditingAllocation(al); setIsDrawerOpen(true);
                                   setAllocationForm({
                                     resourceId: al.resourceId || "",
                                     roomId: al.roomId || "",
@@ -1577,6 +1736,46 @@ export default function ResourcesPage() {
             </div>
           )}
         </div>
+
+        {/* FLOATING ACTION BUTTONS FOR TABS */}
+        <div className="fixed bottom-8 right-8 flex flex-col gap-4 z-50">
+          <div className="group relative flex items-center justify-end">
+            <span className="absolute right-16 px-3 py-1.5 bg-[#1a1a1a] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-lg">
+              {t("adminResources.header.tabAssets") || "Assets & Equipment"}
+            </span>
+            <button
+              onClick={() => { setActiveTab("assets"); setSearchQuery(""); }}
+              className={`flex items-center justify-center w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 cursor-pointer border ${activeTab === "assets" ? "bg-[#FF4747] text-white border-transparent" : "bg-white text-[#1a1a1a] hover:text-[#FF4747] border-stone-100"}`}
+            >
+              <Package size={22} className={activeTab === "assets" ? "" : "opacity-80"} />
+            </button>
+          </div>
+          
+          <div className="group relative flex items-center justify-end">
+            <span className="absolute right-16 px-3 py-1.5 bg-[#1a1a1a] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-lg">
+              {t("adminResources.header.tabRooms") || "Rooms & Venues"}
+            </span>
+            <button
+              onClick={() => { setActiveTab("rooms"); setSearchQuery(""); }}
+              className={`flex items-center justify-center w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 cursor-pointer border ${activeTab === "rooms" ? "bg-[#FF4747] text-white border-transparent" : "bg-white text-[#1a1a1a] hover:text-[#FF4747] border-stone-100"}`}
+            >
+              <Home size={22} className={activeTab === "rooms" ? "" : "opacity-80"} />
+            </button>
+          </div>
+          
+          <div className="group relative flex items-center justify-end">
+            <span className="absolute right-16 px-3 py-1.5 bg-[#1a1a1a] text-white text-[11px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-lg">
+              {t("adminResources.header.tabAllocations") || "Allocations"}
+            </span>
+            <button
+              onClick={() => { setActiveTab("allocations"); setSearchQuery(""); }}
+              className={`flex items-center justify-center w-14 h-14 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 cursor-pointer border ${activeTab === "allocations" ? "bg-[#FF4747] text-white border-transparent" : "bg-white text-[#1a1a1a] hover:text-[#FF4747] border-stone-100"}`}
+            >
+              <Link2 size={22} className={activeTab === "allocations" ? "" : "opacity-80"} />
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
