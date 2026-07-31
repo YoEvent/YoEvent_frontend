@@ -212,7 +212,7 @@ export default function EventsPage() {
   // ── Custom Sections ──
   const [eventSections, setEventSections] = useState<any[]>([]);
   const [editingSection, setEditingSection] = useState<any>(null);
-  const [sectionForm, setSectionForm] = useState({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
+  const [sectionForm, setSectionForm] = useState({ title: "", content: "", mediaUrls: [] as string[], displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
 
   const getNextSectionOrder = (secs: any[]) => secs && secs.length > 0 ? Math.max(...secs.map((s: any) => s.displayOrder || 0)) + 1 : 0;
 
@@ -345,25 +345,38 @@ export default function EventsPage() {
   const saveSection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedId) return;
+
+    const isDuplicate = eventSections.some(sec => 
+      sec.displayOrder === sectionForm.displayOrder && 
+      (!editingSection || (sec.sectionId !== editingSection.sectionId && sec.id !== editingSection.id))
+    );
+    if (isDuplicate) {
+      showToast("This display order is already in use by another section. Please choose a unique number.");
+      return;
+    }
+
     setSaving(true);
     try {
+      const payload = {
+        title: sectionForm.title,
+        content: sectionForm.content,
+        imageUrl: JSON.stringify(sectionForm.mediaUrls),
+        displayOrder: sectionForm.displayOrder,
+        sectionType: sectionForm.sectionType,
+        status: sectionForm.status,
+        eventId: selectedId,
+        tenantId: auth?.tenantId
+      };
+
       if (editingSection) {
-        await eventService.updateEventSection(editingSection.sectionId || editingSection.id, {
-          ...sectionForm,
-          eventId: selectedId,
-          tenantId: auth?.tenantId
-        });
+        await eventService.updateEventSection(editingSection.sectionId || editingSection.id, payload);
         showToast(t("adminEvents.toasts.sectionUpdated"));
         setEditingSection(null);
       } else {
-        await eventService.createEventSection({
-          ...sectionForm,
-          eventId: selectedId,
-          tenantId: auth?.tenantId
-        });
+        await eventService.createEventSection(payload);
         showToast(t("adminEvents.toasts.sectionCreated"));
       }
-      setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
+      setSectionForm({ title: "", content: "", mediaUrls: [], displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
       const secs = await eventService.getEventSections(selectedId).catch(() => []);
       setEventSections(secs || []);
     } catch (err: any) {
@@ -382,7 +395,7 @@ export default function EventsPage() {
       setEventSections(secs || []);
       if (editingSection && (editingSection.sectionId === sectionId || editingSection.id === sectionId)) {
         setEditingSection(null);
-        setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
+        setSectionForm({ title: "", content: "", mediaUrls: [], displayOrder: 0, sectionType: "CUSTOM", status: "ACTIVE" });
       }
     } catch (err: any) {
       showToast(err.message || t("adminEvents.toasts.sectionDeleteFailed"));
@@ -3497,14 +3510,11 @@ export default function EventsPage() {
               {tab === "sections" && (() => {
                 const SECTION_TYPES: { type: string; icon: any; label: string; hint: string }[] = [
                   { type: "HERO", icon: ImageIcon, label: "Hero", hint: "Full-width banner at the top of the page" },
-                  { type: "TEXT", icon: FileText, label: "Text", hint: "Title + description with optional image" },
-                  { type: "SCHEDULE", icon: Calendar, label: "Schedule", hint: "Auto-pulls sessions and agenda" },
                   { type: "IMAGE_GALLERY", icon: ImageIcon, label: "Gallery", hint: "Emphasises an image with caption" },
-                  { type: "REGISTRATION", icon: Ticket, label: "Register CTA", hint: "Call-to-action block driving registrations" },
                   { type: "CUSTOM", icon: Sparkles, label: "Custom", hint: "Freeform block — anything goes" },
                 ];
-                const needsImage = ["HERO", "TEXT", "IMAGE_GALLERY", "CUSTOM"].includes(sectionForm.sectionType);
-                const isAutoType = ["SCHEDULE"].includes(sectionForm.sectionType);
+                const needsImage = ["HERO", "IMAGE_GALLERY", "CUSTOM"].includes(sectionForm.sectionType);
+                const isAutoType = false;
                 return (
                   <div className="max-w-5xl w-full mx-auto grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-8">
                     {/* Left: Create/Edit Form */}
@@ -3514,14 +3524,14 @@ export default function EventsPage() {
                           {editingSection ? "Edit Section" : "Add Page Section"}
                         </h3>
                         {editingSection && (
-                          <button type="button" onClick={() => { setEditingSection(null); setSectionForm({ title: "", content: "", imageUrl: "", displayOrder: getNextSectionOrder(eventSections), sectionType: "CUSTOM", status: "ACTIVE" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel</button>
+                          <button type="button" onClick={() => { setEditingSection(null); setSectionForm({ title: "", content: "", mediaUrls: [], displayOrder: getNextSectionOrder(eventSections), sectionType: "CUSTOM", status: "ACTIVE" }); }} className="text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer underline">Cancel</button>
                         )}
                       </div>
 
                       {/* Section type picker */}
                       <div>
                         <label className={label}>Section Type</label>
-                        <div className="grid grid-cols-6 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           {SECTION_TYPES.map(st => {
                             const IconComponent = st.icon;
                             return (
@@ -3565,33 +3575,53 @@ export default function EventsPage() {
 
                         {needsImage && (
                           <div>
-                            <label className={label}>Image (Optional)</label>
-                            <label className="flex items-center gap-4 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-4 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2">
-                              {sectionForm.imageUrl ? (
-                                <img src={sectionForm.imageUrl} alt="Preview" className="w-14 h-14 rounded-lg object-cover border border-[#f0f0f0] shrink-0" />
-                              ) : (
-                                <div className="w-14 h-14 rounded-lg bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb]">
-                                  <ImageIcon size={22} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
-                                </div>
-                              )}
-                              <div>
-                                <div className="text-sm font-semibold text-[#1a1a1a]">{sectionForm.imageUrl ? "Click to replace" : "Upload image"}</div>
-                                <div className="text-xs text-[#aaa]">PNG or JPG</div>
+                            <label className={label}>Media (Optional) — Images & Videos</label>
+                            
+                            {/* Gallery/Media Grid */}
+                            {sectionForm.mediaUrls.length > 0 && (
+                              <div className="flex flex-wrap gap-3 mb-3">
+                                {sectionForm.mediaUrls.map((url, i) => (
+                                  <div key={i} className="relative group w-20 h-20 rounded-xl border border-[#e5e7eb] overflow-hidden shrink-0 bg-[#fafafa]">
+                                    {url.match(/\.(mp4|mov|webm)$/i) ? (
+                                      <video src={url} className="w-full h-full object-cover" muted loop playsInline />
+                                    ) : (
+                                      <img src={url} alt={`Media ${i+1}`} className="w-full h-full object-cover" />
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => setSectionForm(f => ({ ...f, mediaUrls: f.mediaUrls.filter((_, idx) => idx !== i) }))}
+                                      className="absolute top-1 right-1 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 text-red-500 cursor-pointer shadow-sm"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ))}
                               </div>
-                              <input type="file" accept="image/*" className="hidden" onChange={async e => {
-                                const f = e.target.files?.[0];
-                                if (!f) return;
+                            )}
+
+                            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-[#e5e7eb] rounded-2xl p-6 cursor-pointer hover:border-[#FF4747] transition-colors group mb-2 text-center">
+                              <div className="w-12 h-12 rounded-full bg-[#fafafa] flex items-center justify-center shrink-0 border border-[#e5e7eb] group-hover:border-[#FF4747]/30 group-hover:bg-[#fff5f5] transition-colors">
+                                <Plus size={20} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-[#1a1a1a]">Click to upload media</div>
+                                <div className="text-xs text-[#aaa] mt-0.5">Images or Videos (multiple allowed)</div>
+                              </div>
+                              <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={async e => {
+                                const files = Array.from(e.target.files || []);
+                                if (!files.length) return;
                                 try {
                                   setSaving(true);
-                                  const res = await eventService.uploadImage(f);
-                                  setSectionForm(f => ({ ...f, imageUrl: res.url }));
-                                  showToast("Image uploaded!");
+                                  const uploadPromises = files.map(f => eventService.uploadImage(f)); 
+                                  const results = await Promise.all(uploadPromises);
+                                  const newUrls = results.map(r => r.url);
+                                  setSectionForm(f => ({ ...f, mediaUrls: [...f.mediaUrls, ...newUrls] }));
+                                  showToast(`${files.length} file(s) uploaded!`);
                                 } catch (err: any) {
                                   showToast("Upload failed: " + (err.message || err));
                                 } finally { setSaving(false); }
                               }} />
                             </label>
-                            <input placeholder="Or paste an image URL…" value={sectionForm.imageUrl} onChange={e => setSectionForm(f => ({ ...f, imageUrl: e.target.value }))} className={inp} />
                           </div>
                         )}
 
@@ -3659,7 +3689,17 @@ export default function EventsPage() {
                                   <div className="flex flex-col gap-1 shrink-0">
                                     <button type="button" onClick={() => {
                                       setEditingSection(sec);
-                                      setSectionForm({ title: sec.title || "", content: sec.content || "", imageUrl: sec.imageUrl || "", displayOrder: sec.displayOrder || 0, sectionType: sec.sectionType || "CUSTOM", status: sec.status || "ACTIVE" });
+                                      let parsedUrls: string[] = [];
+                                      try {
+                                        if (sec.imageUrl && sec.imageUrl.startsWith("[")) {
+                                          parsedUrls = JSON.parse(sec.imageUrl);
+                                        } else if (sec.imageUrl) {
+                                          parsedUrls = [sec.imageUrl];
+                                        }
+                                      } catch (e) {
+                                        if (sec.imageUrl) parsedUrls = [sec.imageUrl];
+                                      }
+                                      setSectionForm({ title: sec.title || "", content: sec.content || "", mediaUrls: parsedUrls, displayOrder: sec.displayOrder || 0, sectionType: sec.sectionType || "CUSTOM", status: sec.status || "ACTIVE" });
                                     }} className="flex items-center justify-center p-1.5 text-xs text-[#555] border border-[#e5e7eb] rounded-lg hover:border-[#FF4747] hover:text-[#FF4747] transition-colors cursor-pointer" title="Edit">
                                       <Pencil size={11} />
                                     </button>
