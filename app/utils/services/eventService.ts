@@ -17,6 +17,15 @@ export const eventService = {
   deleteSponsorshipPackage: (id: string) => api.delete<void>(`api/v1/sponsorshippackages/${id}`),
 
   // Sponsors
+  // Waitlist
+  joinWaitlist: (data: { eventId: string; ticketTypeId?: string; userId?: string; email: string; name?: string }) =>
+    api.post<any>("api/v1/waitlist", data, { skipAuth: true }),
+  getWaitlistByEvent: (eventId: string) => api.get<any[]>(`api/v1/waitlist/event/${eventId}`),
+  getMyWaitlistEntries: (userId: string) => api.get<any[]>(`api/v1/waitlist/user/${userId}`),
+  notifyWaitlistEntry: (id: string) => api.patch<any>(`api/v1/waitlist/${id}/notify`),
+  convertWaitlistEntry: (id: string) => api.patch<any>(`api/v1/waitlist/${id}/convert`),
+  deleteWaitlistEntry: (id: string) => api.delete<void>(`api/v1/waitlist/${id}`),
+
   getSponsors: (opts?: any) => api.get<T.SponsorResponse[]>("api/v1/sponsors", opts),
   getSponsorsByEvent: (eventId: string) => api.get<T.SponsorResponse[]>(`api/v1/sponsors/event/${eventId}`),
   createSponsor: (data: T.SponsorRequest) => api.post<T.SponsorResponse>("api/v1/sponsors", data),

@@ -19,14 +19,27 @@ import { useLanguage } from "@/app/context/LanguageContext";
 
 const EventMap = dynamic(() => import("@/components/EventMap"), { ssr: false, loading: () => <div className="w-full h-40 bg-[#f5f5f5] rounded-xl animate-pulse" /> });
 
-type EventTab = "overview" | "details" | "schedule" | "location" | "tickets" | "coupons" | "team" | "sessions" | "speakers" | "sponsors" | "registrations" | "vendors" | "announcements" | "feedback" | "live" | "email" | "sections";
+type EventTab = "overview" | "details" | "schedule" | "location" | "tickets" | "coupons" | "team" | "sessions" | "speakers" | "sponsors" | "registrations" | "vendors" | "announcements" | "feedback" | "live" | "email" | "sections" | "waitlist";
 
 const TABS: { id: EventTab; labelKey: string; icon: any }[] = [
   { id: "overview", labelKey: "adminEvents.tabs.overview", icon: Globe },
   { id: "details", labelKey: "adminEvents.tabs.details", icon: ImageIcon },
   { id: "schedule", labelKey: "adminEvents.tabs.schedule", icon: Calendar },
   { id: "location", labelKey: "adminEvents.tabs.location", icon: MapPin },
-  { id: "sections", labelKey: "adminEvents.tabs.sections", icon: Layers }
+  { id: "sections", labelKey: "adminEvents.tabs.sections", icon: Layers },
+  { id: "tickets", labelKey: "adminEvents.tabs.tickets", icon: Ticket },
+  { id: "coupons", labelKey: "adminEvents.tabs.coupons", icon: Tag },
+  { id: "registrations", labelKey: "adminEvents.tabs.registrations", icon: ScanLine },
+  { id: "waitlist", labelKey: "adminEvents.tabs.waitlist", icon: List },
+  { id: "team", labelKey: "adminEvents.tabs.team", icon: Users },
+  { id: "sessions", labelKey: "adminEvents.tabs.sessions", icon: Radio },
+  { id: "speakers", labelKey: "adminEvents.tabs.speakers", icon: Mic2 },
+  { id: "sponsors", labelKey: "adminEvents.tabs.sponsors", icon: Star },
+  { id: "vendors", labelKey: "adminEvents.tabs.vendors", icon: Building2 },
+  { id: "announcements", labelKey: "adminEvents.tabs.announcements", icon: Megaphone },
+  { id: "live", labelKey: "adminEvents.tabs.live", icon: Wifi },
+  { id: "email", labelKey: "adminEvents.tabs.email", icon: Mail },
+  { id: "feedback", labelKey: "adminEvents.tabs.feedback", icon: MessageSquare },
 ];
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -206,6 +219,9 @@ export default function EventsPage() {
   // ── Registrations ──
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [registrationsLoading, setRegistrationsLoading] = useState(false);
+  const [waitlistEntries, setWaitlistEntries] = useState<any[]>([]);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistActionId, setWaitlistActionId] = useState<string | null>(null);
 
   // ── Vendors (Exhibitors) ──
   const [exhibitors, setExhibitors] = useState<any[]>([]);
@@ -348,6 +364,7 @@ export default function EventsPage() {
 
   useEffect(() => { loadEvents(); }, []);
   useEffect(() => { if (tab === "registrations" && selectedId) loadRegistrations(); }, [tab, selectedId]);
+  useEffect(() => { if (tab === "waitlist" && selectedId) loadWaitlist(); }, [tab, selectedId]);
 
   const selectedEvent = events.find(e => e.eventId === selectedId);
 
@@ -833,10 +850,16 @@ export default function EventsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await eventService.createEmailCampaign({ eventId: selectedId, tenantId: auth?.tenantId, subject: emailForm.subject, body: emailForm.body, targetAudience: emailForm.targetAudience, scheduledAt: emailForm.scheduledAt ? new Date(emailForm.scheduledAt).toISOString() : undefined, status: "SCHEDULED" });
+      const created = await eventService.createEmailCampaign({ eventId: selectedId, tenantId: auth?.tenantId, subject: emailForm.subject, body: emailForm.body, targetAudience: emailForm.targetAudience, scheduledAt: emailForm.scheduledAt ? new Date(emailForm.scheduledAt).toISOString() : undefined, status: "SCHEDULED" });
       setEmailForm({ subject: "", body: "", targetAudience: "ALL_REGISTRANTS", scheduledAt: "" });
       await loadEventData(selectedId);
-      showToast(t("adminEvents.toasts.campaignScheduled"));
+      if (created?.status === "SENT") {
+        showToast(t("adminEvents.toasts.campaignSent"));
+      } else if (created?.status === "FAILED") {
+        showToast(t("adminEvents.toasts.campaignNoRecipients"));
+      } else {
+        showToast(t("adminEvents.toasts.campaignScheduled"));
+      }
     } catch { showToast(t("adminEvents.toasts.campaignScheduleFailed")); }
     finally { setSaving(false); }
   };
@@ -1116,6 +1139,47 @@ export default function EventsPage() {
     } catch { } finally { setRegistrationsLoading(false); }
   };
 
+  // ── Load waitlist ──
+  const loadWaitlist = async () => {
+    if (!selectedId) return;
+    setWaitlistLoading(true);
+    try {
+      const entries = await eventService.getWaitlistByEvent(selectedId).catch(() => []);
+      setWaitlistEntries((entries || []).slice().sort((a: any, b: any) => (a.position || 0) - (b.position || 0)));
+    } catch { } finally { setWaitlistLoading(false); }
+  };
+
+  const handleNotifyWaitlist = async (id: string) => {
+    setWaitlistActionId(id);
+    try {
+      await eventService.notifyWaitlistEntry(id);
+      await loadWaitlist();
+      showToast(t("adminEvents.toasts.waitlistNotified"));
+    } catch { showToast(t("adminEvents.toasts.waitlistActionFailed")); }
+    finally { setWaitlistActionId(null); }
+  };
+
+  const handleConvertWaitlist = async (id: string) => {
+    setWaitlistActionId(id);
+    try {
+      await eventService.convertWaitlistEntry(id);
+      await loadWaitlist();
+      showToast(t("adminEvents.toasts.waitlistConverted"));
+    } catch { showToast(t("adminEvents.toasts.waitlistActionFailed")); }
+    finally { setWaitlistActionId(null); }
+  };
+
+  const handleRemoveWaitlist = async (id: string) => {
+    if (!confirm("Remove this person from the waitlist?")) return;
+    setWaitlistActionId(id);
+    try {
+      await eventService.deleteWaitlistEntry(id);
+      setWaitlistEntries(prev => prev.filter((w: any) => (w.waitlistId || w.id) !== id));
+      showToast(t("adminEvents.toasts.waitlistRemoved"));
+    } catch { showToast(t("adminEvents.toasts.waitlistActionFailed")); }
+    finally { setWaitlistActionId(null); }
+  };
+
   // ── Check-in registration ──
   // Quick-action shortcut only — the dedicated /admin/checkin scanner lets the
   // organizer pick which session a scan is for; this defaults to the event's
@@ -1143,6 +1207,7 @@ export default function EventsPage() {
       case "speakers": return speakers.length > 0 ? "done" : "empty";
       case "sponsors": return sponsors.length > 0 ? "done" : "empty";
       case "registrations": return registrations.length > 0 ? "done" : "empty";
+      case "waitlist": return waitlistEntries.length > 0 ? "done" : "empty";
       case "vendors": return exhibitors.length > 0 ? "done" : "empty";
       case "announcements": return announcements.length > 0 ? "done" : "empty";
       case "feedback": return feedbacks.length > 0 ? "done" : "empty";
@@ -1359,6 +1424,7 @@ export default function EventsPage() {
                 {tab === "speakers" && <button onClick={() => speakerFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSpeaker")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSpeaker")}</>}</button>}
                 {tab === "sponsors" && <button onClick={() => sponsorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSponsor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSponsor")}</>}</button>}
                 {tab === "registrations" && <button onClick={loadRegistrations} disabled={registrationsLoading} className={saveBtn}><ScanLine size={13} />{registrationsLoading ? t("adminEvents.common.loading") : t("adminEvents.header.refresh")}</button>}
+                {tab === "waitlist" && <button onClick={loadWaitlist} disabled={waitlistLoading} className={saveBtn}><List size={13} />{waitlistLoading ? t("adminEvents.common.loading") : t("adminEvents.header.refresh")}</button>}
                 {tab === "vendors" && <button onClick={() => exhibitorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveExhibitor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addExhibitor")}</>}</button>}
                 {tab === "announcements" && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.save")}</> : <><Megaphone size={13} />{saving ? t("adminEvents.common.posting") : t("adminEvents.header.postAnnouncement")}</>}</button>}
                 {tab === "live" && <button onClick={() => pollFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.savePoll")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.creating") : t("adminEvents.header.addPoll")}</>}</button>}
@@ -3518,6 +3584,88 @@ export default function EventsPage() {
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── WAITLIST TAB ── */}
+              {tab === "waitlist" && (
+                <div className="max-w-4xl w-full mx-auto space-y-4">
+                  <div className="mb-2">
+                    <h3 className="font-bold text-sm text-[#1a1a1a]">Waitlist</h3>
+                    <p className="text-xs text-[#888] mt-0.5">{waitlistEntries.length} {waitlistEntries.length === 1 ? "person" : "people"} waiting for a spot to open up</p>
+                  </div>
+
+                  {waitlistLoading ? (
+                    <div className="flex items-center justify-center py-20 text-[#aaa]">
+                      <div className="w-7 h-7 border-4 border-[#f0f0f0] border-t-[#FF4747] rounded-full animate-spin" />
+                    </div>
+                  ) : waitlistEntries.length === 0 ? (
+                    <div className="bg-white border border-dashed border-[#e5e7eb] rounded-3xl p-16 text-center">
+                      <List size={36} className="mx-auto text-[#e5e7eb] mb-3" />
+                      <p className="font-bold text-[#1a1a1a] mb-1">No one on the waitlist</p>
+                      <p className="text-xs text-[#aaa]">When a ticket type sells out, people who join the waitlist will appear here.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {waitlistEntries.map((w: any) => {
+                        const id = w.waitlistId || w.id;
+                        const statusStyle: Record<string, string> = {
+                          WAITING: "bg-[#f5f5f5] text-[#888]",
+                          NOTIFIED: "bg-amber-100 text-amber-700",
+                          CONVERTED: "bg-green-100 text-green-700",
+                        };
+                        const ticket = tickets.find((tk: any) => tk.ticketId === w.ticketTypeId);
+                        return (
+                          <div key={id} className="bg-white border border-[#e5e7eb] rounded-2xl p-4 flex items-center gap-4">
+                            <div className="w-9 h-9 rounded-xl bg-[#fafafa] border border-[#e5e7eb] flex items-center justify-center shrink-0 font-black text-xs text-[#555]">
+                              #{w.position}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm text-[#1a1a1a] truncate">{w.name || w.email}</div>
+                              <div className="flex gap-3 mt-0.5 text-[10px] text-[#aaa]">
+                                <span>{w.email}</span>
+                                {ticket && <span>{ticket.name}</span>}
+                                <span>Joined {w.addedAt ? new Date(w.addedAt).toLocaleDateString() : "—"}</span>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusStyle[w.status] || statusStyle.WAITING}`}>
+                              {w.status || "WAITING"}
+                            </span>
+                            <div className="flex gap-1.5 shrink-0">
+                              {w.status === "WAITING" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleNotifyWaitlist(id)}
+                                  disabled={waitlistActionId === id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  <Mail size={12} /> Notify
+                                </button>
+                              )}
+                              {w.status !== "CONVERTED" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleConvertWaitlist(id)}
+                                  disabled={waitlistActionId === id}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  <Check size={12} /> Converted
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveWaitlist(id)}
+                                disabled={waitlistActionId === id}
+                                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

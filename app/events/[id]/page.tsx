@@ -93,6 +93,13 @@ function EventDetailsPageContent() {
   const [mobileMoneyWaiting, setMobileMoneyWaiting] = useState(false);
   const [mobileMoneyError, setMobileMoneyError] = useState<string | null>(null);
 
+  // Waitlist states
+  const [waitlistFormOpenFor, setWaitlistFormOpenFor] = useState<string | null>(null);
+  const [waitlistForm, setWaitlistForm] = useState({ name: "", email: "" });
+  const [waitlistJoining, setWaitlistJoining] = useState<string | null>(null);
+  const [waitlistJoined, setWaitlistJoined] = useState<Record<string, { position: number }>>({});
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
+
   const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
   const [eventSchedule, setEventSchedule] = useState<any>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -309,12 +316,51 @@ function EventDetailsPageContent() {
   })();
 
   // Checkout Handlers
+  const ticketRemaining = (t: any): number | null => {
+    if (t.quantityAvailable == null) return null;
+    return Math.max(0, Number(t.quantityAvailable) - Number(t.quantitySold || 0));
+  };
+  const isTicketSoldOut = (t: any) => {
+    const remaining = ticketRemaining(t);
+    return remaining !== null && remaining <= 0;
+  };
+
   const handleQuantityChange = (ticketId: string, delta: number) => {
+    const ticket = ticketTypes.find(t => t.ticketId === ticketId);
+    const remaining = ticket ? ticketRemaining(ticket) : null;
     setSelectedTickets(prev => {
       const current = prev[ticketId] || 0;
-      const next = Math.max(0, current + delta);
+      let next = Math.max(0, current + delta);
+      if (remaining !== null) next = Math.min(next, remaining);
       return { ...prev, [ticketId]: next };
     });
+  };
+
+  const handleJoinWaitlist = async (ticketTypeId: string) => {
+    setWaitlistError(null);
+    const email = auth?.email || waitlistForm.email;
+    const name = auth ? `${auth.firstName || ""} ${auth.lastName || ""}`.trim() : waitlistForm.name;
+    if (!email) {
+      setWaitlistFormOpenFor(ticketTypeId);
+      return;
+    }
+    setWaitlistJoining(ticketTypeId);
+    try {
+      const entry = await eventService.joinWaitlist({
+        eventId,
+        ticketTypeId,
+        userId: auth?.userId,
+        email,
+        name: name || undefined,
+      });
+      setWaitlistJoined(prev => ({ ...prev, [ticketTypeId]: { position: entry.position } }));
+      setWaitlistFormOpenFor(null);
+      setWaitlistForm({ name: "", email: "" });
+    } catch (err: any) {
+      setWaitlistError(err.message || "Failed to join the waitlist. Please try again.");
+    } finally {
+      setWaitlistJoining(null);
+    }
   };
 
   const calculateSubtotal = () => {
@@ -2113,20 +2159,74 @@ function EventDetailsPageContent() {
                     <div className="text-sm text-[#666] italic mb-8">No tickets available for this event yet.</div>
                   ) : (
                     <div className="space-y-4 mb-8">
-                      {ticketTypes.map(t => (
-                        <div key={t.ticketId} className="flex items-center justify-between p-4 border border-[#e5e7eb] rounded-2xl bg-white shadow-sm hover:border-[#EB4203] transition-colors">
-                          <div>
-                            <div className="font-bold text-[#1a1a1a]">{t.name}</div>
-                            <div className="text-xs text-[#666] mt-1 line-clamp-1">{t.description || "General admission ticket"}</div>
-                            <div className="text-sm font-black text-[#EB4203] mt-2">{t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} FCFA`}</div>
+                      {ticketTypes.map(t => {
+                        const soldOut = isTicketSoldOut(t);
+                        const joined = waitlistJoined[t.ticketId];
+                        return (
+                          <div key={t.ticketId} className="p-4 border border-[#e5e7eb] rounded-2xl bg-white shadow-sm hover:border-[#EB4203] transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-bold text-[#1a1a1a] flex items-center gap-2">
+                                  {t.name}
+                                  {soldOut && <span className="text-[10px] font-bold uppercase tracking-wider bg-[#f5f5f5] text-[#888] px-2 py-0.5 rounded-full">Sold Out</span>}
+                                </div>
+                                <div className="text-xs text-[#666] mt-1 line-clamp-1">{t.description || "General admission ticket"}</div>
+                                <div className="text-sm font-black text-[#EB4203] mt-2">{t.price === 0 ? "Free" : `${Number(t.price).toLocaleString()} FCFA`}</div>
+                              </div>
+                              {!soldOut ? (
+                                <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl">
+                                  <button onClick={() => handleQuantityChange(t.ticketId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">-</button>
+                                  <span className="w-6 text-center font-bold text-[#1a1a1a]">{selectedTickets[t.ticketId] || 0}</span>
+                                  <button onClick={() => handleQuantityChange(t.ticketId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">+</button>
+                                </div>
+                              ) : joined ? (
+                                <div className="text-xs font-bold text-green-600 flex items-center gap-1.5 shrink-0">
+                                  <Bell size={13} /> #{joined.position} on waitlist
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleJoinWaitlist(t.ticketId)}
+                                  disabled={waitlistJoining === t.ticketId}
+                                  className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-[#1a1a1a] text-white text-xs font-bold rounded-xl hover:bg-[#333] transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  <Bell size={13} /> {waitlistJoining === t.ticketId ? "Joining..." : "Join Waitlist"}
+                                </button>
+                              )}
+                            </div>
+
+                            {waitlistFormOpenFor === t.ticketId && !joined && (
+                              <div className="mt-3 pt-3 border-t border-[#f0f0f0] space-y-2">
+                                <p className="text-xs text-[#666]">We'll email you the moment a spot opens up.</p>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Your name"
+                                    value={waitlistForm.name}
+                                    onChange={e => setWaitlistForm(f => ({ ...f, name: e.target.value }))}
+                                    className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#EB4203]"
+                                  />
+                                  <input
+                                    type="email"
+                                    required
+                                    placeholder="Your email"
+                                    value={waitlistForm.email}
+                                    onChange={e => setWaitlistForm(f => ({ ...f, email: e.target.value }))}
+                                    className="flex-1 bg-white border border-[#e5e7eb] rounded-xl px-3 py-2 text-xs text-[#1a1a1a] outline-none focus:border-[#EB4203]"
+                                  />
+                                  <button
+                                    onClick={() => handleJoinWaitlist(t.ticketId)}
+                                    disabled={waitlistJoining === t.ticketId || !waitlistForm.email}
+                                    className="shrink-0 px-4 py-2 bg-[#EB4203] text-white text-xs font-bold rounded-xl hover:bg-[#c23b02] transition-colors cursor-pointer disabled:opacity-50"
+                                  >
+                                    {waitlistJoining === t.ticketId ? "Joining..." : "Join"}
+                                  </button>
+                                </div>
+                                {waitlistError && <p className="text-[10px] text-red-500">{waitlistError}</p>}
+                              </div>
+                            )}
                           </div>
-                          <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl">
-                            <button onClick={() => handleQuantityChange(t.ticketId, -1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">-</button>
-                            <span className="w-6 text-center font-bold text-[#1a1a1a]">{selectedTickets[t.ticketId] || 0}</span>
-                            <button onClick={() => handleQuantityChange(t.ticketId, 1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-[#1a1a1a] cursor-pointer hover:bg-[#ebe1cc]">+</button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
