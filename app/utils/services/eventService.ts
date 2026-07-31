@@ -18,6 +18,7 @@ export const eventService = {
 
   // Sponsors
   getSponsors: (opts?: any) => api.get<T.SponsorResponse[]>("api/v1/sponsors", opts),
+  getSponsorsByEvent: (eventId: string) => api.get<T.SponsorResponse[]>(`api/v1/sponsors/event/${eventId}`),
   createSponsor: (data: T.SponsorRequest) => api.post<T.SponsorResponse>("api/v1/sponsors", data),
   getSponsorById: (id: string) => api.get<T.SponsorResponse>(`api/v1/sponsors/${id}`),
   updateSponsor: (id: string, data: T.SponsorRequest) => api.put<T.SponsorResponse>(`api/v1/sponsors/${id}`, data),
@@ -46,14 +47,17 @@ export const eventService = {
 
   // QA Questions
   getQaQuestions: () => api.get<T.QaQuestionResponse[]>("api/v1/qaquestions"),
+  getQaQuestionsBySession: (sessionId: string) => api.get<T.QaQuestionResponse[]>(`api/v1/qaquestions/session/${sessionId}`),
   createQaQuestion: (data: T.QaQuestionRequest) => api.post<T.QaQuestionResponse>("api/v1/qaquestions", data),
   getQaQuestionById: (id: string) => api.get<T.QaQuestionResponse>(`api/v1/qaquestions/${id}`),
   updateQaQuestion: (id: string, data: T.QaQuestionRequest) => api.put<T.QaQuestionResponse>(`api/v1/qaquestions/${id}`, data),
+  upvoteQaQuestion: (id: string) => api.post<T.QaQuestionResponse>(`api/v1/qaquestions/${id}/upvote`),
   deleteQaQuestion: (id: string) => api.delete<void>(`api/v1/qaquestions/${id}`),
   getQaQuestionsByLocation: (locationId: string) => api.get<T.QaQuestionResponse[]>(`api/v1/qaquestions/location/${locationId}`),
 
   // Polls
   getPolls: () => api.get<T.PollResponse[]>("api/v1/polls"),
+  getPollsByEvent: (eventId: string) => api.get<T.PollResponse[]>(`api/v1/polls/event/${eventId}`),
   createPoll: (data: T.PollRequest) => api.post<T.PollResponse>("api/v1/polls", data),
   getPollById: (id: string) => api.get<T.PollResponse>(`api/v1/polls/${id}`),
   updatePoll: (id: string, data: T.PollRequest) => api.put<T.PollResponse>(`api/v1/polls/${id}`, data),
@@ -88,6 +92,7 @@ export const eventService = {
 
   // Feedbacks
   getFeedbacks: (opts?: any) => api.get<T.FeedbackResponse[]>("api/v1/feedbacks", opts),
+  getFeedbacksByEvent: (eventId: string) => api.get<T.FeedbackResponse[]>(`api/v1/feedbacks/event/${eventId}`),
   createFeedback: (data: T.FeedbackRequest) => api.post<T.FeedbackResponse>("api/v1/feedbacks", data),
   getFeedbackById: (id: string) => api.get<T.FeedbackResponse>(`api/v1/feedbacks/${id}`),
   updateFeedback: (id: string, data: T.FeedbackRequest) => api.put<T.FeedbackResponse>(`api/v1/feedbacks/${id}`, data),
@@ -185,6 +190,7 @@ export const eventService = {
 
   // Announcements
   getAnnouncements: (opts?: any) => api.get<T.AnnouncementResponse[]>("api/v1/announcements", opts),
+  getAnnouncementsByEvent: (eventId: string) => api.get<T.AnnouncementResponse[]>(`api/v1/announcements/event/${eventId}`),
   createAnnouncement: (data: T.AnnouncementRequest) => api.post<T.AnnouncementResponse>("api/v1/announcements", data),
   getAnnouncementById: (id: string) => api.get<T.AnnouncementResponse>(`api/v1/announcements/${id}`),
   updateAnnouncement: (id: string, data: T.AnnouncementRequest) => api.put<T.AnnouncementResponse>(`api/v1/announcements/${id}`, data),

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { api, setStoredAuth, getAuthClaims, AuthData } from "@/app/utils/api";
 import { useLanguage } from "@/app/context/LanguageContext";
+import GeolocationPrompt, { hasAnsweredLocationPrompt } from "@/components/GeolocationPrompt";
 
 function LoginForm() {
   const router = useRouter();
@@ -18,6 +19,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [geoPrompt, setGeoPrompt] = useState<{ userId: string; redirectTo: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,16 +87,21 @@ function LoginForm() {
 
       setStoredAuth(data);
 
-      if (resolvedRole === "SUPER_ADMIN") {
-        router.push("/super-admin");
-      } else if (from === "eventaas") {
-        // Signed up via the EventaaS site with an API plan — land on the API-quota
-        // dashboard instead of the regular organizer dashboard.
-        router.push("/api-dashboard");
-      } else if (resolvedRole === "ATTENDEE") {
-        router.push(from || "/user/dashboard");
+      const redirectTo =
+        resolvedRole === "SUPER_ADMIN"
+          ? "/super-admin"
+          : from === "eventaas"
+            // Signed up via the EventaaS site with an API plan — land on the API-quota
+            // dashboard instead of the regular organizer dashboard.
+            ? "/api-dashboard"
+            : resolvedRole === "ATTENDEE"
+              ? (from || "/user/dashboard")
+              : "/admin";
+
+      if (data.userId && !hasAnsweredLocationPrompt()) {
+        setGeoPrompt({ userId: data.userId, redirectTo });
       } else {
-        router.push("/admin");
+        router.push(redirectTo);
       }
     } catch (err: any) {
       setErrors((prev) => ({ ...prev, submit: err.message || t("loginPage.errorInvalidCredentials") }));
@@ -185,6 +192,17 @@ function LoginForm() {
           </div>
         </div>
       </main>
+
+      {geoPrompt && (
+        <GeolocationPrompt
+          userId={geoPrompt.userId}
+          onDone={() => {
+            const redirectTo = geoPrompt.redirectTo;
+            setGeoPrompt(null);
+            router.push(redirectTo);
+          }}
+        />
+      )}
     </div>
   );
 }

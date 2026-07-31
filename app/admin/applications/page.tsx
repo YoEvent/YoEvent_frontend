@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
-import { CheckCircle, XCircle, Users, Handshake, ChevronDown, Building2, Star, Plus, Trash2, Pencil, Save, Image as ImageIcon, Phone, Globe, Mail, User } from "lucide-react";
+import { CheckCircle, XCircle, Users, Handshake, ChevronDown, Building2, Star, Plus, Trash2, Pencil, Save, Image as ImageIcon, Phone, Globe, Mail, User, Upload } from "lucide-react";
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { useLanguage } from "@/app/context/LanguageContext";
@@ -19,6 +19,67 @@ const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text
 const label = "block text-[10px] font-semibold text-[#888] uppercase tracking-wider mb-1.5";
 const saveBtn = "flex items-center gap-2 px-5 py-2.5 bg-[#FF4747] text-white text-xs font-bold rounded-xl hover:bg-[#e03e3e] transition-colors cursor-pointer disabled:opacity-50";
 
+function MediaUploadField({
+  fieldLabel,
+  value,
+  uploading,
+  onUploading,
+  onChange,
+  onError,
+  round,
+}: {
+  fieldLabel: string;
+  value: string;
+  uploading: boolean;
+  onUploading: (uploading: boolean) => void;
+  onChange: (url: string) => void;
+  onError: (message: string) => void;
+  round?: boolean;
+}) {
+  const isVideo = /\.(mp4|webm|mov|m4v|ogg)$/i.test(value);
+  return (
+    <div>
+      <label className={label}>{fieldLabel}</label>
+      <label className="flex items-center gap-3 border-2 border-dashed border-[#e5e7eb] rounded-xl p-3 cursor-pointer hover:border-[#FF4747] transition-colors group">
+        {value ? (
+          isVideo ? (
+            <video src={value} muted className={`w-12 h-12 object-cover shrink-0 ${round ? "rounded-full" : "rounded-lg"}`} />
+          ) : (
+            <img src={value} alt="Preview" className={`w-12 h-12 object-cover shrink-0 ${round ? "rounded-full" : "rounded-lg"}`} />
+          )
+        ) : (
+          <div className={`w-12 h-12 bg-[#fafafa] border border-[#e5e7eb] flex items-center justify-center shrink-0 ${round ? "rounded-full" : "rounded-lg"}`}>
+            <Upload size={16} className="text-[#ccc] group-hover:text-[#FF4747] transition-colors" />
+          </div>
+        )}
+        <span className="text-xs text-[#888] group-hover:text-[#FF4747] transition-colors">
+          {uploading ? "Uploading..." : value ? "Click to change" : "Upload image or video"}
+        </span>
+        <input
+          type="file"
+          accept="image/*,video/*"
+          className="hidden"
+          disabled={uploading}
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            onUploading(true);
+            try {
+              const res = await eventService.uploadImage(f);
+              onChange(res.url);
+            } catch (err: any) {
+              onError(err?.message || "Upload failed.");
+            } finally {
+              onUploading(false);
+            }
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
 export default function ApplicationsPage() {
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>("sponsors");
@@ -35,6 +96,7 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Forms
@@ -104,12 +166,12 @@ export default function ApplicationsPage() {
   const loadApplications = async (eventId: string) => {
     setLoading(true);
     try {
-      const [allSponsors, allParticipants, allOrgs] = await Promise.all([
-        eventService.getSponsors().catch(() => []),
+      const [eventSponsors, allParticipants, allOrgs] = await Promise.all([
+        eventService.getSponsorsByEvent(eventId).catch(() => []),
         eventService.getParticipantsByEvent(eventId).catch(() => []),
         eventService.getOrganizations().catch(() => []),
       ]);
-      setSponsors((allSponsors || []).filter((s: any) => s.eventId === eventId));
+      setSponsors(eventSponsors || []);
       setParticipants(allParticipants || []);
       setOrganizations(allOrgs || []);
     } catch (err) {
@@ -539,10 +601,14 @@ export default function ApplicationsPage() {
                     <input placeholder="e.g. Acme Corp" value={sponsorForm.newCompanyName} onChange={e => setSponsorForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={label}>New Org Logo URL</label>
-                      <input placeholder="https://..." value={sponsorForm.newCompanyLogo} onChange={e => setSponsorForm(f => ({ ...f, newCompanyLogo: e.target.value }))} className={inp} />
-                    </div>
+                    <MediaUploadField
+                      fieldLabel="New Org Logo"
+                      value={sponsorForm.newCompanyLogo}
+                      uploading={uploadingField === "sponsorLogo"}
+                      onUploading={(v) => setUploadingField(v ? "sponsorLogo" : null)}
+                      onChange={(url) => setSponsorForm(f => ({ ...f, newCompanyLogo: url }))}
+                      onError={(msg) => showToast("error", msg)}
+                    />
                     <div>
                       <label className={label}>New Org Website</label>
                       <input placeholder="https://..." value={sponsorForm.newCompanyWebsite} onChange={e => setSponsorForm(f => ({ ...f, newCompanyWebsite: e.target.value }))} className={inp} />
@@ -576,7 +642,7 @@ export default function ApplicationsPage() {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={saving} className={saveBtn}>
+                  <button type="submit" disabled={saving || uploadingField !== null} className={saveBtn}>
                     <Save size={13} /> {editingSponsor ? (saving ? "Saving..." : "Save Sponsor") : (saving ? "Adding..." : "Add Sponsor")}
                   </button>
                 </form>
@@ -621,6 +687,15 @@ export default function ApplicationsPage() {
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
                           >
                             <CheckCircle size={13} /> Approve
+                          </button>
+                        )}
+                        {v.status !== "rejected" && (
+                          <button
+                            onClick={() => updateParticipantStatus(v, "rejected")}
+                            disabled={actionLoading === id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            <XCircle size={13} /> Reject
                           </button>
                         )}
                         <button
@@ -689,7 +764,14 @@ export default function ApplicationsPage() {
                       <input placeholder="e.g. Acme Booths" value={vendorForm.newCompanyName} onChange={e => setVendorForm(f => ({ ...f, newCompanyName: e.target.value }))} className={inp} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div><label className={label}>New Org Logo URL</label><input placeholder="https://..." value={vendorForm.newCompanyLogo} onChange={e => setVendorForm(f => ({ ...f, newCompanyLogo: e.target.value }))} className={inp} /></div>
+                      <MediaUploadField
+                        fieldLabel="New Org Logo"
+                        value={vendorForm.newCompanyLogo}
+                        uploading={uploadingField === "vendorLogo"}
+                        onUploading={(v) => setUploadingField(v ? "vendorLogo" : null)}
+                        onChange={(url) => setVendorForm(f => ({ ...f, newCompanyLogo: url }))}
+                        onError={(msg) => showToast("error", msg)}
+                      />
                       <div><label className={label}>New Org Website</label><input placeholder="https://..." value={vendorForm.newCompanyWebsite} onChange={e => setVendorForm(f => ({ ...f, newCompanyWebsite: e.target.value }))} className={inp} /></div>
                     </div>
                     <div>
@@ -698,7 +780,7 @@ export default function ApplicationsPage() {
                     </div>
                   </div>
 
-                  <button type="submit" disabled={saving} className={saveBtn}>
+                  <button type="submit" disabled={saving || uploadingField !== null} className={saveBtn}>
                     <Save size={13} /> {editingParticipant ? (saving ? "Saving..." : "Save Vendor") : (saving ? "Adding..." : "Add Vendor")}
                   </button>
                 </form>
@@ -744,6 +826,15 @@ export default function ApplicationsPage() {
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-900/40 hover:bg-green-800/60 text-green-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
                           >
                             <CheckCircle size={13} /> Approve
+                          </button>
+                        )}
+                        {v.status !== "rejected" && (
+                          <button
+                            onClick={() => updateParticipantStatus(v, "rejected")}
+                            disabled={actionLoading === id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-900/40 hover:bg-red-800/60 text-red-400 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:opacity-40"
+                          >
+                            <XCircle size={13} /> Reject
                           </button>
                         )}
                         <button
@@ -802,12 +893,17 @@ export default function ApplicationsPage() {
                     <label className={label}>Application Notes</label>
                     <textarea placeholder="Shift preferences, notes..." value={volunteerForm.notes} onChange={e => setVolunteerForm(f => ({ ...f, notes: e.target.value }))} rows={2} className={inp + " resize-none"} />
                   </div>
-                  <div>
-                    <label className={label}>Profile Photo URL</label>
-                    <input placeholder="https://..." value={volunteerForm.photoUrl} onChange={e => setVolunteerForm(f => ({ ...f, photoUrl: e.target.value }))} className={inp} />
-                  </div>
+                  <MediaUploadField
+                    fieldLabel="Profile Photo"
+                    value={volunteerForm.photoUrl}
+                    uploading={uploadingField === "volunteerPhoto"}
+                    onUploading={(v) => setUploadingField(v ? "volunteerPhoto" : null)}
+                    onChange={(url) => setVolunteerForm(f => ({ ...f, photoUrl: url }))}
+                    onError={(msg) => showToast("error", msg)}
+                    round
+                  />
 
-                  <button type="submit" disabled={saving} className={saveBtn}>
+                  <button type="submit" disabled={saving || uploadingField !== null} className={saveBtn}>
                     <Save size={13} /> {editingParticipant ? (saving ? "Saving..." : "Save Volunteer") : (saving ? "Adding..." : "Add Volunteer")}
                   </button>
                 </form>

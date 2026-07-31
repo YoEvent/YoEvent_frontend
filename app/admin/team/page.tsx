@@ -286,7 +286,7 @@ export default function TeamPage() {
         participantRes = await eventService.updateParticipant(editingParticipant.id, participantPayload);
         // Delete existing assignments when editing
         const existingAssigns = getAssignmentsForParticipant(editingParticipant.id);
-        await Promise.all(existingAssigns.map(a => eventService.deleteAssignment(a.id).catch(() => {})));
+        await Promise.all(existingAssigns.map(a => eventService.deleteAssignment(a.id).catch(() => { })));
       } else {
         participantRes = await eventService.createParticipant(participantPayload);
       }
@@ -378,7 +378,7 @@ export default function TeamPage() {
         {/* Header */}
         <header className="bg-white border-b border-[#e5e7eb] px-8 py-5 flex items-center justify-between sticky top-0 z-30">
           <div>
-            <h1 className="font-display font-black text-xl" style={{background: "linear-gradient(90deg, #EB4203, #FF4747)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"}}>{t("adminTeam.header.title")}</h1>
+            <h1 className="font-display font-black text-xl" style={{ background: "linear-gradient(90deg, #EB4203, #FF4747)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{t("adminTeam.header.title")}</h1>
             <p className="text-xs text-[#888] mt-0.5">{t("adminTeam.header.subtitle")}</p>
           </div>
           <button onClick={() => { setEditingParticipant(null); setEditingAssignment(null); setForm(emptyForm()); setIsDrawerOpen(true); }} className="flex items-center gap-2 bg-[#FF4747] hover:bg-[#e03e3e] text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm cursor-pointer">
@@ -386,7 +386,7 @@ export default function TeamPage() {
           </button>
         </header>
 
-        <main className="p-8 space-y-6 max-w-[1400px] w-full">
+        <main className="p-8 space-y-6 max-w-[1400px] w-full mx-auto">
           {/* Filter Bar */}
           <div className="flex items-center gap-4 bg-white border border-[#e5e7eb] p-3 rounded-2xl flex-wrap">
             {/* Event Dropdown */}
@@ -461,7 +461,7 @@ export default function TeamPage() {
                 {filteredParticipants.map(p => {
                   const assigns = getAssignmentsForParticipant(p.id);
                   let slots: any[] = [];
-                  try { if (p.availability) slots = JSON.parse(p.availability); } catch {}
+                  try { if (p.availability) slots = JSON.parse(p.availability); } catch { }
 
                   return (
                     <div key={p.id} className="bg-white border border-[#e5e7eb] rounded-2xl p-5 relative group hover:border-[#FF4747]/30 hover:shadow-md transition-all flex flex-col justify-between">
@@ -564,7 +564,7 @@ export default function TeamPage() {
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-[#f3f4f6] shrink-0 bg-white">
           <div>
-            <h3 className="font-display font-bold text-lg" style={{background: "linear-gradient(90deg, #EB4203, #FF4747)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"}}>{editingParticipant ? t("adminTeam.form.editTitle") : t("adminTeam.form.addTitle")}</h3>
+            <h3 className="font-display font-bold text-lg" style={{ background: "linear-gradient(90deg, #EB4203, #FF4747)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{editingParticipant ? t("adminTeam.form.editTitle") : t("adminTeam.form.addTitle")}</h3>
             <p className="text-[#888] text-xs mt-0.5">{editingParticipant ? t("adminTeam.form.editSubtitle") : t("adminTeam.form.addSubtitle")}</p>
           </div>
           <button onClick={() => setIsDrawerOpen(false)} className="text-[#aaa] hover:text-[#FF4747] p-2 rounded-xl hover:bg-[#fff5f5] transition-colors cursor-pointer">

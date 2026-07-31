@@ -4,7 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import { eventService } from "@/app/utils/services/eventService";
 import { paymentService } from "@/app/utils/services/paymentService";
 import { getStoredAuth } from "@/app/utils/api";
-import { ShoppingCart, Search, ChevronDown, Package, CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
+import { ShoppingCart, Search, ChevronRight, Package, CheckCircle2, XCircle, Clock, DollarSign } from "lucide-react";
 import { useLanguage } from "@/app/context/LanguageContext";
  
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -18,6 +18,8 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterEventId, setFilterEventId] = useState("ALL");
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showEventDropdown, setShowEventDropdown] = useState(false);
   const [orderItems, setOrderItems] = useState<any[]>([]);
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const [refunds, setRefunds] = useState<any[]>([]);
@@ -49,6 +51,14 @@ export default function OrdersPage() {
     };
     load();
   }, []);
+
+  const statusOptions = [
+    { value: "ALL", label: t("adminOrders.filters.allStatuses") },
+    { value: "PENDING", label: t("adminOrders.filters.pending") },
+    { value: "COMPLETED", label: t("adminOrders.filters.completed") },
+    { value: "CANCELLED", label: t("adminOrders.filters.cancelled") },
+    { value: "FAILED", label: t("adminOrders.filters.failed") },
+  ];
 
   const filtered = orders.filter((o: any) => {
     const matchStatus = filterStatus === "ALL" || o.status === filterStatus;
@@ -120,23 +130,43 @@ export default function OrdersPage() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("adminOrders.filters.searchPlaceholder")} className={inp + " pl-9"} />
             </div>
             <div className="relative">
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={inp + " appearance-none pr-8 w-auto"}>
-                <option value="ALL">{t("adminOrders.filters.allStatuses")}</option>
-                <option value="PENDING">{t("adminOrders.filters.pending")}</option>
-                <option value="COMPLETED">{t("adminOrders.filters.completed")}</option>
-                <option value="CANCELLED">{t("adminOrders.filters.cancelled")}</option>
-                <option value="FAILED">{t("adminOrders.filters.failed")}</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+              <button type="button" onClick={() => setShowStatusDropdown(v => !v)} className={inp + " flex items-center justify-between gap-2 w-auto min-w-[160px] cursor-pointer"}>
+                <span>{statusOptions.find(o => o.value === filterStatus)?.label}</span>
+                <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showStatusDropdown ? "rotate-90" : ""}`} />
+              </button>
+              {showStatusDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowStatusDropdown(false)} />
+                  <div className="absolute z-50 mt-1 w-full min-w-[160px] bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                    {statusOptions.map(opt => (
+                      <button key={opt.value} type="button" onClick={() => { setFilterStatus(opt.value); setShowStatusDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${filterStatus === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             <div className="relative">
-              <select value={filterEventId} onChange={e => setFilterEventId(e.target.value)} className={inp + " appearance-none pr-8 w-auto"}>
-                <option value="ALL">{t("adminOrders.filters.allEvents")}</option>
-                {events.map((ev: any) => (
-                  <option key={ev.eventId} value={ev.eventId}>{ev.title}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+              <button type="button" onClick={() => setShowEventDropdown(v => !v)} className={inp + " flex items-center justify-between gap-2 w-auto min-w-[160px] cursor-pointer"}>
+                <span className="truncate">{filterEventId === "ALL" ? t("adminOrders.filters.allEvents") : (events.find((ev: any) => ev.eventId === filterEventId)?.title || t("adminOrders.filters.allEvents"))}</span>
+                <ChevronRight size={14} className={`text-[#aaa] transition-transform shrink-0 ${showEventDropdown ? "rotate-90" : ""}`} />
+              </button>
+              {showEventDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowEventDropdown(false)} />
+                  <div className="absolute z-50 mt-1 w-full min-w-[200px] bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                    <button type="button" onClick={() => { setFilterEventId("ALL"); setShowEventDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${filterEventId === "ALL" ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                      {t("adminOrders.filters.allEvents")}
+                    </button>
+                    {events.map((ev: any) => (
+                      <button key={ev.eventId} type="button" onClick={() => { setFilterEventId(ev.eventId); setShowEventDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${filterEventId === ev.eventId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                        {ev.title}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

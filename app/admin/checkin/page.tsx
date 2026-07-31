@@ -7,7 +7,7 @@ import { getStoredAuth } from "@/app/utils/api";
 import { savePendingCheckIn, getPendingCheckIns, deletePendingCheckIn, countPendingCheckIns } from "@/app/utils/offlineDb";
 import {
   ScanLine, Check, X, AlertCircle, Search, QrCode, Users,
-  Calendar, ChevronDown, CheckCircle2, XCircle, Camera, Keyboard,
+  Calendar, ChevronRight, CheckCircle2, XCircle, Camera, Keyboard,
   Maximize, Minimize, WifiOff, RefreshCw
 } from "lucide-react";
 import { useLanguage } from "@/app/context/LanguageContext";
@@ -36,6 +36,8 @@ export default function CheckInPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [offlineQueueCount, setOfflineQueueCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [showEventDropdown, setShowEventDropdown] = useState(false);
+  const [showSessionDropdown, setShowSessionDropdown] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -273,33 +275,45 @@ export default function CheckInPage() {
             <div>
               <label className={label}><Calendar size={10} className="inline mr-1" />Select Event</label>
               <div className="relative">
-                <select
-                  value={selectedEventId}
-                  onChange={e => setSelectedEventId(e.target.value)}
-                  className={inp + " appearance-none pr-10"}
-                >
-                  {events.length === 0 && <option value="">No events found</option>}
-                  {events.map((ev: any) => (
-                    <option key={ev.eventId} value={ev.eventId}>{ev.title}</option>
-                  ))}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+                <button type="button" onClick={() => setShowEventDropdown(v => !v)} className={inp + " flex items-center justify-between gap-2 cursor-pointer"}>
+                  <span className="truncate">{events.find((ev: any) => ev.eventId === selectedEventId)?.title || "No events found"}</span>
+                  <ChevronRight size={14} className={`text-[#aaa] transition-transform shrink-0 ${showEventDropdown ? "rotate-90" : ""}`} />
+                </button>
+                {showEventDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowEventDropdown(false)} />
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                      {events.length === 0 && <div className="px-4 py-2.5 text-xs text-[#aaa]">No events found</div>}
+                      {events.map((ev: any) => (
+                        <button key={ev.eventId} type="button" onClick={() => { setSelectedEventId(ev.eventId); setShowEventDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedEventId === ev.eventId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                          {ev.title}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div>
               <label className={label}><ScanLine size={10} className="inline mr-1" />Select Session</label>
               <div className="relative">
-                <select
-                  value={selectedSessionId}
-                  onChange={e => setSelectedSessionId(e.target.value)}
-                  className={inp + " appearance-none pr-10"}
-                >
-                  {sessions.length === 0 && <option value="">No sessions found</option>}
-                  {sessions.map((s: any) => (
-                    <option key={s.sessionId || s.id} value={s.sessionId || s.id}>{s.title}</option>
-                  ))}
-                </select>
-                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] pointer-events-none" />
+                <button type="button" onClick={() => setShowSessionDropdown(v => !v)} className={inp + " flex items-center justify-between gap-2 cursor-pointer"}>
+                  <span className="truncate">{sessions.find((s: any) => (s.sessionId || s.id) === selectedSessionId)?.title || "No sessions found"}</span>
+                  <ChevronRight size={14} className={`text-[#aaa] transition-transform shrink-0 ${showSessionDropdown ? "rotate-90" : ""}`} />
+                </button>
+                {showSessionDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowSessionDropdown(false)} />
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                      {sessions.length === 0 && <div className="px-4 py-2.5 text-xs text-[#aaa]">No sessions found</div>}
+                      {sessions.map((s: any) => (
+                        <button key={s.sessionId || s.id} type="button" onClick={() => { setSelectedSessionId(s.sessionId || s.id); setShowSessionDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedSessionId === (s.sessionId || s.id) ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
+                          {s.title}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               {!selectedSessionId && (
                 <p className="text-[10px] text-red-500 mt-1.5">A session must be selected before check-in.</p>

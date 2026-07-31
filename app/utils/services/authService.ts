@@ -8,6 +8,8 @@ export const authService = {
   getUserById: (id: string) => api.get<T.UserResponse>(`api/v1/users/${id}`),
   updateUser: (id: string, data: T.UserRequest) => api.put<T.UserResponse>(`api/v1/users/${id}`, data),
   deleteUser: (id: string) => api.delete<void>(`api/v1/users/${id}`),
+  updateUserLocation: (id: string, latitude: number, longitude: number) =>
+    api.patch<T.UserResponse>(`api/v1/users/${id}/location`, { latitude, longitude }),
 
   // User Roles
   getUserRoles: () => api.get<T.UserRoleResponse[]>("api/v1/userroles"),

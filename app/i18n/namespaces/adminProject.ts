@@ -1,6 +1,6 @@
 export const adminProject = {
   en: {
-    header: { title: "Ticketing & Coupons" },
+    header: { eyebrow: "Admin", title: "Ticketing & Coupons", subtitle: "Manage ticket tiers, pricing, and promo codes for your events." },
     tickets: {
       title: "Ticket Tiers",
       forEvent: "(for {eventTitle})",
@@ -101,7 +101,7 @@ export const adminProject = {
     },
   },
   fr: {
-    header: { title: "Billetterie et coupons" },
+    header: { eyebrow: "Admin", title: "Billetterie et coupons", subtitle: "Gérez les catégories de billets, les tarifs et les codes promo de vos événements." },
     tickets: {
       title: "Catégories de billets",
       forEvent: "(pour {eventTitle})",

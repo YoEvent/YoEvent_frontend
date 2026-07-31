@@ -109,11 +109,11 @@ export default function EngagementsPage() {
       const [analyticsList, logsList, feedbacksList, ordersList, pollsList, sessionsList, announcementsList, registrationsList] = await Promise.all([
         api.get<any[]>("/api/v1/eventanalyticss").catch(() => []),
         api.get<any[]>("/api/v1/auditlogs").catch(() => []),
-        api.get<any[]>("/api/v1/feedbacks").catch(() => []),
+        eventService.getFeedbacksByEvent(eventId).catch(() => []),
         api.get<any[]>("/api/v1/orders").catch(() => []),
-        eventService.getPolls().catch(() => []),
+        eventService.getPollsByEvent(eventId).catch(() => []),
         eventService.getSessions().catch(() => []),
-        eventService.getAnnouncements().catch(() => []),
+        eventService.getAnnouncementsByEvent(eventId).catch(() => []),
         eventService.getRegistrationsByEvent(eventId).catch(() => []),
       ]);
 
@@ -121,10 +121,10 @@ export default function EngagementsPage() {
 
       setAnalytics(analyticsList.filter(byEvent));
       setAuditLogs(logsList || []);
-      setFeedbacks(feedbacksList.filter(byEvent));
+      setFeedbacks(feedbacksList || []);
       setOrders(ordersList.filter(byEvent));
-      setPolls(pollsList.filter(byEvent));
-      setAnnouncements(announcementsList.filter(byEvent));
+      setPolls(pollsList || []);
+      setAnnouncements(announcementsList || []);
       setRegistrations(registrationsList || []);
       
       const eventSessions = sessionsList.filter(byEvent);

@@ -139,6 +139,9 @@ export default function AttendeeDashboard() {
   const [engageQaInput, setEngageQaInput] = useState("");
   const [engageLoading, setEngageLoading] = useState(false);
   const [engageEventMeta, setEngageEventMeta] = useState<any>(null);
+  const [engageSessions, setEngageSessions] = useState<any[]>([]);
+  const [engageSessionId, setEngageSessionId] = useState<string>("");
+  const [showEngageSessionDropdown, setShowEngageSessionDropdown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // ── handlers (unchanged logic) ──────────────────────────────
@@ -508,24 +511,74 @@ export default function AttendeeDashboard() {
     { id: "overview", label: t("userDashboard.nav.overview"),     icon: LayoutDashboard },
     { id: "tickets",  label: t("userDashboard.nav.tickets"),   icon: Ticket,   count: myTickets.length },
     { id: "saved",    label: t("userDashboard.nav.saved"), icon: Bookmark, count: savedEvents.length },
-    ...(registeredTickets.length > 0 ? [{ id: "engage" as Tab, label: t("userDashboard.nav.engage"), icon: MessageSquare }] : []),
+    { id: "engage",   label: t("userDashboard.nav.engage"), icon: MessageSquare },
     { id: "settings", label: t("userDashboard.nav.profile"),      icon: User },
   ];
 
+  // Picks the session whose time window contains "now"; falls back to the first
+  // upcoming session, then the first session overall, so there's always a sensible default.
+  const pickCurrentSession = (sessions: any[]): any => {
+    if (!sessions.length) return null;
+    const now = Date.now();
+    const withTimes = sessions.map(s => ({
+      s,
+      start: s.startTime ? new Date(s.startTime).getTime() : NaN,
+      end: s.endTime ? new Date(s.endTime).getTime() : NaN,
+    }));
+    const live = withTimes.find(x => !isNaN(x.start) && !isNaN(x.end) && now >= x.start && now <= x.end);
+    if (live) return live.s;
+    const upcoming = withTimes
+      .filter(x => !isNaN(x.start) && x.start > now)
+      .sort((a, b) => a.start - b.start)[0];
+    if (upcoming) return upcoming.s;
+    return sessions[0];
+  };
+
+  const loadSessionQA = async (sessionId: string) => {
+    if (!sessionId) {
+      setEngageQaQuestions([]);
+      return;
+    }
+    try {
+      const questionsList = await eventService.getQaQuestionsBySession(sessionId).catch(() => []);
+      setEngageQaQuestions(Array.isArray(questionsList) ? questionsList : []);
+    } catch {
+      setEngageQaQuestions([]);
+    }
+  };
+
   const handleEngageEventChange = async (eid: string) => {
     setEngageEventId(eid);
+    setEngageSessionId("");
+    setEngageQaQuestions([]);
     if (!eid) return;
     setEngageLoading(true);
     try {
-      const [allPolls, allQa, evData] = await Promise.all([
-        eventService.getPolls().catch(() => []),
-        eventService.getQaQuestions().catch(() => []),
+      const [allPolls, allSessions, evData] = await Promise.all([
+        eventService.getPollsByEvent(eid).catch(() => []),
+        eventService.getSessions().catch(() => []),
         eventService.getEventById(eid, { skipAuth: true }).catch(() => null),
       ]);
       const toArr = (d: any): any[] => Array.isArray(d) ? d : (d?.content ?? []);
-      setEngagePolls(toArr(allPolls).filter((p: any) => p.eventId === eid));
-      setEngageQaQuestions(toArr(allQa).filter((q: any) => q.eventId === eid));
+      setEngagePolls(toArr(allPolls));
       setEngageEventMeta(evData);
+
+      const eventSessions = toArr(allSessions).filter((s: any) => s.eventId === eid);
+      setEngageSessions(eventSessions);
+      const current = pickCurrentSession(eventSessions);
+      const currentId = current ? (current.sessionId || current.id) : "";
+      setEngageSessionId(currentId);
+      await loadSessionQA(currentId);
+    } finally {
+      setEngageLoading(false);
+    }
+  };
+
+  const handleEngageSessionChange = async (sessionId: string) => {
+    setEngageSessionId(sessionId);
+    setEngageLoading(true);
+    try {
+      await loadSessionQA(sessionId);
     } finally {
       setEngageLoading(false);
     }
@@ -534,10 +587,10 @@ export default function AttendeeDashboard() {
   const handleEngagePostQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     const auth = getStoredAuth();
-    if (!auth || !engageEventId || !engageQaInput.trim()) return;
+    if (!auth || !engageSessionId || !engageQaInput.trim()) return;
     try {
       const q = await eventService.createQaQuestion({
-        eventId: engageEventId,
+        sessionId: engageSessionId,
         questionText: engageQaInput.trim(),
         userId: auth.userId,
         upvotes: 0,
@@ -550,11 +603,9 @@ export default function AttendeeDashboard() {
   };
 
   const handleEngageUpvote = async (qaId: string) => {
-    const q = engageQaQuestions.find(item => (item.qaQuestionId || item.id) === qaId);
-    if (!q) return;
     try {
-      const updated = await eventService.updateQaQuestion(qaId, { ...q, upvotes: (q.upvotes || 0) + 1 });
-      setEngageQaQuestions(prev => prev.map(item => (item.qaQuestionId || item.id) === qaId ? updated : item));
+      const updated = await eventService.upvoteQaQuestion(qaId);
+      setEngageQaQuestions(prev => prev.map(item => (item.questionId || item.id) === qaId ? updated : item));
     } catch {}
   };
 
@@ -1176,11 +1227,17 @@ export default function AttendeeDashboard() {
                             </div>
                           ) : (
                             engagePolls.map((poll, idx) => {
-                              const options = Array.isArray(poll.options)
-                                ? poll.options
-                                : typeof poll.options === "string"
-                                  ? poll.options.split(",").map((o: string) => o.trim())
-                                  : [];
+                              let options: string[] = [];
+                              if (Array.isArray(poll.options)) {
+                                options = poll.options;
+                              } else if (typeof poll.options === "string") {
+                                try {
+                                  const parsed = JSON.parse(poll.options);
+                                  options = Array.isArray(parsed) ? parsed : [];
+                                } catch {
+                                  options = poll.options.split(",").map((o: string) => o.trim()).filter(Boolean);
+                                }
+                              }
                               return (
                                 <div key={`${poll.pollId || poll.id || idx}-${idx}`} className="p-5 bg-[#faf9f7] border border-[#e5e7eb] rounded-2xl space-y-3">
                                   <div className="flex items-start gap-3">
@@ -1221,8 +1278,44 @@ export default function AttendeeDashboard() {
                       {/* ── Q&A ── */}
                       {engageSubTab === "qa" && (
                         <div className="space-y-5">
+                          {/* Session selector — Q&A is scoped to a single live session */}
+                          {engageSessions.length > 0 && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowEngageSessionDropdown(v => !v)}
+                                className="w-full flex items-center justify-between gap-2 border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm bg-white text-[#1a1a1a] font-semibold cursor-pointer hover:border-[#FF4747] transition-colors"
+                              >
+                                <span className="truncate">
+                                  {engageSessions.find(s => (s.sessionId || s.id) === engageSessionId)?.title || t("userDashboard.engage.qa.selectSession")}
+                                </span>
+                                <ChevronRight size={14} className={`text-[#aaa] transition-transform shrink-0 ${showEngageSessionDropdown ? "rotate-90" : ""}`} />
+                              </button>
+                              {showEngageSessionDropdown && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => setShowEngageSessionDropdown(false)} />
+                                  <div className="absolute z-50 mt-1 w-full bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                                    {engageSessions.map((s: any) => {
+                                      const sid = s.sessionId || s.id;
+                                      return (
+                                        <button
+                                          key={sid}
+                                          type="button"
+                                          onClick={() => { setShowEngageSessionDropdown(false); handleEngageSessionChange(sid); }}
+                                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${engageSessionId === sid ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                                        >
+                                          {s.title}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+
                           {/* Post question form */}
-                          {isActive && (
+                          {isActive && engageSessionId && (
                             <form onSubmit={handleEngagePostQuestion} className="flex gap-3">
                               <input
                                 value={engageQaInput}
@@ -1238,6 +1331,12 @@ export default function AttendeeDashboard() {
                                 <Send size={14} /> {t("userDashboard.engage.qa.post")}
                               </button>
                             </form>
+                          )}
+                          {isActive && !engageSessionId && (
+                            <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
+                              <Clock size={14} className="shrink-0" />
+                              <span>{t("userDashboard.engage.qa.noSessions")}</span>
+                            </div>
                           )}
                           {!isActive && !isEnded && (
                             <div className="flex items-center gap-2 px-4 py-3 bg-[#f5f5f5] border border-[#e5e7eb] rounded-xl text-sm text-[#888]">
@@ -1264,10 +1363,10 @@ export default function AttendeeDashboard() {
                               engageQaQuestions
                                 .sort((a: any, b: any) => (b.upvotes || 0) - (a.upvotes || 0))
                                 .map((q: any, idx: number) => (
-                                  <div key={`${q.qaQuestionId || q.id || idx}-${idx}`} className="p-4 bg-[#faf9f7] border border-[#e5e7eb] rounded-xl flex gap-3">
+                                  <div key={`${q.questionId || q.id || idx}-${idx}`} className="p-4 bg-[#faf9f7] border border-[#e5e7eb] rounded-xl flex gap-3">
                                     <div className="flex flex-col items-center gap-1 shrink-0">
                                       <button
-                                        onClick={() => handleEngageUpvote(q.qaQuestionId || q.id)}
+                                        onClick={() => handleEngageUpvote(q.questionId || q.id)}
                                         className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg border transition-all cursor-pointer ${
                                           "border-[#e5e7eb] bg-white hover:border-[#FF4747] hover:text-[#FF4747] text-[#888]"
                                         }`}

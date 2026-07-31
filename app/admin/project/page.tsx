@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Plus, Tag, Ticket, DollarSign, Calendar as CalIcon, Pencil, Trash2, Save, X, Star, ChevronDown } from "lucide-react";
+import { Plus, Tag, Ticket, DollarSign, Calendar as CalIcon, Pencil, Trash2, Save, X, Star, ChevronRight } from "lucide-react";
 import { getStoredAuth, api } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { paymentService } from "@/app/utils/services/paymentService";
@@ -54,6 +54,8 @@ export default function ProjectPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showEventDropdown, setShowEventDropdown] = useState(false);
+  const [showCouponTypeDropdown, setShowCouponTypeDropdown] = useState(false);
 
   const ticketFormRef = useRef<HTMLFormElement>(null);
   const couponFormRef = useRef<HTMLFormElement>(null);
@@ -321,44 +323,66 @@ export default function ProjectPage() {
   const allocatedTicketQty = ticketTypes.reduce((sum: number, t: any) => sum + (t.quantityAvailable ?? 0), 0);
 
   return (
-    <div className="flex bg-[#f9fafb] min-h-screen text-[#374151]">
+    <div className="flex bg-[#f9fafb] min-h-screen text-[#1a1a1a]">
       <Sidebar />
-      <div className="ml-[220px] flex-1 flex flex-col">
-        {/* TOAST */}
-        {toast && (
-          <div className="fixed top-5 right-5 z-50 bg-[#1a1a1a] text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
-            <Star size={12} className="text-[#FF4747]" />
-            {toast}
-          </div>
-        )}
-
-        {/* HEADER */}
-        <header className="h-[60px] bg-white border-b border-[#e5e7eb] flex items-center justify-between px-8 sticky top-0 z-40">
-          <h1 className="font-display text-xl font-bold text-[#EB4203]">{t("adminProject.header.title")}</h1>
-          {events.length > 0 && (
-            <div className="relative">
-              <select
-                value={selectedEventId}
-                onChange={(e) => setSelectedEventId(e.target.value)}
-                className="appearance-none bg-white border border-[#e5e7eb] text-[#1a1a1a] text-sm rounded-lg px-4 py-1.5 pr-8 outline-none cursor-pointer"
-              >
-                {events.map((ev, idx) => (
-                  <option key={`${ev.eventId || ev.id || idx}-${idx}`} value={ev.eventId || ev.id}>
-                    {ev.title}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#555] pointer-events-none" />
+      <div className="ml-[220px] flex-1 p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* TOAST */}
+          {toast && (
+            <div className="fixed top-5 right-5 z-50 bg-[#1a1a1a] text-white text-xs font-semibold px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
+              <Star size={12} className="text-[#FF4747]" />
+              {toast}
             </div>
           )}
-        </header>
 
-        <main className="p-8 space-y-8 max-w-[1400px]">
+          {/* HEADER */}
+          <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs text-[#aaa] font-semibold uppercase tracking-widest mb-1">{t("adminProject.header.eyebrow")}</p>
+              <h1 className="font-display font-black text-3xl text-[#1a1a1a] flex items-center gap-3">
+                <Ticket size={28} className="text-[#FF4747]" /> {t("adminProject.header.title")}
+              </h1>
+              <p className="text-[#888] text-sm mt-1">{t("adminProject.header.subtitle")}</p>
+            </div>
+            {events.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowEventDropdown(v => !v)}
+                  className="bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] font-semibold outline-none cursor-pointer flex items-center justify-between gap-2 min-w-[200px] focus:border-[#FF4747] transition-colors"
+                >
+                  <span className="truncate">{activeEvent?.title || t("adminProject.tickets.forSelectedEvent")}</span>
+                  <ChevronRight size={14} className={`text-[#aaa] transition-transform shrink-0 ${showEventDropdown ? "rotate-90" : ""}`} />
+                </button>
+                {showEventDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowEventDropdown(false)} />
+                    <div className="absolute right-0 z-50 mt-1 w-full min-w-[200px] bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden max-h-60 overflow-y-auto">
+                      {events.map((ev, idx) => {
+                        const id = ev.eventId || ev.id;
+                        return (
+                          <button
+                            key={`${id || idx}-${idx}`}
+                            type="button"
+                            onClick={() => { setSelectedEventId(id); setShowEventDropdown(false); }}
+                            className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${selectedEventId === id ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                          >
+                            {ev.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* TICKET TYPES */}
           <div className="grid grid-cols-2 gap-8">
-            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
-              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-                <Ticket size={18} className="text-[#EB4203]" /> {t("adminProject.tickets.title")} <span className="text-xs font-normal text-[#666] ml-2 mt-1">{t("adminProject.tickets.forEvent", { eventTitle: activeEvent?.title || t("adminProject.tickets.forSelectedEvent") })}</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-bold text-sm text-[#1a1a1a] mb-5 flex items-center gap-2">
+                <Ticket size={18} className="text-[#FF4747]" /> {t("adminProject.tickets.title")} <span className="text-xs font-normal text-[#888] ml-2 mt-1">{t("adminProject.tickets.forEvent", { eventTitle: activeEvent?.title || t("adminProject.tickets.forSelectedEvent") })}</span>
               </h2>
               <form ref={ticketFormRef} onSubmit={handleSaveTicket} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -534,7 +558,7 @@ export default function ProjectPage() {
                       </div>
                       <div className="text-right shrink-0 flex items-center gap-4">
                         <div>
-                          <div className="text-xs font-bold text-[#EB4203]">{Number(tk.price).toLocaleString()} FCFA</div>
+                          <div className="text-xs font-bold text-[#FF4747]">{Number(tk.price).toLocaleString()} FCFA</div>
                           <div className="text-[9px] text-[#555] mt-0.5">{t("adminProject.tickets.sold", { sold: tk.quantitySold || 0, available: tk.quantityAvailable })}</div>
                         </div>
                         <div className="flex gap-1 shrink-0">
@@ -569,9 +593,9 @@ export default function ProjectPage() {
             </div>
 
             {/* COUPONS */}
-            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
-              <h2 className="font-display font-bold text-[#EB4203] mb-5 flex items-center gap-2">
-                <Tag size={18} className="text-[#EB4203]" /> {t("adminProject.coupons.title")} <span className="text-xs font-normal text-[#666] ml-2 mt-1">{t("adminProject.coupons.forEvent", { eventTitle: activeEvent?.title || t("adminProject.coupons.forSelectedEvent") })}</span>
+            <div className="bg-white border border-[#e5e7eb] rounded-2xl p-6">
+              <h2 className="font-bold text-sm text-[#1a1a1a] mb-5 flex items-center gap-2">
+                <Tag size={18} className="text-[#FF4747]" /> {t("adminProject.coupons.title")} <span className="text-xs font-normal text-[#888] ml-2 mt-1">{t("adminProject.coupons.forEvent", { eventTitle: activeEvent?.title || t("adminProject.coupons.forSelectedEvent") })}</span>
               </h2>
               <form ref={couponFormRef} onSubmit={handleSaveCoupon} className="space-y-4 mb-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -587,14 +611,36 @@ export default function ProjectPage() {
                   </div>
                   <div>
                     <label className={label}>{t("adminProject.coupons.typeLabel")}</label>
-                    <select
-                      value={couponForm.type}
-                      onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
-                      className={inp}
-                    >
-                      <option value="PERCENTAGE">{t("adminProject.coupons.typePercentage")}</option>
-                      <option value="FIXED">{t("adminProject.coupons.typeFixed")}</option>
-                    </select>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowCouponTypeDropdown(v => !v)}
+                        className={inp + " flex items-center justify-between gap-2 cursor-pointer"}
+                      >
+                        <span>{couponForm.type === "PERCENTAGE" ? t("adminProject.coupons.typePercentage") : t("adminProject.coupons.typeFixed")}</span>
+                        <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showCouponTypeDropdown ? "rotate-90" : ""}`} />
+                      </button>
+                      {showCouponTypeDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setShowCouponTypeDropdown(false)} />
+                          <div className="absolute z-50 mt-1 w-full bg-white border border-[#e5e7eb] rounded-xl shadow-lg overflow-hidden">
+                            {[
+                              { value: "PERCENTAGE", label: t("adminProject.coupons.typePercentage") },
+                              { value: "FIXED", label: t("adminProject.coupons.typeFixed") },
+                            ].map(opt => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => { setCouponForm({ ...couponForm, type: opt.value }); setShowCouponTypeDropdown(false); }}
+                                className={`w-full text-left px-4 py-2.5 text-xs hover:bg-[#fafafa] transition-colors cursor-pointer ${couponForm.type === opt.value ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -656,7 +702,7 @@ export default function ProjectPage() {
                       </div>
                       <div className="text-right shrink-0 flex items-center gap-4">
                         <div>
-                          <div className="text-xs font-bold text-orange-500">
+                          <div className="text-xs font-bold text-[#FF4747]">
                             {c.type === "PERCENTAGE" ? t("adminProject.coupons.percentOff", { value: c.value }) : t("adminProject.coupons.amountOff", { value: Number(c.value).toLocaleString() })}
                           </div>
                           <div className="text-[9px] text-[#555] mt-0.5">{t("adminProject.coupons.uses", { used: c.usedCount || 0, max: c.maxUses })}</div>
@@ -685,11 +731,11 @@ export default function ProjectPage() {
                 {coupons.length === 0 && (
                   <div className="text-center text-xs text-[#888] py-8 border border-dashed border-[#e5e7eb] rounded-2xl bg-white">{t("adminProject.coupons.empty")}</div>
                 )}
+              </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
-  </div>
   );
 }

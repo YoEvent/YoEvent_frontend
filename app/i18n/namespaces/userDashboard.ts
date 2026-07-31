@@ -141,6 +141,8 @@ export const userDashboard = {
       qa: {
         inputPlaceholder: "Ask a question to the organizer or speakers...",
         post: "Post",
+        selectSession: "Select a session",
+        noSessions: "No sessions are set up for this event yet.",
         opensWhenStarts: "Q&A opens when the event starts.",
         closedEnded: "Q&A closed. The event has ended. You can still read and upvote questions.",
         emptyTitle: "No questions yet",
@@ -399,6 +401,8 @@ export const userDashboard = {
       qa: {
         inputPlaceholder: "Posez une question à l'organisateur ou aux intervenants...",
         post: "Publier",
+        selectSession: "Sélectionner une session",
+        noSessions: "Aucune session n'est encore configurée pour cet événement.",
         opensWhenStarts: "Les questions-réponses ouvriront au début de l'événement.",
         closedEnded: "Questions-réponses clos. L'événement est terminé. Vous pouvez toujours consulter et voter pour les questions.",
         emptyTitle: "Aucune question pour le moment",
