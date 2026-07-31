@@ -588,16 +588,7 @@ export default function TeamPage() {
 
             {/* Role */}
             <div className="border-t border-[#f0f0f0] pt-5">
-              <div className="flex items-center justify-between mb-2">
-                <label className={label}>{t("adminTeam.form.roleLabel")}</label>
-                <button type="button" onClick={() => setShowAddRole(v => !v)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">{t("adminTeam.form.addRole")}</button>
-              </div>
-              {showAddRole && (
-                <div className="flex gap-2 mb-3 bg-[#fafafa] p-3 rounded-xl border border-[#e5e7eb]">
-                  <input placeholder={t("adminTeam.form.newRolePlaceholder")} value={newRoleName} onChange={e => setNewRoleName(e.target.value)} className={inp + " py-1.5"} />
-                  <button type="button" onClick={handleAddRole} className="px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-lg hover:bg-[#e03e3e] cursor-pointer">{t("adminTeam.form.save")}</button>
-                </div>
-              )}
+              <label className={label}>{t("adminTeam.form.roleLabel")}</label>
               <div className="relative">
                 <button type="button" onClick={() => setShowRoleDropdown(v => !v)} className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}>
                   <span className={form.roleId ? "text-[#1a1a1a]" : "text-[#aaa]"}>{roles.find(r => r.id === form.roleId)?.name || "Select role"}</span>
@@ -605,11 +596,29 @@ export default function TeamPage() {
                 </button>
                 {showRoleDropdown && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowRoleDropdown(false)} />
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-52 overflow-y-auto">
+                    <div className="fixed inset-0 z-40" onClick={() => { setShowRoleDropdown(false); setShowAddRole(false); setNewRoleName(""); }} />
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-72 overflow-y-auto">
                       {roles.map(r => (
-                        <button key={r.id} type="button" onClick={() => { setForm(f => ({ ...f, roleId: r.id })); setShowRoleDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${r.id === form.roleId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>{r.name}</button>
+                        <div key={r.id} className={`flex items-center group/item px-3 py-0.5 ${r.id === form.roleId ? "bg-[#fff5f5]" : "hover:bg-[#fafafa]"} transition-colors`}>
+                          <button type="button" onClick={() => { setForm(f => ({ ...f, roleId: r.id })); setShowRoleDropdown(false); setShowAddRole(false); }} className={`flex-1 text-left py-2 text-sm cursor-pointer ${r.id === form.roleId ? "text-[#FF4747] font-semibold" : "text-[#1a1a1a]"}`}>{r.name}</button>
+                          <button type="button" onClick={async e => { e.stopPropagation(); if (!confirm(`Delete role "${r.name}"?`)) return; try { await eventService.deleteRole(r.id); const list = await eventService.getRoles().catch(() => []); setRoles(list || []); if (form.roleId === r.id) setForm(f => ({ ...f, roleId: "" })); showToast(`Role "${r.name}" deleted`); } catch { showToast("Failed to delete role"); } }} className="opacity-0 group-hover/item:opacity-100 ml-2 w-6 h-6 flex items-center justify-center text-[#ccc] hover:text-red-500 hover:bg-red-50 rounded-full transition-all cursor-pointer shrink-0">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       ))}
+                      {showAddRole ? (
+                        <div className="px-3 py-2 border-t border-[#f0f0f0] space-y-2">
+                          <input autoFocus placeholder={t("adminTeam.form.newRolePlaceholder")} value={newRoleName} onChange={e => setNewRoleName(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleAddRole())} className={inp + " py-1.5 text-xs"} />
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => { setShowAddRole(false); setNewRoleName(""); }} className="flex-1 py-1.5 text-xs text-[#888] hover:text-[#1a1a1a] border border-[#e5e7eb] rounded-lg cursor-pointer">{t("adminTeam.form.cancel")}</button>
+                            <button type="button" onClick={handleAddRole} className="flex-1 py-1.5 text-xs font-bold text-white bg-[#FF4747] hover:bg-[#e03e3e] rounded-lg cursor-pointer">{t("adminTeam.form.save")}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setShowAddRole(true)} className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#FF4747] hover:bg-[#fff5f5] transition-colors cursor-pointer border-t border-[#f0f0f0]">
+                          {t("adminTeam.form.addRole")}
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
@@ -622,16 +631,7 @@ export default function TeamPage() {
               <div><label className={label}>{t("adminTeam.form.jobTitleLabel")}</label><input placeholder={t("adminTeam.form.jobTitlePlaceholder")} value={form.jobTitle} onChange={e => setForm(f => ({ ...f, jobTitle: e.target.value }))} className={inp} /></div>
 
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className={label}>{t("adminTeam.form.affiliatedCompany")}</label>
-                  <button type="button" onClick={() => setShowAddOrg(v => !v)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">{t("adminTeam.form.addOrg")}</button>
-                </div>
-                {showAddOrg && (
-                  <div className="flex gap-2 mb-3 bg-[#fafafa] p-3 rounded-xl border border-[#e5e7eb]">
-                    <input placeholder={t("adminTeam.form.newOrgNamePlaceholder")} value={newOrgName} onChange={e => setNewOrgName(e.target.value)} className={inp + " py-1.5"} />
-                    <button type="button" onClick={handleAddOrg} className="px-3 py-1.5 bg-[#FF4747] text-white text-xs font-bold rounded-lg hover:bg-[#e03e3e] cursor-pointer">{t("adminTeam.form.save")}</button>
-                  </div>
-                )}
+                <label className={label}>{t("adminTeam.form.affiliatedCompany")}</label>
                 <div className="relative">
                   <button type="button" onClick={() => setShowOrgDropdown(v => !v)} className={`${inp} w-full text-left flex items-center justify-between cursor-pointer`}>
                     <span className={form.organizationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>{form.organizationId ? organizations.find(o => o.id === form.organizationId)?.name : t("adminTeam.form.selectOrganization")}</span>
@@ -639,12 +639,30 @@ export default function TeamPage() {
                   </button>
                   {showOrgDropdown && (
                     <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowOrgDropdown(false)} />
-                      <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-52 overflow-y-auto">
+                      <div className="fixed inset-0 z-40" onClick={() => { setShowOrgDropdown(false); setShowAddOrg(false); setNewOrgName(""); }} />
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-72 overflow-y-auto">
                         <button type="button" onClick={() => { setForm(f => ({ ...f, organizationId: "" })); setShowOrgDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${!form.organizationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#888]"}`}>{t("adminTeam.form.selectOrganization")}</button>
                         {organizations.map(o => (
-                          <button key={o.id} type="button" onClick={() => { setForm(f => ({ ...f, organizationId: o.id })); setShowOrgDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors cursor-pointer ${o.id === form.organizationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>{o.name}</button>
+                          <div key={o.id} className={`flex items-center group/item px-3 py-0.5 ${o.id === form.organizationId ? "bg-[#fff5f5]" : "hover:bg-[#fafafa]"} transition-colors`}>
+                            <button type="button" onClick={() => { setForm(f => ({ ...f, organizationId: o.id })); setShowOrgDropdown(false); setShowAddOrg(false); }} className={`flex-1 text-left py-2 text-sm cursor-pointer ${o.id === form.organizationId ? "text-[#FF4747] font-semibold" : "text-[#1a1a1a]"}`}>{o.name}</button>
+                            <button type="button" onClick={async e => { e.stopPropagation(); if (!confirm(`Delete organization "${o.name}"?`)) return; try { await eventService.deleteOrganization(o.id); const list = await eventService.getOrganizations().catch(() => []); setOrganizations(list || []); if (form.organizationId === o.id) setForm(f => ({ ...f, organizationId: "" })); showToast(`Organization "${o.name}" deleted`); } catch { showToast("Failed to delete organization"); } }} className="opacity-0 group-hover/item:opacity-100 ml-2 w-6 h-6 flex items-center justify-center text-[#ccc] hover:text-red-500 hover:bg-red-50 rounded-full transition-all cursor-pointer shrink-0">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         ))}
+                        {showAddOrg ? (
+                          <div className="px-3 py-2 border-t border-[#f0f0f0] space-y-2">
+                            <input autoFocus placeholder={t("adminTeam.form.newOrgNamePlaceholder")} value={newOrgName} onChange={e => setNewOrgName(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), handleAddOrg())} className={inp + " py-1.5 text-xs"} />
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => { setShowAddOrg(false); setNewOrgName(""); }} className="flex-1 py-1.5 text-xs text-[#888] hover:text-[#1a1a1a] border border-[#e5e7eb] rounded-lg cursor-pointer">{t("adminTeam.form.cancel")}</button>
+                              <button type="button" onClick={handleAddOrg} className="flex-1 py-1.5 text-xs font-bold text-white bg-[#FF4747] hover:bg-[#e03e3e] rounded-lg cursor-pointer">{t("adminTeam.form.save")}</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => setShowAddOrg(true)} className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#FF4747] hover:bg-[#fff5f5] transition-colors cursor-pointer border-t border-[#f0f0f0]">
+                            {t("adminTeam.form.addOrg")}
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
@@ -653,50 +671,14 @@ export default function TeamPage() {
 
               <div><label className={label}>{t("adminTeam.form.bioLabel")}</label><textarea placeholder={t("adminTeam.form.bioPlaceholder")} value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} rows={2} className={inp + " resize-none"} /></div>
             </div>
-
             {/* Scheduling & Availability */}
             <div className="border-t border-[#f0f0f0] pt-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">{t("adminTeam.form.sessionRoomHeading")}</h4>
-                <button type="button" onClick={() => setShowQuickSession(v => !v)} className="text-[10px] font-bold text-[#FF4747] hover:underline cursor-pointer">{t("adminTeam.form.quickCreateSession")}</button>
-              </div>
+              <h4 className="text-[10px] font-bold text-[#FF4747] uppercase tracking-wider">{t("adminTeam.form.sessionRoomHeading")}</h4>
 
-              {/* Quick Create Session */}
-              {showQuickSession && (
-                <div className="bg-white border border-[#e5e7eb] rounded-xl p-3 space-y-3 shadow-sm">
-                  <input placeholder={t("adminTeam.form.sessionTitlePlaceholder")} value={quickSession.title} onChange={e => setQuickSession(q => ({ ...q, title: e.target.value }))} className={inp + " py-1.5"} />
-                  <div className="flex gap-2">
-                    <input type="datetime-local" value={quickSession.startTime} onChange={e => setQuickSession(q => ({ ...q, startTime: e.target.value }))} className={inp + " py-1.5 flex-1"} />
-                    <input type="datetime-local" value={quickSession.endTime} onChange={e => setQuickSession(q => ({ ...q, endTime: e.target.value }))} className={inp + " py-1.5 flex-1"} />
-                  </div>
-                  <div className="relative">
-                    <button type="button" onClick={() => setShowQuickSessionLocDropdown(v => !v)} className={`${inp} py-1.5 w-full text-left flex items-center justify-between cursor-pointer`}>
-                      <span className={quickSession.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>{quickSession.locationId ? locations.find(l => l.roomId === quickSession.locationId)?.name || "Selected Room" : "Select Room (Optional)"}</span>
-                      <ChevronRight size={14} className={`text-[#aaa] transition-transform ${showQuickSessionLocDropdown ? "rotate-90" : ""}`} />
-                    </button>
-                    {showQuickSessionLocDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowQuickSessionLocDropdown(false)} />
-                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-40 overflow-y-auto">
-                          <button type="button" onClick={() => { setQuickSession(q => ({ ...q, locationId: "" })); setShowQuickSessionLocDropdown(false); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-[#fafafa] cursor-pointer ${!quickSession.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#888]"}`}>Clear Room</button>
-                          {locations.map(loc => (
-                            <button key={loc.roomId} type="button" onClick={() => { setQuickSession(q => ({ ...q, locationId: loc.roomId })); setShowQuickSessionLocDropdown(false); }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] cursor-pointer ${loc.roomId === quickSession.locationId ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>{loc.name}</button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <button type="button" onClick={() => setShowQuickSession(false)} className="px-3 py-1 text-xs text-[#888] hover:text-[#1a1a1a] cursor-pointer">{t("adminTeam.form.cancel")}</button>
-                    <button type="button" onClick={handleQuickSessionSave} className="px-3 py-1 bg-[#FF4747] text-white text-xs font-bold rounded-lg hover:bg-[#e03e3e] cursor-pointer">{t("adminTeam.form.create")}</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Multi-select Sessions */}
+              {/* Multi-select Sessions with inline Quick Create */}
               <div className="relative">
                 <label className={label}>{t("adminTeam.form.assignedSession")}</label>
-                <button type="button" onClick={() => setShowFormSessionDropdown(v => !v)} className={`${inp} w-full text-left flex items-center justify-between cursor-pointer min-h-[42px]`}>
+                <button type="button" onClick={() => { setShowFormSessionDropdown(v => !v); setShowQuickSession(false); }} className={`${inp} w-full text-left flex items-center justify-between cursor-pointer min-h-[42px]`}>
                   <div className="flex gap-1.5 flex-wrap flex-1 max-w-[90%] min-h-[22px]">
                     {form.sessionIds.length > 0 ? (
                       form.sessionIds.map(sId => {
@@ -716,21 +698,59 @@ export default function TeamPage() {
                 </button>
                 {showFormSessionDropdown && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowFormSessionDropdown(false)} />
-                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-60 overflow-y-auto">
-                      {sessions.length === 0 && <div className="px-4 py-3 text-sm text-[#aaa]">No sessions available</div>}
+                    <div className="fixed inset-0 z-40" onClick={() => { setShowFormSessionDropdown(false); setShowQuickSession(false); setQuickSession({ title: "", startTime: "", endTime: "", locationId: "" }); }} />
+                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white border border-[#e5e7eb] rounded-2xl shadow-xl overflow-hidden py-1 max-h-80 overflow-y-auto">
+                      {sessions.length === 0 && !showQuickSession && <div className="px-4 py-3 text-sm text-[#aaa]">No sessions yet. Create one below.</div>}
                       {sessions.map(s => {
                         const id = s.sessionId || s.id;
                         const isSelected = form.sessionIds.includes(id);
                         return (
-                          <button key={id} type="button" onClick={() => {
-                            setForm(f => ({ ...f, sessionIds: isSelected ? f.sessionIds.filter(sid => sid !== id) : [...f.sessionIds, id] }));
-                          }} className={`w-full text-left px-4 py-2.5 text-sm hover:bg-[#fafafa] transition-colors flex items-center justify-between cursor-pointer ${isSelected ? "text-[#FF4747] font-semibold bg-[#fff5f5]" : "text-[#1a1a1a]"}`}>
-                            <span className="truncate pr-4">{s.title}</span>
-                            {isSelected && <span className="text-[#FF4747] shrink-0 font-bold">✓</span>}
-                          </button>
+                          <div key={id} className={`flex items-center group/item px-3 py-0.5 ${isSelected ? "bg-[#fff5f5]" : "hover:bg-[#fafafa]"} transition-colors`}>
+                            <button type="button" onClick={() => setForm(f => ({ ...f, sessionIds: isSelected ? f.sessionIds.filter(sid => sid !== id) : [...f.sessionIds, id] }))} className={`flex-1 text-left py-2 text-sm cursor-pointer flex items-center justify-between ${isSelected ? "text-[#FF4747] font-semibold" : "text-[#1a1a1a]"}`}>
+                              <span className="truncate pr-2">{s.title}</span>
+                              {isSelected && <span className="text-[#FF4747] shrink-0 font-bold text-xs">✓</span>}
+                            </button>
+                            <button type="button" onClick={async e => { e.stopPropagation(); if (!confirm(`Delete session "${s.title}"?`)) return; try { await eventService.deleteSession(id); const sessList = await eventService.getSessions().catch(() => []); setSessions((sessList || []).filter((ss: any) => (ss.eventId || ss.event?.eventId) === selectedEventId)); setForm(f => ({ ...f, sessionIds: f.sessionIds.filter(sid => sid !== id) })); showToast(`Session "${s.title}" deleted`); } catch { showToast("Failed to delete session"); } }} className="opacity-0 group-hover/item:opacity-100 ml-2 w-6 h-6 flex items-center justify-center text-[#ccc] hover:text-red-500 hover:bg-red-50 rounded-full transition-all cursor-pointer shrink-0">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         );
                       })}
+                      {/* Quick Create Session inline */}
+                      {showQuickSession ? (
+                        <div className="px-3 py-2 border-t border-[#f0f0f0] space-y-2">
+                          <input autoFocus placeholder={t("adminTeam.form.sessionTitlePlaceholder")} value={quickSession.title} onChange={e => setQuickSession(q => ({ ...q, title: e.target.value }))} className={inp + " py-1.5 text-xs"} />
+                          <div className="flex gap-2">
+                            <input type="datetime-local" value={quickSession.startTime} onChange={e => setQuickSession(q => ({ ...q, startTime: e.target.value }))} className={inp + " py-1.5 flex-1 text-xs"} />
+                            <input type="datetime-local" value={quickSession.endTime} onChange={e => setQuickSession(q => ({ ...q, endTime: e.target.value }))} className={inp + " py-1.5 flex-1 text-xs"} />
+                          </div>
+                          <div className="relative">
+                            <button type="button" onClick={() => setShowQuickSessionLocDropdown(v => !v)} className={`${inp} py-1.5 w-full text-left flex items-center justify-between cursor-pointer text-xs`}>
+                              <span className={quickSession.locationId ? "text-[#1a1a1a]" : "text-[#aaa]"}>{quickSession.locationId ? locations.find(l => l.roomId === quickSession.locationId)?.name || "Selected" : "Select Room (Optional)"}</span>
+                              <ChevronRight size={12} className={`text-[#aaa] transition-transform ${showQuickSessionLocDropdown ? "rotate-90" : ""}`} />
+                            </button>
+                            {showQuickSessionLocDropdown && (
+                              <>
+                                <div className="fixed inset-0 z-[60]" onClick={() => setShowQuickSessionLocDropdown(false)} />
+                                <div className="absolute left-0 right-0 top-full mt-1 z-[70] bg-white border border-[#e5e7eb] rounded-xl shadow-xl overflow-hidden py-1 max-h-36 overflow-y-auto">
+                                  <button type="button" onClick={() => { setQuickSession(q => ({ ...q, locationId: "" })); setShowQuickSessionLocDropdown(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-[#fafafa] cursor-pointer text-[#888]">Clear Room</button>
+                                  {locations.map(loc => (
+                                    <button key={loc.roomId} type="button" onClick={() => { setQuickSession(q => ({ ...q, locationId: loc.roomId })); setShowQuickSessionLocDropdown(false); }} className={`w-full text-left px-3 py-2 text-xs hover:bg-[#fafafa] cursor-pointer ${loc.roomId === quickSession.locationId ? "text-[#FF4747] font-semibold" : "text-[#1a1a1a]"}`}>{loc.name}</button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => { setShowQuickSession(false); setQuickSession({ title: "", startTime: "", endTime: "", locationId: "" }); }} className="flex-1 py-1.5 text-xs text-[#888] hover:text-[#1a1a1a] border border-[#e5e7eb] rounded-lg cursor-pointer">{t("adminTeam.form.cancel")}</button>
+                            <button type="button" onClick={handleQuickSessionSave} className="flex-1 py-1.5 text-xs font-bold text-white bg-[#FF4747] hover:bg-[#e03e3e] rounded-lg cursor-pointer">{t("adminTeam.form.create")}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setShowQuickSession(true)} className="w-full text-left px-4 py-2.5 text-xs font-bold text-[#FF4747] hover:bg-[#fff5f5] transition-colors cursor-pointer border-t border-[#f0f0f0]">
+                          {t("adminTeam.form.quickCreateSession")}
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
