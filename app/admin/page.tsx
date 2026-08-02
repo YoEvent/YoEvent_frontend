@@ -92,6 +92,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadDashboard();
+    const handleResynced = () => loadDashboard();
+    window.addEventListener("yowevent:resynced", handleResynced);
+    return () => window.removeEventListener("yowevent:resynced", handleResynced);
   }, []);
 
   const handleStripeConnect = async () => {

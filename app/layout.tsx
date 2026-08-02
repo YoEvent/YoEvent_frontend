@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import ClientInitializer from "@/components/ClientInitializer";
 import InstallPrompt from "@/components/InstallPrompt";
+import OfflineIndicator from "@/components/OfflineIndicator";
 import { LanguageProvider } from "@/app/context/LanguageContext";
 
 const inter = Inter({
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           <ClientInitializer />
           <InstallPrompt />
+          <OfflineIndicator />
           {children}
         </LanguageProvider>
       </body>

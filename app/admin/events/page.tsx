@@ -14,6 +14,7 @@ import {
 import { getStoredAuth } from "@/app/utils/api";
 import { eventService } from "@/app/utils/services/eventService";
 import { savePendingEvent } from "@/app/utils/offlineDb";
+import { executeOrQueueAction } from "@/app/utils/offlineActionManager";
 import { useOfflineSync } from "@/app/utils/useOfflineSync";
 import { useLanguage } from "@/app/context/LanguageContext";
 
@@ -458,7 +459,7 @@ export default function EventsPage() {
     if (!selectedId) return;
     setSaving(true);
     try {
-      await eventService.updateEvent(selectedId, {
+      const payload = {
         tenantId: selectedEvent?.tenantId,
         organizerId: selectedEvent?.organizerId,
         title: detailsForm.title,
@@ -474,12 +475,27 @@ export default function EventsPage() {
         isPaid: detailsForm.isPaid ?? false,
         themes: detailsForm.themes || "",
         motto: detailsForm.motto || "",
+      };
+
+      const res = await executeOrQueueAction({
+        actionType: "UPDATE_EVENT",
+        endpoint: `/api/v1/events/${selectedId}`,
+        method: "PUT",
+        payload,
+        onOfflineFallback: () => {
+          setEvents(prev => prev.map(e => ((e.eventId === selectedId || e.id === selectedId) ? { ...e, ...payload } : e)));
+          return payload;
+        },
       });
-      // Refresh events list and re-sync the selected event details
-      const evs = await eventService.getMyEvents().catch(() => []);
-      const filtered = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
-      setEvents(filtered);
-      showToast(t("adminEvents.toasts.detailsSaved"));
+
+      if (res.isOffline) {
+        showToast("Details saved offline! Will auto-sync when online.");
+      } else {
+        const evs = await eventService.getMyEvents().catch(() => []);
+        const filtered = (evs || []).filter((e: any) => !auth?.tenantId || !e.tenantId || e.tenantId === auth.tenantId);
+        setEvents(filtered);
+        showToast(t("adminEvents.toasts.detailsSaved"));
+      }
     } catch (err: any) {
       showToast(err.message || t("adminEvents.toasts.detailsSaveFailed"));
     } finally {

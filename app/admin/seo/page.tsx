@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Settings, Globe, Shield, RefreshCw, Lock, Sparkles, ExternalLink, CheckCircle, XCircle, Zap } from "lucide-react";
 import { api, getStoredAuth, clearStoredAuth } from "@/app/utils/api";
+import { executeOrQueueAction } from "@/app/utils/offlineActionManager";
 import { useRouter } from "next/navigation";
 import { authService } from "@/app/utils/services/authService";
 import { useLanguage } from "@/app/context/LanguageContext";
@@ -201,17 +202,27 @@ export default function SeoPage() {
         delete payload.customDomain;
       }
 
-      if (settingsId) {
-        await authService.updateTenantSetting(settingsId, payload);
-      } else {
-        const res = await authService.createTenantSetting(payload);
-        setSettingsId(res.settingId || "");
-      }
+      const res = await executeOrQueueAction({
+        actionType: settingsId ? "UPDATE_SETTINGS" : "CREATE_SETTINGS",
+        endpoint: settingsId ? `/api/v1/tenantsettings/${settingsId}` : "/api/v1/tenantsettings",
+        method: settingsId ? "PUT" : "POST",
+        payload,
+      });
 
       if (tenant) {
-        await authService.updateTenant(auth.tenantId, { ...tenant, ...tenantForm });
+        await executeOrQueueAction({
+          actionType: "UPDATE_TENANT",
+          endpoint: `/api/v1/tenants/${auth.tenantId}`,
+          method: "PUT",
+          payload: { ...tenant, ...tenantForm },
+        });
       }
-      showToast("success", t("adminSeo.toast.settingsSaved"));
+
+      if (res.isOffline) {
+        showToast("success", "Settings saved offline! Will auto-sync when online.");
+      } else {
+        showToast("success", t("adminSeo.toast.settingsSaved"));
+      }
     } catch (err: any) {
       showToast("error", err.message || t("adminSeo.toast.settingsSaveFailed"));
     }

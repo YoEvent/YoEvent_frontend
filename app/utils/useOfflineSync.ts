@@ -1,6 +1,15 @@
 "use client";
+
 import { useEffect, useRef, useCallback } from "react";
-import { getPendingEvents, deletePendingEvent } from "./offlineDb";
+import { api } from "./api";
+import {
+  getPendingEvents,
+  deletePendingEvent,
+  getPendingCheckIns,
+  deletePendingCheckIn,
+  getQueuedActions,
+  deleteQueuedAction,
+} from "./offlineDb";
 import { eventService } from "./services/eventService";
 
 export function useOfflineSync(onSynced?: (count: number) => void) {
@@ -9,13 +18,16 @@ export function useOfflineSync(onSynced?: (count: number) => void) {
   onSyncedRef.current = onSynced;
 
   const syncPending = useCallback(async () => {
-    if (syncing.current || !navigator.onLine) return;
+    if (syncing.current || typeof window === "undefined" || !navigator.onLine) return;
     syncing.current = true;
+    let totalSynced = 0;
+
+    window.dispatchEvent(new CustomEvent("yowevent:syncingstart"));
+
     try {
-      const pending = await getPendingEvents();
-      if (pending.length === 0) return;
-      let synced = 0;
-      for (const item of pending) {
+      // 1. Process pending new events
+      const pendingEvents = await getPendingEvents().catch(() => []);
+      for (const item of pendingEvents) {
         try {
           const ev = await eventService.createEvent(item.eventData);
           const id = ev.eventId || (ev as any).id;
@@ -23,16 +35,50 @@ export function useOfflineSync(onSynced?: (count: number) => void) {
             await eventService.createEventSchedule({ ...day, eventId: id });
           }
           await deletePendingEvent(item.id);
-          synced++;
-        } catch {
-          // leave in IndexedDB to retry next time
+          totalSynced++;
+        } catch (e) {
+          // Leave in IndexedDB for retry on next sync cycle
         }
       }
-      if (synced > 0) onSyncedRef.current?.(synced);
+
+      // 2. Process pending check-ins
+      const pendingCheckins = await getPendingCheckIns().catch(() => []);
+      for (const chk of pendingCheckins) {
+        try {
+          await api.post(`/api/v1/registrations/${chk.registrationId}/check-in`, {
+            sessionId: chk.sessionId,
+          });
+          await deletePendingCheckIn(chk.id);
+          totalSynced++;
+        } catch (e) {
+          // Leave in IndexedDB for retry
+        }
+      }
+
+      // 3. Process generic queued actions
+      const queuedActions = await getQueuedActions().catch(() => []);
+      for (const act of queuedActions) {
+        try {
+          await api.request(act.endpoint, {
+            method: act.method,
+            body: act.payload ? JSON.stringify(act.payload) : undefined,
+          });
+          await deleteQueuedAction(act.id);
+          totalSynced++;
+        } catch (e) {
+          // Leave in IndexedDB for retry
+        }
+      }
+
+      if (totalSynced > 0) {
+        onSyncedRef.current?.(totalSynced);
+        window.dispatchEvent(new CustomEvent("yowevent:resynced", { detail: { count: totalSynced } }));
+      }
     } finally {
       syncing.current = false;
+      window.dispatchEvent(new CustomEvent("yowevent:syncingend"));
     }
-  }, []); // stable reference — uses ref for callback
+  }, []);
 
   useEffect(() => {
     syncPending();
