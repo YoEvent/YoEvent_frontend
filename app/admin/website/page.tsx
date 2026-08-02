@@ -164,18 +164,24 @@ export default function WebsitePage() {
 
   const handleBrandingUpload = async (type: "logo" | "banner", file: File) => {
     const auth = getStoredAuth();
-    if (!auth) return;
+    const targetTenantId = tenant?.tenantId || auth?.tenantId;
+    if (!targetTenantId) {
+      setBrandingMsg({ type: "error", text: "Tenant ID missing. Please refresh and try again." });
+      return;
+    }
     setBrandingLoading(type);
     setBrandingMsg(null);
     try {
       const res = type === "logo"
-        ? await authService.uploadTenantLogo(auth.tenantId, file)
-        : await authService.uploadTenantBanner(auth.tenantId, file);
+        ? await authService.uploadTenantLogo(targetTenantId, file)
+        : await authService.uploadTenantBanner(targetTenantId, file);
       const url = res?.url || res?.logoUrl || res?.bannerUrl || Object.values(res || {})[0] as string;
       setTenant((prev: any) => ({ ...prev, [type === "logo" ? "logo" : "bannerUrl"]: url }));
       setBrandingMsg({ type: "success", text: type === "logo" ? t("adminWebsite.messages.logoUploaded") : t("adminWebsite.messages.bannerUploaded") });
-    } catch {
-      setBrandingMsg({ type: "error", text: type === "logo" ? t("adminWebsite.messages.logoUploadFailed") : t("adminWebsite.messages.bannerUploadFailed") });
+    } catch (err: any) {
+      console.error("Branding upload error:", err);
+      const msg = err?.message || (type === "logo" ? t("adminWebsite.messages.logoUploadFailed") : t("adminWebsite.messages.bannerUploadFailed"));
+      setBrandingMsg({ type: "error", text: msg });
     } finally {
       setBrandingLoading(null);
     }

@@ -27,19 +27,6 @@ const TABS: { id: EventTab; labelKey: string; icon: any }[] = [
   { id: "schedule", labelKey: "adminEvents.tabs.schedule", icon: Calendar },
   { id: "location", labelKey: "adminEvents.tabs.location", icon: MapPin },
   { id: "sections", labelKey: "adminEvents.tabs.sections", icon: Layers },
-  { id: "tickets", labelKey: "adminEvents.tabs.tickets", icon: Ticket },
-  { id: "coupons", labelKey: "adminEvents.tabs.coupons", icon: Tag },
-  { id: "registrations", labelKey: "adminEvents.tabs.registrations", icon: ScanLine },
-  { id: "waitlist", labelKey: "adminEvents.tabs.waitlist", icon: List },
-  { id: "team", labelKey: "adminEvents.tabs.team", icon: Users },
-  { id: "sessions", labelKey: "adminEvents.tabs.sessions", icon: Radio },
-  { id: "speakers", labelKey: "adminEvents.tabs.speakers", icon: Mic2 },
-  { id: "sponsors", labelKey: "adminEvents.tabs.sponsors", icon: Star },
-  { id: "vendors", labelKey: "adminEvents.tabs.vendors", icon: Building2 },
-  { id: "announcements", labelKey: "adminEvents.tabs.announcements", icon: Megaphone },
-  { id: "live", labelKey: "adminEvents.tabs.live", icon: Wifi },
-  { id: "email", labelKey: "adminEvents.tabs.email", icon: Mail },
-  { id: "feedback", labelKey: "adminEvents.tabs.feedback", icon: MessageSquare },
 ];
 
 const inp = "w-full bg-white border border-[#e5e7eb] rounded-xl px-4 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#aaa] outline-none focus:border-[#FF4747] transition-colors";
@@ -1417,18 +1404,6 @@ export default function EventsPage() {
                 {tab === "details" && <button onClick={saveDetails} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveDetails")}</button>}
                 {tab === "schedule" && <button onClick={saveSchedule} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSchedule")}</button>}
                 {tab === "location" && <button onClick={() => locFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingLocation ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveLocation")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addLocation")}</>}</button>}
-                {tab === "tickets" && <button onClick={() => ticketFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingTicket ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveTicket")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addTicket")}</>}</button>}
-                {tab === "coupons" && <button onClick={() => couponFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingCoupon ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveCoupon")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addCoupon")}</>}</button>}
-                {tab === "team" && <button onClick={() => teamFormRef.current?.requestSubmit()} disabled={teamLoading} className={saveBtn}>{editingMember ? <><Save size={13} />{teamLoading ? t("adminEvents.common.saving") : t("adminEvents.header.saveMember")}</> : <><Plus size={13} />{teamLoading ? t("adminEvents.common.adding") : t("adminEvents.header.addMember")}</>}</button>}
-                {tab === "sessions" && <button onClick={() => sessionFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSession ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSession")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSession")}</>}</button>}
-                {tab === "speakers" && <button onClick={() => speakerFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSpeaker ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSpeaker")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSpeaker")}</>}</button>}
-                {tab === "sponsors" && <button onClick={() => sponsorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingSponsor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveSponsor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addSponsor")}</>}</button>}
-                {tab === "registrations" && <button onClick={loadRegistrations} disabled={registrationsLoading} className={saveBtn}><ScanLine size={13} />{registrationsLoading ? t("adminEvents.common.loading") : t("adminEvents.header.refresh")}</button>}
-                {tab === "waitlist" && <button onClick={loadWaitlist} disabled={waitlistLoading} className={saveBtn}><List size={13} />{waitlistLoading ? t("adminEvents.common.loading") : t("adminEvents.header.refresh")}</button>}
-                {tab === "vendors" && <button onClick={() => exhibitorFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingExhibitor ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.saveExhibitor")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.adding") : t("adminEvents.header.addExhibitor")}</>}</button>}
-                {tab === "announcements" && <button onClick={() => announcementFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingAnnouncement ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.save")}</> : <><Megaphone size={13} />{saving ? t("adminEvents.common.posting") : t("adminEvents.header.postAnnouncement")}</>}</button>}
-                {tab === "live" && <button onClick={() => pollFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}>{editingPoll ? <><Save size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.savePoll")}</> : <><Plus size={13} />{saving ? t("adminEvents.common.creating") : t("adminEvents.header.addPoll")}</>}</button>}
-                {tab === "email" && <button onClick={() => emailFormRef.current?.requestSubmit()} disabled={saving} className={saveBtn}><Mail size={13} />{saving ? t("adminEvents.common.saving") : t("adminEvents.header.scheduleEmail")}</button>}
                 {tab === "sections" && <button onClick={saveSection} disabled={saving} className={saveBtn}><Save size={13} />{saving ? t("adminEvents.common.saving") : editingSection ? t("adminEvents.header.saveSection") : t("adminEvents.header.addSection")}</button>}
               </div>
             </header>

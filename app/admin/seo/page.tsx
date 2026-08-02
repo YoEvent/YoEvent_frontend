@@ -122,8 +122,12 @@ export default function SeoPage() {
     try {
       setLogoMsg({ type: "", text: "" });
       const auth = getStoredAuth();
-      if (!auth) return;
-      const res: any = await authService.uploadTenantLogo(auth.tenantId, file);
+      const targetTenantId = tenant?.tenantId || auth?.tenantId;
+      if (!targetTenantId) {
+        setLogoMsg({ type: "error", text: "Tenant ID missing. Please refresh and try again." });
+        return;
+      }
+      const res: any = await authService.uploadTenantLogo(targetTenantId, file);
       const newLogo = res.logoUrl || res.url || res.logo || (typeof res === "string" ? res : "");
       setTenant((prev: any) => ({ ...prev, logo: newLogo }));
       setLogoMsg({ type: "success", text: t("adminSeo.toast.logoUploaded") });

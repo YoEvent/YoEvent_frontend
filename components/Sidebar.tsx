@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart, Package, Code2, MessageCircle, ChevronDown } from "lucide-react";
+import { LayoutDashboard, FolderOpen, Globe, Search, Calendar, BarChart2, LogOut, Percent, Users, DollarSign, UserCheck, ScanLine, ShoppingCart, Package, Code2, MessageCircle, ChevronDown, List } from "lucide-react";
 import { getStoredAuth, clearStoredAuth, getAuthClaims } from "@/app/utils/api";
 import { authService } from "@/app/utils/services/authService";
 
@@ -33,6 +33,7 @@ const sidebarStructure: SidebarLink[] = [
       { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
       { href: "/admin/checkin", label: "Check-in", icon: ScanLine },
       { href: "/admin/project", label: "Ticketing", icon: FolderOpen },
+      { href: "/admin/waitlist", label: "Waitlist", icon: List },
       { href: "/admin/payouts", label: "Payouts", icon: DollarSign },
       { href: "/admin/applications", label: "Applications", icon: Users },
       { href: "/admin/engagements", label: "Performance", icon: BarChart2 },
